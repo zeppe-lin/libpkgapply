@@ -44,6 +44,32 @@ private:
   std::vector<application_backend_evidence_identity> evidence_;
 };
 
+/*! \brief Result of publishing one immutable rejected-object record. */
+class rejected_object_publication_result final {
+public:
+  /*!
+   * \brief Retain publication outcome, completed record, and mechanism evidence.
+   *
+   * A completed outcome requires exactly one immutable record identity. Failed
+   * and indeterminate outcomes cannot claim a completed rejected record.
+   */
+  rejected_object_publication_result(
+      backend_operation_outcome outcome,
+      std::optional<rejected_object_record_identity> record,
+      std::vector<application_backend_evidence_identity> evidence = {});
+
+  [[nodiscard]] backend_operation_outcome outcome() const noexcept;
+  [[nodiscard]] const std::optional<rejected_object_record_identity>&
+  record() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  evidence() const noexcept;
+
+private:
+  backend_operation_outcome outcome_;
+  std::optional<rejected_object_record_identity> record_;
+  std::vector<application_backend_evidence_identity> evidence_;
+};
+
 /*! \brief Exact observation closure returned for one requested path set. */
 class backend_observation_batch final {
 public:
@@ -215,7 +241,7 @@ public:
   [[nodiscard]] virtual backend_operation_result execute_active(
       const backend_active_effect_request& request) = 0;
 
-  [[nodiscard]] virtual backend_operation_result execute_rejected(
+  [[nodiscard]] virtual rejected_object_publication_result execute_rejected(
       const backend_rejected_effect_request& request) = 0;
 
   [[nodiscard]] virtual backend_operation_result recover(

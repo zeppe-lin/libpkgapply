@@ -268,8 +268,9 @@ main()
     const auto rejected = transaction->execute_rejected(
         pkgapply::backend_rejected_effect_request::stage_old(path));
     require(rejected.outcome() ==
-                pkgapply::backend_operation_outcome::completed,
-            "scripted rejected effect did not complete");
+                pkgapply::backend_operation_outcome::completed &&
+            rejected.record().has_value(),
+            "scripted rejected effect did not publish a record");
 
     const auto recovery = transaction->recover(path);
     require(recovery.outcome() ==

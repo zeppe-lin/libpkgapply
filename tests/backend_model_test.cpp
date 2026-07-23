@@ -227,5 +227,35 @@ main()
           !rejected_old.incoming_entry().has_value(),
           "old rejected-object command gained incoming authority");
 
+  const auto rejected_record =
+      identity<pkgapply::rejected_object_record_identity>(30);
+  const pkgapply::rejected_object_publication_result rejected_completed(
+      pkgapply::backend_operation_outcome::completed, rejected_record,
+      {evidence_a});
+  require(rejected_completed.record() == rejected_record,
+          "completed rejected publication lost its immutable record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::rejected_object_publication_result(
+            pkgapply::backend_operation_outcome::completed, std::nullopt));
+      },
+      "completed rejected publication omitted its record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::rejected_object_publication_result(
+            pkgapply::backend_operation_outcome::failed, rejected_record));
+      },
+      "failed rejected publication retained a completed record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::rejected_object_publication_result(
+            pkgapply::backend_operation_outcome::conditional_retained,
+            std::nullopt));
+      },
+      "rejected publication accepted a conditional outcome");
+
   return 0;
 }

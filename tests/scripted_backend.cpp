@@ -5,10 +5,38 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 namespace pkgapply::test {
+namespace {
+
+rejected_object_record_identity
+rejected_record_identity(const pkgplan::package_path& path)
+{
+  rejected_object_record_identity::byte_array bytes{};
+  std::size_t index = 0;
+  for (const unsigned char byte : path.string()) {
+    const std::size_t slot = index % bytes.size();
+    bytes[slot] = static_cast<std::uint8_t>(
+        (static_cast<unsigned int>(bytes[slot]) * 33U) ^ byte);
+    ++index;
+  }
+  bytes.back() ^= static_cast<std::uint8_t>(path.string().size() & 0xffU);
+
+  static constexpr char hexadecimal[] = "0123456789abcdef";
+  std::string canonical = "v1:sha256:";
+  canonical.reserve(canonical.size() + bytes.size() * 2);
+  for (const std::uint8_t byte : bytes) {
+    canonical.push_back(hexadecimal[(byte >> 4U) & 0x0fU]);
+    canonical.push_back(hexadecimal[byte & 0x0fU]);
+  }
+  return rejected_object_record_identity::parse(canonical);
+}
+
+} // namespace
 
 class scripted_payload_stage final : public incoming_payload_stage {
 public:
@@ -199,13 +227,19 @@ public:
         {evidence_});
   }
 
-  backend_operation_result execute_rejected(
+  rejected_object_publication_result execute_rejected(
       const backend_rejected_effect_request& request) override
   {
     state_->record(scripted_backend_boundary::execute_rejected, request.path());
     state_->maybe_throw(scripted_backend_boundary::execute_rejected);
-    return backend_operation_result(
-        state_->outcome(scripted_backend_boundary::execute_rejected),
+    const backend_operation_outcome outcome =
+        state_->outcome(scripted_backend_boundary::execute_rejected);
+    return rejected_object_publication_result(
+        outcome,
+        outcome == backend_operation_outcome::completed
+            ? std::optional<rejected_object_record_identity>(
+                  rejected_record_identity(request.path()))
+            : std::nullopt,
         {evidence_});
   }
 
