@@ -272,6 +272,18 @@ require_no_target_effects(
   }
 }
 
+void
+require_no_active_effects(
+    const std::vector<pkgapply::test::scripted_backend_event>& events)
+{
+  using boundary = pkgapply::test::scripted_backend_boundary;
+  for (const auto& event : events) {
+    require(event.boundary != boundary::execute_active &&
+                event.boundary != boundary::recover,
+            "rejected publication crossed the active-mutation boundary");
+  }
+}
+
 std::size_t
 first_boundary(
     const std::vector<pkgapply::test::scripted_backend_event>& events,
@@ -280,6 +292,23 @@ first_boundary(
   for (std::size_t index = 0; index < events.size(); ++index) {
     if (events[index].boundary == wanted)
       return index;
+  }
+  return events.size();
+}
+
+std::size_t
+first_synchronization(
+    const std::vector<pkgapply::test::scripted_backend_event>& events,
+    pkgapply::application_durability_domain domain)
+{
+  using boundary = pkgapply::test::scripted_backend_boundary;
+  for (std::size_t index = 0; index < events.size(); ++index) {
+    if (events[index].boundary == boundary::synchronize &&
+        events[index].durability_domain.has_value() &&
+        *events[index].durability_domain == domain)
+    {
+      return index;
+    }
   }
   return events.size();
 }
@@ -550,6 +579,72 @@ main()
       control());
   const auto removal_state = state(
       lease, removal_request.plan().preconditions());
+
+  const auto rejected_install_path =
+      pkgplan::package_path::parse("tool.conf");
+  const auto rejected_install_active =
+      pkgapply::test::fixture::regular_object(9);
+  const auto rejected_install_policy =
+      pkgapply::test::fixture::policy_snapshot(
+          authorities,
+          pkgapply::test::fixture::path_policy(
+              pkgplan::incoming_path_policy::retain(
+                  pkgplan::rejected_object_policy::stage,
+                  pkgplan::retained_active_ownership_policy::
+                      add_operated_owner)));
+  fake_archive rejected_install_archive({
+      pkgapply::test::fixture::regular_entry("tool.conf", 7),
+  });
+  const auto rejected_install_request =
+      pkgapply::installation_application_request::make(
+          pkgapply::test::fixture::installation_plan(
+              authorities,
+              {pkgapply::test::fixture::regular_entry("tool.conf", 7)},
+              {pkgplan::target_path_observation::present(
+                  pkgplan::filesystem_object_fact(
+                      rejected_install_path, rejected_install_active))},
+              {}, rejected_install_policy),
+          context, control());
+  const auto rejected_install_state = state(
+      lease, rejected_install_request.plan().preconditions());
+  const auto durable_rejected_install_request =
+      pkgapply::installation_application_request::make(
+          rejected_install_request.plan(), context,
+          pkgapply::application_execution_control::make(
+              pkgapply::application_recovery_requirement::best_effort,
+              pkgapply::application_durability_requirement::
+                  all_application_domains,
+              pkgapply::application_cancellation_policy::
+                  recover_after_target_mutation));
+  const auto durable_rejected_install_state = state(
+      lease, durable_rejected_install_request.plan().preconditions());
+
+  const auto rejected_old_path =
+      pkgplan::package_path::parse("var/lib/tool/state");
+  const auto rejected_old_active =
+      pkgapply::test::fixture::regular_object(4);
+  const auto rejected_old_policy =
+      pkgapply::test::fixture::policy_snapshot(
+          authorities,
+          pkgapply::test::fixture::path_policy(
+              pkgplan::incoming_path_policy::activate(),
+              pkgplan::obsolete_path_policy::remove(
+                  pkgplan::rejected_object_policy::stage)));
+  const auto rejected_old_request =
+      pkgapply::removal_application_request::make(
+          pkgapply::test::fixture::removal_plan(
+              authorities,
+              {pkgplan::installed_ownership_claim(
+                  rejected_old_path, authorities.installed_package,
+                  rejected_old_active)},
+              {pkgplan::target_path_observation::present(
+                  pkgplan::filesystem_object_fact(
+                      rejected_old_path, rejected_old_active))},
+              rejected_old_policy),
+          context, control());
+  const auto rejected_old_state = state(
+      lease, rejected_old_request.plan().preconditions());
+
   backend_state->set_observations(
       matching_observations(removal_request.plan().preconditions()));
   {
@@ -653,6 +748,282 @@ main()
             "removal preparation opened an incoming payload stage");
     require_no_target_effects(backend_state->events());
   }
+  backend_state->clear_events();
+
+  // A plan without rejected effects crosses no rejected-store boundary.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()), install_request,
+            install_state, lease);
+    require(publication.is_published() && publication.published() != nullptr,
+            "rejected-free installation did not reach active readiness");
+    require(publication.published()->rejected_effects().empty() &&
+                publication.published()->durability().status(
+                    pkgapply::application_durability_domain::
+                        rejected_object_store) ==
+                    pkgapply::application_durability_status::not_attempted &&
+                publication.published()->prepared().journaled().journal().state() ==
+                    pkgapply::application_journal_state::mutating,
+            "rejected-free publication invented rejected-store effects");
+    require(first_boundary(backend_state->events(),
+                           boundary::execute_rejected) ==
+                backend_state->events().size(),
+            "rejected-free publication entered the rejected store");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // Incoming rejected objects publish from the sealed payload stage first.
+  backend_state->set_observations(matching_observations(
+      rejected_install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        rejected_install_request, rejected_install_state, lease, backend,
+        rejected_install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), rejected_install_request,
+        rejected_install_state, lease, rejected_install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), rejected_install_request,
+        rejected_install_state, lease, rejected_install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()), rejected_install_request,
+            rejected_install_state, lease);
+    require(publication.is_published() && publication.published() != nullptr &&
+                publication.published()->rejected_effects().size() == 1,
+            "incoming rejected object was not published");
+    const auto& rejected =
+        publication.published()->rejected_effects().front();
+    require(rejected.request().outcome() ==
+                pkgplan::planned_rejected_outcome::stage_incoming &&
+                rejected.request().incoming_entry().has_value() &&
+                rejected.result().record().has_value(),
+            "incoming rejected publication lost source or record authority");
+    require(publication.published()->durability().status(
+                pkgapply::application_durability_domain::
+                    rejected_object_store) ==
+                pkgapply::application_durability_status::visible,
+            "journal-and-recovery publication invented rejected durability");
+    require(first_boundary(backend_state->events(), boundary::payload_seal) <
+                first_boundary(backend_state->events(),
+                               boundary::execute_rejected),
+            "incoming rejected publication preceded payload sealing");
+    require(first_synchronization(
+                backend_state->events(),
+                pkgapply::application_durability_domain::
+                    rejected_object_store) == backend_state->events().size(),
+            "journal-and-recovery synchronized an unrequired rejected store");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // Old rejected objects publish only after their admitted object is captured.
+  backend_state->set_observations(
+      matching_observations(rejected_old_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        rejected_old_request, rejected_old_state, lease, backend);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), rejected_old_request,
+        rejected_old_state, lease);
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), rejected_old_request, rejected_old_state,
+        lease);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()), rejected_old_request,
+            rejected_old_state, lease);
+    require(publication.is_published() && publication.published() != nullptr &&
+                publication.published()->rejected_effects().size() == 1 &&
+                publication.published()->rejected_effects().front().request().
+                    outcome() ==
+                    pkgplan::planned_rejected_outcome::stage_old,
+            "old rejected object was not published from capture authority");
+    require(first_boundary(backend_state->events(), boundary::capture_old) <
+                first_boundary(backend_state->events(),
+                               boundary::execute_rejected),
+            "old rejected publication preceded old-object capture");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // A rejected publication failure retains exact path failure evidence while
+  // the active namespace remains untouched.
+  backend_state->set_outcome(
+      boundary::execute_rejected, pkgapply::backend_operation_outcome::failed);
+  backend_state->set_observations(matching_observations(
+      rejected_install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        rejected_install_request, rejected_install_state,
+        lease, backend, rejected_install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), rejected_install_request,
+        rejected_install_state, lease,
+        rejected_install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), rejected_install_request,
+        rejected_install_state, lease, rejected_install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()),
+            rejected_install_request,
+            rejected_install_state, lease);
+    require(!publication.is_published() && publication.failure() != nullptr &&
+                publication.failure()->outcome() ==
+                    pkgapply::application_attempt_outcome::
+                        failed_before_target_mutation &&
+                publication.failure()->paths().size() == 1 &&
+                publication.failure()->paths().front().active_status() ==
+                    pkgapply::application_effect_status::not_attempted &&
+                publication.failure()->paths().front().rejected_status() ==
+                    pkgapply::application_effect_status::failed,
+            "rejected failure crossed or concealed the active boundary");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::abandoned,
+            "rejected publication failure did not terminate its journal");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->set_outcome(
+      boundary::execute_rejected,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // An indeterminate rejected operation cannot be collapsed into failure.
+  backend_state->set_outcome(
+      boundary::execute_rejected,
+      pkgapply::backend_operation_outcome::indeterminate);
+  backend_state->set_observations(matching_observations(
+      rejected_install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        rejected_install_request, rejected_install_state, lease, backend,
+        rejected_install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), rejected_install_request,
+        rejected_install_state, lease, rejected_install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), rejected_install_request,
+        rejected_install_state, lease, rejected_install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()), rejected_install_request,
+            rejected_install_state, lease);
+    require(!publication.is_published() && publication.failure() != nullptr &&
+                publication.failure()->outcome() ==
+                    pkgapply::application_attempt_outcome::indeterminate &&
+                publication.failure()->recovery() ==
+                    pkgapply::application_recovery_state::
+                        requires_authoritative_observation &&
+                publication.failure()->paths().front().rejected_status() ==
+                    pkgapply::application_effect_status::indeterminate,
+            "indeterminate rejected publication was collapsed");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::indeterminate,
+            "indeterminate rejected publication used the wrong journal state");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->set_outcome(
+      boundary::execute_rejected,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // All-domain durability synchronizes the rejected store after publication.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::rejected_object_store,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->set_observations(matching_observations(
+      durable_rejected_install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        durable_rejected_install_request, durable_rejected_install_state,
+        lease, backend, rejected_install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), durable_rejected_install_request,
+        durable_rejected_install_state, lease,
+        rejected_install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), durable_rejected_install_request,
+        durable_rejected_install_state, lease, rejected_install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()),
+            durable_rejected_install_request,
+            durable_rejected_install_state, lease);
+    require(publication.is_published() &&
+                publication.published()->durability().status(
+                    pkgapply::application_durability_domain::
+                        rejected_object_store) ==
+                    pkgapply::application_durability_status::confirmed,
+            "all-domain publication did not confirm rejected durability");
+    require(first_boundary(backend_state->events(),
+                           boundary::execute_rejected) <
+                first_synchronization(
+                    backend_state->events(),
+                    pkgapply::application_durability_domain::
+                        rejected_object_store),
+            "all-domain rejected synchronization preceded publication");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // A visible but not durable rejected store stops before active mutation with
+  // a truthful durability-unconfirmed receipt and immutable rejected record.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::rejected_object_store,
+      pkgapply::application_durability_status::visible);
+  backend_state->set_observations(matching_observations(
+      durable_rejected_install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        durable_rejected_install_request, durable_rejected_install_state,
+        lease, backend, rejected_install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), durable_rejected_install_request,
+        durable_rejected_install_state, lease, rejected_install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), durable_rejected_install_request,
+        durable_rejected_install_state, lease, rejected_install_archive);
+    auto publication =
+        pkgapply::detail::publish_rejected_application_engine(
+            std::move(*preparation.prepared()), durable_rejected_install_request,
+            durable_rejected_install_state, lease);
+    require(!publication.is_published() && publication.failure() != nullptr &&
+                publication.failure()->outcome() ==
+                    pkgapply::application_attempt_outcome::
+                        effects_visible_durability_unconfirmed &&
+                publication.failure()->recovery() ==
+                    pkgapply::application_recovery_state::
+                        recovery_assets_retained &&
+                publication.failure()->paths().size() == 1 &&
+                publication.failure()->paths().front().rejected_status() ==
+                    pkgapply::application_effect_status::completed &&
+                publication.failure()->paths().front().rejected_object().
+                    has_value(),
+            "visible rejected store was promoted to durable completion");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::effects_visible,
+            "visible rejected durability used the wrong journal state");
+    require_no_active_effects(backend_state->events());
+  }
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::rejected_object_store,
+      pkgapply::application_durability_status::confirmed);
   backend_state->clear_events();
 
   // A typed payload-stage failure seals a truthful pre-mutation receipt.

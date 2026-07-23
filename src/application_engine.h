@@ -252,4 +252,114 @@ prepare_application_engine(
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);
 
+/*! \brief One attempted rejected-object publication and its exact command. */
+class rejected_effect_application_result final {
+public:
+  rejected_effect_application_result(
+      backend_rejected_effect_request request,
+      rejected_object_publication_result result);
+
+  [[nodiscard]] const backend_rejected_effect_request&
+  request() const noexcept;
+  [[nodiscard]] const rejected_object_publication_result&
+  result() const noexcept;
+
+private:
+  backend_rejected_effect_request request_;
+  rejected_object_publication_result result_;
+};
+
+/*! \brief Prepared transaction after all rejected-object effects complete. */
+class rejected_published_application final {
+public:
+  rejected_published_application(
+      prepared_application prepared,
+      std::vector<rejected_effect_application_result> rejected_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  rejected_published_application(
+      const rejected_published_application&) = delete;
+  rejected_published_application& operator=(
+      const rejected_published_application&) = delete;
+  rejected_published_application(
+      rejected_published_application&&) noexcept = default;
+  rejected_published_application& operator=(
+      rejected_published_application&&) noexcept = default;
+
+  [[nodiscard]] prepared_application& prepared() noexcept;
+  [[nodiscard]] const prepared_application& prepared() const noexcept;
+  [[nodiscard]] const std::vector<rejected_effect_application_result>&
+  rejected_effects() const noexcept;
+  [[nodiscard]] const application_durability_profile&
+  durability() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  backend_evidence() const noexcept;
+
+private:
+  prepared_application prepared_;
+  std::vector<rejected_effect_application_result> rejected_effects_;
+  application_durability_profile durability_;
+  std::vector<application_backend_evidence_identity> backend_evidence_;
+};
+
+/*! \brief Rejected-store failure or transaction ready for active mutation. */
+class application_engine_rejected_publication final {
+public:
+  [[nodiscard]] static application_engine_rejected_publication
+  failed(application_receipt receipt);
+
+  [[nodiscard]] static application_engine_rejected_publication
+  published(
+      prepared_application prepared,
+      std::vector<rejected_effect_application_result> rejected_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  application_engine_rejected_publication(
+      const application_engine_rejected_publication&) = delete;
+  application_engine_rejected_publication& operator=(
+      const application_engine_rejected_publication&) = delete;
+  application_engine_rejected_publication(
+      application_engine_rejected_publication&&) noexcept = default;
+  application_engine_rejected_publication& operator=(
+      application_engine_rejected_publication&&) noexcept = default;
+
+  [[nodiscard]] bool is_published() const noexcept;
+  [[nodiscard]] const application_receipt* failure() const noexcept;
+  [[nodiscard]] rejected_published_application* published() noexcept;
+  [[nodiscard]] const rejected_published_application*
+  published() const noexcept;
+
+private:
+  using value_type =
+      std::variant<application_receipt, rejected_published_application>;
+  explicit application_engine_rejected_publication(value_type value);
+  value_type value_;
+};
+
+/*! \brief Publish installation rejected objects before active mutation. */
+[[nodiscard]] application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Publish upgrade rejected objects before active mutation. */
+[[nodiscard]] application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Publish removal rejected objects before active mutation. */
+[[nodiscard]] application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
 } // namespace pkgapply::detail

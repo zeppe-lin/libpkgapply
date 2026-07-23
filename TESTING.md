@@ -115,16 +115,24 @@ payload staging
 journal creation
 recovery capture
 effect intent synchronization
+rejected publication
+rejected-record identity return
+rejected-store synchronization
 active mutation
 effect completion synchronization
-rejected publication
 final observation
 durability synchronization
 receipt sealing
 ```
 
 Tests inspect event order, journal records, retained recovery material,
-result classification, and resource release.
+result classification, and resource release. Rejected-object tests prove that
+incoming sources are sealed before publication, old sources are captured
+before publication, completed publication retains an immutable record identity,
+and rejected-store synchronization is selected by durability domain rather
+than confused with earlier private-stage synchronization. Failure before the
+active target boundary may contain rejected consequences, but no active effect
+or recovery command.
 
 Operation tests
 ---------------

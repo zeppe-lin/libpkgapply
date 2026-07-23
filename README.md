@@ -54,13 +54,17 @@ foundation required before target mutation is admitted:
 * deterministic safe mechanism schedules that place old-object capture
   before mutation, regular payload staging in archive order, rejected
   publication before destructive active effects, incoming directories before
-  descendants, child
-  removals before parent cleanup, hard-link anchors before links, and final
-  observation after all planned effects.
+  descendants, child removals before parent cleanup, hard-link anchors before
+  links, and final observation after all planned effects; and
+* a private non-virtual execution prefix that durably freezes the complete
+  effect graph, captures old objects, replays and synchronizes private incoming
+  payloads, publishes source-bound rejected-object records, and stops before
+  any active target path is changed.
 
-No concrete filesystem actuator, archive replay coordinator, journal storage
-backend, or POSIX backend is present yet. The public model rejects inconsistent
-evidence before those effectful layers are introduced.
+No concrete filesystem actuator, durable journal-store implementation, or
+POSIX backend is present yet. The semantic engine now reaches the rejected
+object store, but active-path mutation, final observation, recovery execution,
+and completed evidence remain absent.
 
 Authority boundary
 ------------------

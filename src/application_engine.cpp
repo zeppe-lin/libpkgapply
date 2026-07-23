@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -554,9 +555,9 @@ terminal_event(backend_operation_outcome outcome)
       return application_journal_event_kind::indeterminate;
     case backend_operation_outcome::conditional_retained:
       throw std::logic_error(
-          "preparation backend returned a conditional outcome");
+          "backend returned an unsupported conditional outcome");
   }
-  throw std::logic_error("invalid preparation backend outcome");
+  throw std::logic_error("invalid backend operation outcome");
 }
 
 application_journal_event_kind
@@ -1153,6 +1154,673 @@ prepare_application_engine(
       std::move(application), request, state, std::move(captures.captures),
       application_durability_status::not_attempted, captures.durability,
       std::move(evidence));
+}
+
+} // namespace pkgapply::detail
+
+namespace pkgapply::detail {
+namespace {
+
+application_effect_status
+rejected_effect_status(backend_operation_outcome outcome)
+{
+  switch (outcome) {
+    case backend_operation_outcome::completed:
+      return application_effect_status::completed;
+    case backend_operation_outcome::failed:
+      return application_effect_status::failed;
+    case backend_operation_outcome::indeterminate:
+      return application_effect_status::indeterminate;
+    case backend_operation_outcome::conditional_retained:
+      throw std::logic_error(
+          "rejected-object publication returned a conditional outcome");
+  }
+  throw std::logic_error("invalid rejected-object publication outcome");
+}
+
+application_path_role
+rejected_path_role(pkgplan::installation_path_role role)
+{
+  switch (role) {
+    case pkgplan::installation_path_role::incoming_entry:
+      return application_path_role::incoming_entry;
+    case pkgplan::installation_path_role::structural_parent:
+      return application_path_role::structural_parent;
+  }
+  throw std::logic_error("invalid installation path role");
+}
+
+application_path_role
+rejected_path_role(pkgplan::upgrade_path_role role)
+{
+  switch (role) {
+    case pkgplan::upgrade_path_role::incoming_entry:
+      return application_path_role::incoming_entry;
+    case pkgplan::upgrade_path_role::obsolete_old_path:
+      return application_path_role::obsolete_old_path;
+    case pkgplan::upgrade_path_role::structural_parent:
+      return application_path_role::structural_parent;
+  }
+  throw std::logic_error("invalid upgrade path role");
+}
+
+application_path_role
+rejected_path_role(const pkgplan::removal_path_decision&)
+{
+  return application_path_role::installed_owned_path;
+}
+
+std::optional<pkgimage::entry_id>
+rejected_incoming_entry(const pkgplan::removal_path_decision&)
+{
+  return std::nullopt;
+}
+
+template<class Decision>
+std::optional<pkgimage::entry_id>
+rejected_incoming_entry(const Decision& decision)
+{
+  return decision.incoming_entry();
+}
+
+template<class Plan>
+const auto&
+rejected_decision(const Plan& plan, const pkgplan::package_path& path)
+{
+  const auto item = std::lower_bound(
+      plan.paths().begin(), plan.paths().end(), path,
+      [](const auto& decision, const auto& wanted) {
+        return decision.path() < wanted;
+      });
+  if (item == plan.paths().end() || item->path() != path)
+    throw std::logic_error("rejected-object schedule path lacks a plan decision");
+  return *item;
+}
+
+template<class Decision>
+backend_rejected_effect_request
+rejected_effect_request(const Decision& decision,
+                        const application_effect_step& step)
+{
+  if (decision.path() != step.path())
+    throw std::logic_error("rejected-object schedule decision path mismatch");
+
+  const std::optional<pkgimage::entry_id> incoming =
+      rejected_incoming_entry(decision);
+  switch (decision.rejected()) {
+    case pkgplan::planned_rejected_outcome::stage_incoming:
+      if (!incoming || step.incoming_entry() != incoming)
+        throw std::logic_error(
+            "incoming rejected-object schedule binding mismatch");
+      return backend_rejected_effect_request::stage_incoming(
+          decision.path(), *incoming);
+
+    case pkgplan::planned_rejected_outcome::stage_old:
+      if (step.incoming_entry())
+        throw std::logic_error(
+            "old rejected-object schedule gained incoming authority");
+      return backend_rejected_effect_request::stage_old(decision.path());
+
+    case pkgplan::planned_rejected_outcome::none:
+      throw std::logic_error(
+          "rejected-object schedule cites a non-rejected plan path");
+  }
+  throw std::logic_error("invalid planned rejected-object outcome");
+}
+
+template<class Decision>
+application_path_consequence
+rejected_path_consequence(
+    const Decision& decision,
+    application_path_role role,
+    const application_path_observation& before,
+    const rejected_object_publication_result& result)
+{
+  return application_path_consequence(
+      decision.path(), role, decision.active(), decision.rejected(),
+      rejected_incoming_entry(decision), decision.ownership(),
+      application_effect_status::not_attempted,
+      rejected_effect_status(result.outcome()), before, before,
+      result.record(), ownership_publication_status::ineligible);
+}
+
+template<class Plan>
+std::vector<application_path_consequence>
+rejected_path_consequences(
+    const prepared_application& prepared,
+    const Plan& plan,
+    const std::vector<rejected_effect_application_result>& effects)
+{
+  std::vector<application_path_consequence> paths;
+  std::vector<rejected_object_record_identity> records;
+  paths.reserve(effects.size());
+  records.reserve(effects.size());
+  for (const auto& effect : effects) {
+    const auto& decision = rejected_decision(plan, effect.request().path());
+    const application_path_observation* before =
+        prepared.journaled().admitted().preconditions().observations().find(
+            effect.request().path());
+    if (before == nullptr)
+      throw std::logic_error(
+          "rejected-object result lacks admitted path observation");
+
+    if (effect.result().record())
+      records.push_back(*effect.result().record());
+
+    if constexpr (std::is_same_v<
+                      std::decay_t<decltype(decision)>,
+                      pkgplan::removal_path_decision>)
+    {
+      paths.push_back(rejected_path_consequence(
+          decision, rejected_path_role(decision), *before, effect.result()));
+    }
+    else
+    {
+      paths.push_back(rejected_path_consequence(
+          decision, rejected_path_role(decision.role()), *before,
+          effect.result()));
+    }
+  }
+
+  std::sort(records.begin(), records.end());
+  if (std::adjacent_find(records.begin(), records.end()) != records.end())
+    throw std::logic_error(
+        "backend reused one rejected record for multiple path effects");
+  return paths;
+}
+
+application_durability_profile
+with_rejected_durability(
+    const application_durability_profile& prepared,
+    application_durability_status rejected)
+{
+  std::vector<application_durability_fact> facts;
+  facts.reserve(prepared.facts().size());
+  for (const auto& fact : prepared.facts()) {
+    facts.emplace_back(
+        fact.domain(),
+        fact.domain() == application_durability_domain::rejected_object_store
+            ? rejected
+            : fact.status());
+  }
+  return application_durability_profile(std::move(facts));
+}
+
+bool
+requires_rejected_store_synchronization(
+    const application_execution_control& control)
+{
+  switch (control.durability()) {
+    case application_durability_requirement::visibility_only:
+    case application_durability_requirement::journal_and_recovery:
+      return false;
+    case application_durability_requirement::all_application_domains:
+      return true;
+  }
+  throw std::logic_error("invalid application durability requirement");
+}
+
+void
+validate_rejected_source(
+    const prepared_application& prepared,
+    const backend_rejected_effect_request& request)
+{
+  switch (request.outcome()) {
+    case pkgplan::planned_rejected_outcome::stage_incoming: {
+      if (!request.incoming_entry() || !prepared.journaled().payloads())
+        throw std::logic_error(
+            "incoming rejected object lacks prepared image authority");
+      const auto& requirements =
+          prepared.journaled().payloads()->requirements();
+      const auto item = std::find_if(
+          requirements.begin(), requirements.end(),
+          [&request](const auto& requirement) {
+            return requirement.path() == request.path();
+          });
+      if (item == requirements.end() ||
+          !item->required_for_rejected() ||
+          item->image_entry() != *request.incoming_entry())
+      {
+        throw std::logic_error(
+            "incoming rejected object differs from prepared payload authority");
+      }
+      return;
+    }
+
+    case pkgplan::planned_rejected_outcome::stage_old: {
+      const old_object_capture_request* capture =
+          prepared.journaled().captures().find(request.path());
+      if (capture == nullptr || !capture->for_rejected_object())
+        throw std::logic_error(
+            "old rejected object lacks rejected capture authority");
+      const auto captured = std::find_if(
+          prepared.captures().begin(), prepared.captures().end(),
+          [&request](const auto& result) {
+            return result.captured().path() == request.path();
+          });
+      if (captured == prepared.captures().end() ||
+          captured->outcome() != backend_operation_outcome::completed)
+      {
+        throw std::logic_error(
+            "old rejected object lacks completed capture evidence");
+      }
+      return;
+    }
+
+    case pkgplan::planned_rejected_outcome::none:
+      break;
+  }
+  throw std::logic_error("invalid rejected-object source outcome");
+}
+
+template<class Request>
+void
+validate_rejected_publication_binding(
+    const prepared_application& prepared,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_target_mutation_lease(request.target(), state, lease);
+  const auto& journal = prepared.journaled().journal();
+  const auto& header = journal.header();
+  if (journal.state() != application_journal_state::prepared ||
+      header.request() != request.identity() ||
+      header.plan() != request.plan().identity() ||
+      header.target() != request.target().identity() ||
+      header.control() != request.control().identity() ||
+      header.state_projection() != state.identity() ||
+      header.lease() != lease.identity() ||
+      header.attempt().identity() !=
+          prepared.journaled().admitted().attempt().identity())
+  {
+    throw std::invalid_argument(
+        "rejected-object publication inputs differ from preparation");
+  }
+}
+
+template<class Request>
+application_engine_rejected_publication
+fail_rejected_publication(
+    prepared_application prepared,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    std::vector<rejected_effect_application_result> effects,
+    application_attempt_outcome outcome,
+    application_recovery_state recovery,
+    application_durability_status rejected_durability,
+    std::vector<application_backend_evidence_identity> evidence)
+{
+  std::vector<application_path_consequence> paths =
+      rejected_path_consequences(prepared, request.plan(), effects);
+  application_durability_profile durability = with_rejected_durability(
+      prepared.durability(), rejected_durability);
+  application_receipt receipt = application_receipt::failed(
+      request,
+      prepared.journaled().admitted().attempt().identity(),
+      state.identity(), outcome, recovery, std::move(durability),
+      std::move(paths), prepared.journaled().journal().header().identity(),
+      std::move(evidence));
+
+  const bool rejected_effect_visible = std::any_of(
+      effects.begin(), effects.end(),
+      [](const auto& effect) {
+        return effect.result().outcome() ==
+            backend_operation_outcome::completed;
+      });
+  const application_journal_state journal_state =
+      outcome == application_attempt_outcome::indeterminate
+          ? application_journal_state::indeterminate
+          : outcome ==
+                    application_attempt_outcome::
+                        effects_visible_durability_unconfirmed ||
+                rejected_effect_visible
+              ? application_journal_state::effects_visible
+              : application_journal_state::abandoned;
+  publish_snapshot(
+      prepared.journaled(), journal_state,
+      prepared.journaled().journal().events(), receipt.identity());
+  return application_engine_rejected_publication::failed(std::move(receipt));
+}
+
+template<class Request>
+application_engine_rejected_publication
+publish_rejected(
+    prepared_application prepared,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_rejected_publication_binding(prepared, request, state, lease);
+
+  // The first mutating journal state is published before the first externally
+  // visible rejected-store operation.  Active namespace effects remain absent.
+  publish_snapshot(
+      prepared.journaled(), application_journal_state::mutating,
+      prepared.journaled().journal().events());
+
+  std::vector<rejected_effect_application_result> effects;
+  std::vector<application_backend_evidence_identity> evidence =
+      prepared.backend_evidence();
+  application_durability_status rejected_durability =
+      application_durability_status::not_attempted;
+
+  for (const auto& step : prepared.journaled().schedule().steps()) {
+    if (step.kind() !=
+        application_effect_step_kind::publish_rejected_object)
+    {
+      continue;
+    }
+
+    const auto& decision = rejected_decision(request.plan(), step.path());
+    backend_rejected_effect_request command =
+        rejected_effect_request(decision, step);
+    validate_rejected_source(prepared, command);
+    const application_journal_effect_identity effect = find_effect(
+        prepared.journaled().journal(),
+        application_journal_effect_kind::publish_rejected_object,
+        step.path()).identity();
+    publish_event(
+        prepared.journaled(), application_journal_state::mutating, effect,
+        application_journal_event_kind::intent);
+
+    rejected_object_publication_result result =
+        prepared.journaled().admitted().transaction().execute_rejected(command);
+    append_unique_evidence(evidence, result.evidence());
+    publish_event(
+        prepared.journaled(), application_journal_state::mutating, effect,
+        terminal_event(result.outcome()), result.evidence());
+
+    const backend_operation_outcome result_outcome = result.outcome();
+    effects.emplace_back(std::move(command), std::move(result));
+    if (result_outcome == backend_operation_outcome::completed) {
+      rejected_durability = application_durability_status::visible;
+      continue;
+    }
+
+    if (result_outcome == backend_operation_outcome::indeterminate) {
+      return fail_rejected_publication(
+          std::move(prepared), request, state, std::move(effects),
+          application_attempt_outcome::indeterminate,
+          application_recovery_state::requires_authoritative_observation,
+          application_durability_status::indeterminate,
+          std::move(evidence));
+    }
+
+    return fail_rejected_publication(
+        std::move(prepared), request, state, std::move(effects),
+        application_attempt_outcome::failed_before_target_mutation,
+        application_recovery_state::unchanged, rejected_durability,
+        std::move(evidence));
+  }
+
+  if (!effects.empty() &&
+      requires_rejected_store_synchronization(request.control()))
+  {
+    const application_journal_effect_identity synchronize_effect = find_effect(
+        prepared.journaled().journal(),
+        application_journal_effect_kind::synchronize_rejected_store).identity();
+    publish_event(
+        prepared.journaled(), application_journal_state::mutating,
+        synchronize_effect, application_journal_event_kind::intent);
+    const application_durability_fact synchronized =
+        prepared.journaled().admitted().transaction().synchronize(
+            application_durability_domain::rejected_object_store);
+    if (synchronized.domain() !=
+        application_durability_domain::rejected_object_store)
+    {
+      throw std::logic_error(
+          "backend synchronized another rejected-object durability domain");
+    }
+    rejected_durability = synchronized.status();
+    if (rejected_durability ==
+        application_durability_status::not_attempted)
+    {
+      throw std::logic_error(
+          "backend reported an unattempted rejected-store synchronization");
+    }
+    const application_journal_event_kind synchronization_event =
+        rejected_durability == application_durability_status::confirmed
+            ? application_journal_event_kind::completed
+            : rejected_durability ==
+                      application_durability_status::indeterminate
+                  ? application_journal_event_kind::indeterminate
+                  : application_journal_event_kind::failed;
+    publish_event(
+        prepared.journaled(), application_journal_state::mutating,
+        synchronize_effect, synchronization_event);
+
+    if (rejected_durability != application_durability_status::confirmed)
+    {
+      if (rejected_durability ==
+          application_durability_status::indeterminate)
+      {
+        return fail_rejected_publication(
+            std::move(prepared), request, state, std::move(effects),
+            application_attempt_outcome::indeterminate,
+            application_recovery_state::requires_authoritative_observation,
+            rejected_durability, std::move(evidence));
+      }
+      return fail_rejected_publication(
+          std::move(prepared), request, state, std::move(effects),
+          application_attempt_outcome::
+              effects_visible_durability_unconfirmed,
+          application_recovery_state::recovery_assets_retained,
+          rejected_durability, std::move(evidence));
+    }
+  }
+
+  application_durability_profile durability = with_rejected_durability(
+      prepared.durability(), rejected_durability);
+  return application_engine_rejected_publication::published(
+      std::move(prepared), std::move(effects), std::move(durability),
+      std::move(evidence));
+}
+
+} // namespace
+
+rejected_effect_application_result::rejected_effect_application_result(
+    backend_rejected_effect_request request,
+    rejected_object_publication_result result)
+    : request_(std::move(request)), result_(std::move(result))
+{
+}
+
+const backend_rejected_effect_request&
+rejected_effect_application_result::request() const noexcept
+{ return request_; }
+const rejected_object_publication_result&
+rejected_effect_application_result::result() const noexcept
+{ return result_; }
+
+rejected_published_application::rejected_published_application(
+    prepared_application prepared,
+    std::vector<rejected_effect_application_result> rejected_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+    : prepared_(std::move(prepared)),
+      rejected_effects_(std::move(rejected_effects)),
+      durability_(std::move(durability)),
+      backend_evidence_(std::move(backend_evidence))
+{
+  if (prepared_.journaled().journal().state() !=
+      application_journal_state::mutating)
+  {
+    throw std::invalid_argument(
+        "rejected-published application journal is not mutating");
+  }
+
+  std::vector<const application_effect_step*> expected_effects;
+  for (const auto& step : prepared_.journaled().schedule().steps()) {
+    if (step.kind() ==
+        application_effect_step_kind::publish_rejected_object)
+    {
+      expected_effects.push_back(&step);
+    }
+  }
+  if (rejected_effects_.size() != expected_effects.size())
+    throw std::invalid_argument(
+        "rejected-published application effect closure mismatch");
+
+  std::vector<rejected_object_record_identity> records;
+  records.reserve(rejected_effects_.size());
+  for (std::size_t index = 0; index < rejected_effects_.size(); ++index) {
+    const auto& expected = *expected_effects[index];
+    const auto& effect = rejected_effects_[index];
+    if (effect.request().path() != expected.path() ||
+        effect.request().incoming_entry() != expected.incoming_entry())
+    {
+      throw std::invalid_argument(
+          "rejected-published application effect order or source mismatch");
+    }
+    if (effect.result().outcome() !=
+            backend_operation_outcome::completed ||
+        !effect.result().record().has_value())
+    {
+      throw std::invalid_argument(
+          "rejected-published application contains an incomplete effect");
+    }
+    records.push_back(*effect.result().record());
+  }
+  std::sort(records.begin(), records.end());
+  if (std::adjacent_find(records.begin(), records.end()) != records.end())
+    throw std::invalid_argument(
+        "rejected-published application reused a rejected record");
+
+  const application_durability_status expected_rejected =
+      rejected_effects_.empty()
+          ? application_durability_status::not_attempted
+          : durability_.status(
+                application_durability_domain::rejected_object_store);
+  if ((!rejected_effects_.empty() &&
+       expected_rejected != application_durability_status::visible &&
+       expected_rejected != application_durability_status::confirmed) ||
+      (rejected_effects_.empty() &&
+       expected_rejected != application_durability_status::not_attempted) ||
+      durability_.status(application_durability_domain::journal) !=
+          prepared_.durability().status(
+              application_durability_domain::journal) ||
+      durability_.status(application_durability_domain::incoming_staging) !=
+          prepared_.durability().status(
+              application_durability_domain::incoming_staging) ||
+      durability_.status(application_durability_domain::recovery_staging) !=
+          prepared_.durability().status(
+              application_durability_domain::recovery_staging) ||
+      durability_.status(application_durability_domain::active_namespace) !=
+          application_durability_status::not_attempted ||
+      durability_.status(application_durability_domain::completed_evidence) !=
+          application_durability_status::not_attempted)
+  {
+    throw std::invalid_argument(
+        "rejected-published application has an invalid durability boundary");
+  }
+
+  std::sort(backend_evidence_.begin(), backend_evidence_.end());
+  if (std::adjacent_find(
+          backend_evidence_.begin(), backend_evidence_.end()) !=
+      backend_evidence_.end())
+  {
+    throw std::invalid_argument(
+        "duplicate rejected-publication backend evidence");
+  }
+}
+
+prepared_application&
+rejected_published_application::prepared() noexcept
+{ return prepared_; }
+const prepared_application&
+rejected_published_application::prepared() const noexcept
+{ return prepared_; }
+const std::vector<rejected_effect_application_result>&
+rejected_published_application::rejected_effects() const noexcept
+{ return rejected_effects_; }
+const application_durability_profile&
+rejected_published_application::durability() const noexcept
+{ return durability_; }
+const std::vector<application_backend_evidence_identity>&
+rejected_published_application::backend_evidence() const noexcept
+{ return backend_evidence_; }
+
+application_engine_rejected_publication
+application_engine_rejected_publication::failed(application_receipt receipt)
+{
+  if (receipt.outcome() !=
+          application_attempt_outcome::failed_before_target_mutation &&
+      receipt.outcome() !=
+          application_attempt_outcome::
+              effects_visible_durability_unconfirmed &&
+      receipt.outcome() != application_attempt_outcome::indeterminate)
+  {
+    throw std::invalid_argument(
+        "rejected-publication failure has an invalid outcome");
+  }
+  return application_engine_rejected_publication(
+      value_type(std::move(receipt)));
+}
+
+application_engine_rejected_publication
+application_engine_rejected_publication::published(
+    prepared_application prepared,
+    std::vector<rejected_effect_application_result> rejected_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+{
+  return application_engine_rejected_publication(value_type(
+      std::in_place_type<rejected_published_application>,
+      std::move(prepared), std::move(rejected_effects),
+      std::move(durability), std::move(backend_evidence)));
+}
+
+application_engine_rejected_publication::
+application_engine_rejected_publication(value_type value)
+    : value_(std::move(value))
+{
+}
+
+bool
+application_engine_rejected_publication::is_published() const noexcept
+{ return std::holds_alternative<rejected_published_application>(value_); }
+const application_receipt*
+application_engine_rejected_publication::failure() const noexcept
+{ return std::get_if<application_receipt>(&value_); }
+rejected_published_application*
+application_engine_rejected_publication::published() noexcept
+{ return std::get_if<rejected_published_application>(&value_); }
+const rejected_published_application*
+application_engine_rejected_publication::published() const noexcept
+{ return std::get_if<rejected_published_application>(&value_); }
+
+application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return publish_rejected(
+      std::move(prepared), request, state, lease);
+}
+
+application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return publish_rejected(
+      std::move(prepared), request, state, lease);
+}
+
+application_engine_rejected_publication
+publish_rejected_application_engine(
+    prepared_application prepared,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return publish_rejected(
+      std::move(prepared), request, state, lease);
 }
 
 } // namespace pkgapply::detail

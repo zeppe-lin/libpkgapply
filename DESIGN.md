@@ -331,19 +331,41 @@ The non-virtual semantic engine owns this sequence:
 1. Validate plan schema and internal authority bindings.
 2. Validate target context, backend, capabilities, and outer lease.
 3. Revalidate lease-bound installed-state facts.
-4. Reobserve and compare every operated filesystem path.
+4. Reobserve and compare every operated filesystem path exactly once.
 5. Validate the exact archive replay authority when applicable.
-6. Replay required regular payloads into private staging.
-7. Preflight object, rejected-store, recovery, and durability capabilities.
-8. Create and synchronize the journal before the mutation boundary.
-9. Capture old objects required for rejected staging or recovery.
-10. Execute the core-derived effect dependency graph.
-11. Publish prepared rejected-object records.
-12. Observe all resulting active and rejected facts.
-13. Synchronize required durability domains.
-14. Seal the application receipt.
-15. Construct completed evidence only after every eligibility check passes.
+6. Derive the payload, capture, rejected, active, observation, and durability
+   effect graph without executing it.
+7. Durably publish the complete `preparing` journal before capture, replay, or
+   any externally visible effect.
+8. Capture old objects required for rejected staging or recovery.
+9. Replay required regular payloads into private incoming staging.
+10. Synchronize required private staging domains and publish the `prepared`
+    journal state.
+11. Publish the `mutating` journal state before the first rejected-store or
+    active-namespace effect.
+12. Publish each rejected object from its exact sealed incoming entry or exact
+    pre-mutation old-object capture, retaining the immutable rejected-record
+    identity returned by the backend.
+13. Synchronize the rejected-object store to the guarantee selected by the
+    application execution control.
+14. Execute the remaining core-derived active effect graph.
+15. Observe all resulting active and rejected facts.
+16. Synchronize the remaining required durability domains.
+17. Seal the application receipt.
+18. Construct completed evidence only after every eligibility check passes.
 
+The target-mutation boundary refers to the managed active-object namespace.
+The rejected-object store is an independent application-effect domain. A
+receipt that failed before active target mutation may therefore report an
+attempted rejected consequence while every active consequence remains
+`not_attempted`. Its recovery state describes the managed active target;
+rejected-store outcome and durability remain explicit in their own fields.
+
+A completed rejected publication returns an immutable rejected-object-record
+identity. Failed or indeterminate publication returns no completed record.
+`visibility_only` and `journal_and_recovery` retain that established visibility
+without inventing rejected-store durability. `all_application_domains` requires
+a separate rejected-store synchronization and accepts only confirmed durability.
 Backend implementations report mechanism outcomes. They do not skip
 validation, reinterpret policy, select different paths, manufacture
 ownership, or classify semantic success.
