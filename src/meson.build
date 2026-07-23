@@ -16,6 +16,7 @@ libpkgapply = library(
     'state_projection.cpp',
     'object_fact.cpp',
     'path_consequence.cpp',
+    'result.cpp',
   ],
   include_directories: public_inc,
   dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
@@ -41,6 +42,7 @@ install_headers(
   '../include/libpkgapply/state_projection.h',
   '../include/libpkgapply/object_fact.h',
   '../include/libpkgapply/path_consequence.h',
+  '../include/libpkgapply/result.h',
   '../include/libpkgapply/version.h',
   subdir: 'libpkgapply',
 )

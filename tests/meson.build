@@ -30,6 +30,20 @@ if get_option('tests').allowed()
   )
   test('validate typed application identities', digest_test)
 
+  result_header_test = executable(
+    'result-header-test',
+    'result_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile result header independently', result_header_test)
+
+  result_test = executable(
+    'result-test',
+    'result_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate application receipts and completed evidence', result_test)
+
   object_fact_header_test = executable(
     'object-fact-header-test',
     'object_fact_header_test.cpp',
