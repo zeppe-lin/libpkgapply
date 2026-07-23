@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Alexandr Savca
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+option(
+  'link_mode',
+  type: 'combo',
+  choices: ['shared', 'static'],
+  value: 'shared',
+  description: 'Select shared or static dependency linkage',
+)
+
+option(
+  'tests',
+  type: 'feature',
+  value: 'auto',
+  description: 'Build contract tests',
+)
