@@ -37,7 +37,11 @@ foundation required before target mutation is admitted:
   durability synchronization, and journal publication; and
 * exact admission checks binding plan schema and kind, target, backend,
   capabilities, outer lease, installed snapshot, ownership inventory, path
-  owner closure, archive bytes, image, inspection receipt, and image entry IDs.
+  owner closure, archive bytes, image, inspection receipt, and image entry IDs;
+  and
+* fresh filesystem-precondition checks where every planning-time fact that was
+  known must remain known and equal, while additional current facts are retained
+  as richer evidence rather than rejected as drift.
 
 No concrete filesystem actuator, archive replay coordinator, journal storage
 backend, or POSIX backend is present yet. The public model rejects inconsistent

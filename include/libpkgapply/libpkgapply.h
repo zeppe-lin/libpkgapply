@@ -12,6 +12,7 @@
 #include <libpkgapply/mutation_lease.h>
 #include <libpkgapply/object_fact.h>
 #include <libpkgapply/path_consequence.h>
+#include <libpkgapply/precondition.h>
 #include <libpkgapply/request.h>
 #include <libpkgapply/result.h>
 #include <libpkgapply/state_projection.h>

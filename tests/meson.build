@@ -120,6 +120,20 @@ if get_option('tests').allowed()
   )
   test('validate application path consequences', path_consequence_test)
 
+  precondition_header_test = executable(
+    'precondition-header-test',
+    'precondition_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile precondition header independently', precondition_header_test)
+
+  precondition_test = executable(
+    'precondition-test',
+    'precondition_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('revalidate planning-time filesystem preconditions', precondition_test)
+
   object_fact_test = executable(
     'object-fact-test',
     'object_fact_test.cpp',
