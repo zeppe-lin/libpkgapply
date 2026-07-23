@@ -50,6 +50,9 @@ public:
   void set_durability(application_durability_domain domain,
                       application_durability_status status);
   void set_exact_recovery_possible(bool possible) noexcept;
+  void set_transaction_target(
+      application_target_context_identity target);
+  void clear_transaction_target() noexcept;
   void throw_at(scripted_backend_boundary boundary);
   void clear_throw(scripted_backend_boundary boundary);
 
@@ -83,6 +86,8 @@ private:
   std::vector<scripted_backend_event> events_;
   std::optional<application_journal_record> published_journal_;
   bool exact_recovery_possible_ = true;
+  std::optional<application_target_context_identity>
+      transaction_target_;
   bool transaction_alive_ = false;
 };
 

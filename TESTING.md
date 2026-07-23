@@ -42,6 +42,24 @@ The immutable model suite must cover:
 * receipt versus completed-evidence separation; and
 * canonical order and permutation stability.
 
+Engine admission tests
+----------------------
+
+The internal non-virtual engine gate must prove:
+
+* static authority failure opens no backend transaction;
+* transaction binding failure performs no target observation;
+* one backend transaction supplies one durable attempt nonce;
+* the caller-held lease is revalidated after transaction creation;
+* fresh path facts are observed exactly once;
+* stale facts return a precondition-refused receipt;
+* refusal reports every durability domain as not attempted;
+* refusal creates no journal and retains no publication-eligible evidence;
+* installation and upgrade use archive-bearing transactions;
+* removal uses an archive-free transaction; and
+* admission performs no payload, capture, effect, recovery, synchronization,
+  or journal backend operation.
+
 Precondition tests
 ------------------
 

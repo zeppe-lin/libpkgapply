@@ -51,6 +51,20 @@ if get_option('tests').allowed()
   )
   test('compile admission header independently', admission_header_test)
 
+  application_engine_test = executable(
+    'application-engine-test',
+    [
+      'application_engine_test.cpp',
+      'scripted_backend.cpp',
+    ],
+    include_directories: include_directories('../src'),
+    dependencies: libpkgapply_dep,
+  )
+  test(
+    'admit backend transactions before mutation',
+    application_engine_test,
+  )
+
   admission_test = executable(
     'admission-test',
     [

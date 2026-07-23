@@ -11,6 +11,7 @@ libpkgapply = library(
     'sha256.cpp',
     'canonical_record.cpp',
     'attempt.cpp',
+    'application_engine.cpp',
     'admission.cpp',
     'backend.cpp',
     'capture.cpp',

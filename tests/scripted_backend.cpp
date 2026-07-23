@@ -293,6 +293,19 @@ scripted_backend_state::set_exact_recovery_possible(bool possible) noexcept
 }
 
 void
+scripted_backend_state::set_transaction_target(
+    application_target_context_identity target)
+{
+  transaction_target_ = std::move(target);
+}
+
+void
+scripted_backend_state::clear_transaction_target() noexcept
+{
+  transaction_target_.reset();
+}
+
+void
 scripted_backend_state::throw_at(scripted_backend_boundary boundary)
 {
   throws_.insert(boundary);
@@ -451,7 +464,9 @@ scripted_backend::begin(
       backend_,
       observation_,
       capabilities_,
-      target.identity(),
+      state_->transaction_target_
+          ? *state_->transaction_target_
+          : target.identity(),
       lease.identity(),
       nonce_,
       evidence_,
