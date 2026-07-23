@@ -3,6 +3,8 @@
 
 #include <libpkgapply/path_consequence.h>
 
+#include "plan_fixture.h"
+
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -58,27 +60,51 @@ directory(const pkgplan::package_path& path)
       pkgapply::object_fact_completeness::complete);
 }
 
-pkgplan::path_ownership_transition
-ownership()
-{
-  return pkgplan::path_ownership_transition({}, {}, true);
-}
-
 } // namespace
 
 int
 main()
 {
   const pkgplan::package_path path =
-      pkgplan::package_path::parse("usr/share/tool");
+      pkgplan::package_path::parse("tool");
+
+  const pkgapply::test::fixture::planning_authorities authorities(
+      pkgapply::test::fixture::planning_identity<
+          pkgplan::target_system_context_identity>(1));
+  const auto active_plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::directory_entry("tool")},
+      {pkgplan::target_path_observation::absent(path)});
+  const auto& active_decision = active_plan.paths().front();
+
+  const auto retained_object =
+      pkgapply::test::fixture::regular_object(9);
+  const auto staged_policy = pkgapply::test::fixture::policy_snapshot(
+      authorities,
+      pkgapply::test::fixture::path_policy(),
+      {pkgplan::path_policy_override(
+          path,
+          pkgapply::test::fixture::path_policy(
+              pkgplan::incoming_path_policy::retain(
+                  pkgplan::rejected_object_policy::stage,
+                  pkgplan::retained_active_ownership_policy::
+                      add_operated_owner)))});
+  const auto staged_plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::regular_entry("tool", 7)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(path, retained_object))},
+      {},
+      staged_policy);
+  const auto& staged_decision = staged_plan.paths().front();
 
   const pkgapply::application_path_consequence consequence(
       path,
       pkgapply::application_path_role::incoming_entry,
       pkgplan::planned_active_outcome::activate_incoming,
       pkgplan::planned_rejected_outcome::none,
-      pkgimage::entry_id{4},
-      ownership(),
+      *active_decision.incoming_entry(),
+      active_decision.ownership(),
       pkgapply::application_effect_status::completed,
       pkgapply::application_effect_status::not_attempted,
       pkgapply::application_path_observation::absent(path),
@@ -86,7 +112,7 @@ main()
       std::nullopt,
       pkgapply::ownership_publication_status::eligible);
 
-  require(consequence.incoming_entry() == pkgimage::entry_id{4},
+  require(consequence.incoming_entry() == pkgimage::entry_id{0},
           "incoming entry binding changed");
 
   bool rejected = false;
@@ -96,8 +122,8 @@ main()
         pkgapply::application_path_role::structural_parent,
         pkgplan::planned_active_outcome::retain_observed,
         pkgplan::planned_rejected_outcome::none,
-        pkgimage::entry_id{4},
-        ownership(),
+        *active_decision.incoming_entry(),
+        active_decision.ownership(),
         pkgapply::application_effect_status::completed,
         pkgapply::application_effect_status::not_attempted,
         pkgapply::application_path_observation::present(directory(path)),
@@ -114,10 +140,10 @@ main()
     static_cast<void>(pkgapply::application_path_consequence(
         path,
         pkgapply::application_path_role::incoming_entry,
-        pkgplan::planned_active_outcome::activate_incoming,
-        pkgplan::planned_rejected_outcome::stage_incoming,
-        pkgimage::entry_id{4},
-        ownership(),
+        staged_decision.active(),
+        staged_decision.rejected(),
+        *staged_decision.incoming_entry(),
+        staged_decision.ownership(),
         pkgapply::application_effect_status::completed,
         pkgapply::application_effect_status::completed,
         pkgapply::application_path_observation::absent(path),
@@ -136,8 +162,8 @@ main()
         pkgapply::application_path_role::incoming_entry,
         pkgplan::planned_active_outcome::activate_incoming,
         pkgplan::planned_rejected_outcome::none,
-        pkgimage::entry_id{4},
-        ownership(),
+        *active_decision.incoming_entry(),
+        active_decision.ownership(),
         pkgapply::application_effect_status::conditional_retained,
         pkgapply::application_effect_status::not_attempted,
         pkgapply::application_path_observation::absent(path),
@@ -156,8 +182,8 @@ main()
         pkgapply::application_path_role::incoming_entry,
         pkgplan::planned_active_outcome::activate_incoming,
         pkgplan::planned_rejected_outcome::none,
-        pkgimage::entry_id{4},
-        ownership(),
+        *active_decision.incoming_entry(),
+        active_decision.ownership(),
         pkgapply::application_effect_status::completed,
         pkgapply::application_effect_status::not_attempted,
         pkgapply::application_path_observation::absent(path),
@@ -174,10 +200,10 @@ main()
   const pkgapply::application_path_consequence staged(
       path,
       pkgapply::application_path_role::incoming_entry,
-      pkgplan::planned_active_outcome::activate_incoming,
-      pkgplan::planned_rejected_outcome::stage_incoming,
-      pkgimage::entry_id{4},
-      ownership(),
+      staged_decision.active(),
+      staged_decision.rejected(),
+      *staged_decision.incoming_entry(),
+      staged_decision.ownership(),
       pkgapply::application_effect_status::completed,
       pkgapply::application_effect_status::completed,
       pkgapply::application_path_observation::absent(path),

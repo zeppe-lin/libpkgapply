@@ -3,13 +3,12 @@
 
 #include <libpkgapply/payload.h>
 
-#include <array>
-#include <cstdint>
+#include "plan_fixture.h"
+
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
 #include <string_view>
-#include <vector>
 
 namespace {
 
@@ -22,68 +21,51 @@ require(bool condition, std::string_view message)
   }
 }
 
-template<class Identity>
-Identity
-planning_identity(std::uint8_t value)
-{
-  std::array<std::uint8_t, 32> bytes{};
-  for (std::size_t index = 0; index < bytes.size(); ++index)
-    bytes[index] = static_cast<std::uint8_t>(value + index);
-  return Identity::from_sha256(bytes);
-}
-
-pkgplan::path_ownership_transition
-ownership()
-{
-  return pkgplan::path_ownership_transition({}, {}, true);
-}
-
 pkgimage::package_image
 image()
 {
-  pkgimage::package_entry regular(
-      pkgimage::package_path::parse("usr/lib/base"),
-      pkgimage::entry_type::regular);
-  pkgimage::package_entry hardlink(
-      pkgimage::package_path::parse("usr/bin/tool"),
-      pkgimage::entry_type::hardlink);
-  hardlink.hardlink_target = pkgimage::package_path::parse("usr/lib/base");
-  pkgimage::package_entry directory(
-      pkgimage::package_path::parse("usr/share/tool"),
-      pkgimage::entry_type::directory);
-  return pkgimage::package_image(
-      {std::move(regular), std::move(hardlink), std::move(directory)});
+  return pkgimage::package_image({
+      pkgapply::test::fixture::regular_entry("base", 1),
+      pkgapply::test::fixture::hardlink_entry("tool", "base"),
+      pkgapply::test::fixture::directory_entry("share"),
+  });
 }
 
 pkgplan::installation_plan
 installation()
 {
-  return pkgplan::installation_plan(
-      planning_identity<pkgplan::operation_plan_identity>(1),
-      planning_identity<pkgplan::target_system_context_identity>(2),
+  const pkgapply::test::fixture::planning_authorities authorities(
+      pkgapply::test::fixture::planning_identity<
+          pkgplan::target_system_context_identity>(2));
+  const auto base = pkgplan::package_path::parse("base");
+  const auto tool = pkgplan::package_path::parse("tool");
+  const auto share = pkgplan::package_path::parse("share");
+  const auto retained = pkgapply::test::fixture::regular_object(1);
+  const auto policy = pkgapply::test::fixture::policy_snapshot(
+      authorities,
+      pkgapply::test::fixture::path_policy(),
+      {pkgplan::path_policy_override(
+          base,
+          pkgapply::test::fixture::path_policy(
+              pkgplan::incoming_path_policy::retain(
+                  pkgplan::rejected_object_policy::stage,
+                  pkgplan::retained_active_ownership_policy::
+                      add_operated_owner)))});
+  return pkgapply::test::fixture::installation_plan(
+      authorities,
       {
-          pkgplan::installation_path_decision(
-              pkgplan::package_path::parse("usr/bin/tool"),
-              pkgplan::installation_path_role::incoming_entry,
-              pkgplan::planned_active_outcome::activate_incoming,
-              pkgplan::planned_rejected_outcome::none,
-              pkgimage::entry_id{1},
-              ownership()),
-          pkgplan::installation_path_decision(
-              pkgplan::package_path::parse("usr/lib/base"),
-              pkgplan::installation_path_role::incoming_entry,
-              pkgplan::planned_active_outcome::retain_observed,
-              pkgplan::planned_rejected_outcome::stage_incoming,
-              pkgimage::entry_id{0},
-              ownership()),
-          pkgplan::installation_path_decision(
-              pkgplan::package_path::parse("usr/share/tool"),
-              pkgplan::installation_path_role::incoming_entry,
-              pkgplan::planned_active_outcome::activate_incoming,
-              pkgplan::planned_rejected_outcome::none,
-              pkgimage::entry_id{2},
-              ownership()),
-      });
+          pkgapply::test::fixture::regular_entry("base", 1),
+          pkgapply::test::fixture::hardlink_entry("tool", "base"),
+          pkgapply::test::fixture::directory_entry("share"),
+      },
+      {
+          pkgplan::target_path_observation::present(
+              pkgplan::filesystem_object_fact(base, retained)),
+          pkgplan::target_path_observation::absent(tool),
+          pkgplan::target_path_observation::absent(share),
+      },
+      {},
+      policy);
 }
 
 } // namespace
@@ -103,55 +85,61 @@ main()
   require(payload.requirements().size() == 3,
           "payload consumers were lost");
 
-  require(payload.requirements()[0].path().string() == "usr/bin/tool" &&
-              payload.requirements()[0].image_entry() == 1 &&
+  require(payload.requirements()[0].path().string() == "base" &&
+              payload.requirements()[0].image_entry() == 0 &&
               payload.requirements()[0].regular_payload_entry() ==
                   pkgimage::entry_id{0} &&
-              payload.requirements()[0].required_for_active() &&
-              !payload.requirements()[0].required_for_rejected(),
-          "hard-link payload anchor was not retained");
-
-  require(payload.requirements()[1].image_entry() == 0 &&
-              payload.requirements()[1].regular_payload_entry() ==
-                  pkgimage::entry_id{0} &&
-              !payload.requirements()[1].required_for_active() &&
-              payload.requirements()[1].required_for_rejected(),
+              !payload.requirements()[0].required_for_active() &&
+              payload.requirements()[0].required_for_rejected(),
           "rejected regular payload requirement changed");
 
-  require(payload.requirements()[2].image_entry() == 2 &&
-              !payload.requirements()[2].regular_payload_entry().has_value(),
+  require(payload.requirements()[1].path().string() == "share" &&
+              payload.requirements()[1].image_entry() == 2 &&
+              !payload.requirements()[1].regular_payload_entry().has_value(),
           "non-regular incoming object incorrectly acquired payload bytes");
 
+  require(payload.requirements()[2].path().string() == "tool" &&
+              payload.requirements()[2].image_entry() == 1 &&
+              payload.requirements()[2].regular_payload_entry() ==
+                  pkgimage::entry_id{0} &&
+              payload.requirements()[2].required_for_active() &&
+              !payload.requirements()[2].required_for_rejected(),
+          "hard-link payload anchor was not retained");
+
+  const pkgapply::test::fixture::planning_authorities no_payload_authorities(
+      pkgapply::test::fixture::planning_identity<
+          pkgplan::target_system_context_identity>(4));
+  const auto base = pkgplan::package_path::parse("base");
+  const auto retained = pkgapply::test::fixture::regular_object(1);
+  const auto retain_policy = pkgapply::test::fixture::policy_snapshot(
+      no_payload_authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::retain(
+              pkgplan::rejected_object_policy::none,
+              pkgplan::retained_active_ownership_policy::
+                  add_operated_owner)));
+  const auto no_payload_plan = pkgapply::test::fixture::installation_plan(
+      no_payload_authorities,
+      {pkgapply::test::fixture::regular_entry("base", 1)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(base, retained))},
+      {},
+      retain_policy);
   const auto no_payload = pkgapply::prepare_incoming_payloads(
-      pkgplan::installation_plan(
-          planning_identity<pkgplan::operation_plan_identity>(3),
-          planning_identity<pkgplan::target_system_context_identity>(4),
-          {pkgplan::installation_path_decision(
-              pkgplan::package_path::parse("usr/lib/base"),
-              pkgplan::installation_path_role::incoming_entry,
-              pkgplan::planned_active_outcome::retain_observed,
-              pkgplan::planned_rejected_outcome::none,
-              pkgimage::entry_id{0},
-              ownership())}),
-      package_image);
+      no_payload_plan, package_image);
   require(no_payload.selection().size() == 0 &&
               no_payload.requirements().empty(),
           "unused incoming entry entered the replay closure");
 
   bool rejected = false;
   try {
+    const pkgimage::package_image mismatched({
+        pkgapply::test::fixture::regular_entry("base", 1),
+        pkgapply::test::fixture::hardlink_entry("other", "base"),
+        pkgapply::test::fixture::directory_entry("share"),
+    });
     static_cast<void>(pkgapply::prepare_incoming_payloads(
-        pkgplan::installation_plan(
-            planning_identity<pkgplan::operation_plan_identity>(5),
-            planning_identity<pkgplan::target_system_context_identity>(6),
-            {pkgplan::installation_path_decision(
-                pkgplan::package_path::parse("usr/bin/other"),
-                pkgplan::installation_path_role::incoming_entry,
-                pkgplan::planned_active_outcome::activate_incoming,
-                pkgplan::planned_rejected_outcome::none,
-                pkgimage::entry_id{1},
-                ownership())}),
-        package_image));
+        installation(), mismatched));
   } catch (const std::invalid_argument&) {
     rejected = true;
   }

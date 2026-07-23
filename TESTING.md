@@ -21,6 +21,13 @@ No test class may be disabled merely to obtain a release build.
 Model tests
 -----------
 
+Plan-bearing tests construct accepted plans only through the released
+`libpkgplan` request and planner APIs. Tests must not instantiate planner-private
+plan, decision, precondition, publication, or ownership-transition values, and
+must not substitute constructor-shaped doubles for those APIs. At least one
+qualification build uses installed released `libpkgplan` and `libpkgimage`
+headers and libraries rather than local test doubles.
+
 The immutable model suite must cover:
 
 * independent public headers;

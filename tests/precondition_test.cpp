@@ -3,6 +3,8 @@
 
 #include <libpkgapply/precondition.h>
 
+#include "plan_fixture.h"
+
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -58,27 +60,27 @@ present_preconditions(const pkgplan::package_path& path)
       4,
       std::nullopt,
       planning_identity<pkgplan::filesystem_regular_content_identity>(40));
-  return pkgplan::operation_preconditions(
-      planning_identity<pkgplan::target_system_context_identity>(1),
-      planning_identity<pkgplan::installed_state_snapshot_identity>(2),
-      planning_identity<pkgplan::ownership_inventory_identity>(3),
-      std::nullopt,
-      {pkgplan::path_precondition(
-          pkgplan::target_path_observation::present(
-              pkgplan::filesystem_object_fact(path, metadata)),
-          {})});
+  const pkgapply::test::fixture::planning_authorities authorities(
+      planning_identity<pkgplan::target_system_context_identity>(1));
+  const auto plan = pkgapply::test::fixture::removal_plan(
+      authorities,
+      {pkgplan::installed_ownership_claim(
+          path, authorities.installed_package, metadata)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(path, metadata))});
+  return plan.preconditions();
 }
 
 pkgplan::operation_preconditions
 absent_preconditions(const pkgplan::package_path& path)
 {
-  return pkgplan::operation_preconditions(
-      planning_identity<pkgplan::target_system_context_identity>(1),
-      planning_identity<pkgplan::installed_state_snapshot_identity>(2),
-      planning_identity<pkgplan::ownership_inventory_identity>(3),
-      std::nullopt,
-      {pkgplan::path_precondition(
-          pkgplan::target_path_observation::absent(path), {})});
+  const pkgapply::test::fixture::planning_authorities authorities(
+      planning_identity<pkgplan::target_system_context_identity>(1));
+  const auto plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::regular_entry(path.string(), 7)},
+      {pkgplan::target_path_observation::absent(path)});
+  return plan.preconditions();
 }
 
 pkgapply::completed_object_fact
@@ -122,7 +124,7 @@ batch(const pkgplan::package_path& path,
 int
 main()
 {
-  const auto path = pkgplan::package_path::parse("usr/bin/tool");
+  const auto path = pkgplan::package_path::parse("tool");
   const auto expected = present_preconditions(path);
   const auto matching_content =
       application_identity<pkgapply::completed_regular_content_identity>(40);
@@ -204,7 +206,7 @@ main()
 
   bool rejected = false;
   try {
-    const auto another = pkgplan::package_path::parse("usr/bin/other");
+    const auto another = pkgplan::package_path::parse("other");
     static_cast<void>(pkgapply::application_precondition_check::make(
         expected,
         batch(another, pkgapply::application_path_observation::absent(another))));

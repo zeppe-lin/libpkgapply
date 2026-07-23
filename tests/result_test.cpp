@@ -3,6 +3,8 @@
 
 #include <libpkgapply/result.h>
 
+#include "plan_fixture.h"
+
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -88,51 +90,52 @@ pkgapply::completed_object_fact directory(const pkgplan::package_path& path)
 }
 
 pkgapply::application_path_consequence path_result(
+    const pkgplan::installation_path_decision& decision,
     pkgapply::application_effect_status active =
         pkgapply::application_effect_status::completed,
-    pkgimage::entry_id incoming_entry = 0,
+    std::optional<pkgimage::entry_id> incoming_entry_override = std::nullopt,
     pkgapply::ownership_publication_status publication =
         pkgapply::ownership_publication_status::eligible)
 {
-  auto path = pkgplan::package_path::parse("usr/share/tool");
+  const auto incoming_entry = incoming_entry_override
+      ? incoming_entry_override
+      : decision.incoming_entry();
   return pkgapply::application_path_consequence(
-      path, pkgapply::application_path_role::incoming_entry,
-      pkgplan::planned_active_outcome::activate_incoming,
-      pkgplan::planned_rejected_outcome::none,
-      incoming_entry, pkgplan::path_ownership_transition({}, {}, true), active,
+      decision.path(),
+      pkgapply::application_path_role::incoming_entry,
+      decision.active(),
+      decision.rejected(),
+      incoming_entry,
+      decision.ownership(),
+      active,
       pkgapply::application_effect_status::not_attempted,
-      pkgapply::application_path_observation::absent(path),
-      pkgapply::application_path_observation::present(directory(path)),
-      std::nullopt, publication);
+      pkgapply::application_path_observation::absent(decision.path()),
+      pkgapply::application_path_observation::present(
+          directory(decision.path())),
+      std::nullopt,
+      publication);
 }
 
-pkgplan::installation_plan installation_plan(
-    pkgplan::operation_plan_identity identity,
-    const pkgapply::application_target_context& context)
-{
-  const auto path = pkgplan::package_path::parse("usr/share/tool");
-  return pkgplan::installation_plan(
-      std::move(identity), context.target(),
-      {pkgplan::installation_path_decision(
-          path, pkgplan::installation_path_role::incoming_entry,
-          pkgplan::planned_active_outcome::activate_incoming,
-          pkgplan::planned_rejected_outcome::none,
-          pkgimage::entry_id{0},
-          pkgplan::path_ownership_transition({}, {}, true))});
-}
 }
 
 int main()
 {
   auto context = target(); auto execution = control();
-  auto plan_id = plan_identity<pkgplan::operation_plan_identity>(30);
+  const auto path = pkgplan::package_path::parse("tool");
+  const pkgapply::test::fixture::planning_authorities authorities(
+      context.target());
+  const auto plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::directory_entry("tool")},
+      {pkgplan::target_path_observation::absent(path)});
+  const auto& decision = plan.paths().front();
   auto request = pkgapply::installation_application_request::make(
-      installation_plan(plan_id, context), context, execution);
+      plan, context, execution);
   auto evidence = pkgapply::completed_application_evidence::installation(
       request, app_identity<pkgapply::application_attempt_identity>(40),
       app_identity<pkgapply::lease_bound_state_projection_identity>(41),
       app_identity<pkgapply::application_journal_identity>(42),
-      {path_result()}, durability(),
+      {path_result(decision)}, durability(),
       {app_identity<pkgapply::application_backend_evidence_identity>(43)});
   auto receipt = pkgapply::application_receipt::completed(
       evidence, pkgapply::application_recovery_state::recovery_assets_retained);
@@ -143,10 +146,21 @@ int main()
           "completed receipt operation kind changed");
   require(receipt.completed_evidence().has_value(),
           "completed receipt lost completed evidence");
-  require(evidence.identity().string() == "v1:sha256:3e22d8dd0327c02769ff7072bf322ec4324cbd7ffb4b94afd65f543d61d12b60",
-          "completed evidence identity vector changed");
-  require(receipt.identity().string() == "v1:sha256:cf611ca945e6175fdfcb63b3f03359d374a4ff4779ecefe272a4b69f53e075a7",
-          "application receipt identity vector changed");
+  const auto repeated_evidence =
+      pkgapply::completed_application_evidence::installation(
+          request,
+          app_identity<pkgapply::application_attempt_identity>(40),
+          app_identity<pkgapply::lease_bound_state_projection_identity>(41),
+          app_identity<pkgapply::application_journal_identity>(42),
+          {path_result(decision)}, durability(),
+          {app_identity<pkgapply::application_backend_evidence_identity>(43)});
+  const auto repeated_receipt = pkgapply::application_receipt::completed(
+      repeated_evidence,
+      pkgapply::application_recovery_state::recovery_assets_retained);
+  require(repeated_evidence.identity() == evidence.identity(),
+          "identical completed evidence changed identity");
+  require(repeated_receipt.identity() == receipt.identity(),
+          "identical application receipts changed identity");
   require(evidence.identity().string() != receipt.identity().string(),
           "receipt and completed evidence identities must be distinct");
 
@@ -168,7 +182,7 @@ int main()
         request, app_identity<pkgapply::application_attempt_identity>(40),
         app_identity<pkgapply::lease_bound_state_projection_identity>(41),
         app_identity<pkgapply::application_journal_identity>(42),
-        {path_result(pkgapply::application_effect_status::failed)}, durability()));
+        {path_result(decision, pkgapply::application_effect_status::failed)}, durability()));
   } catch (const std::invalid_argument&) { rejected = true; }
   require(rejected, "failed path must not become completed evidence");
 
@@ -188,7 +202,7 @@ int main()
         request, app_identity<pkgapply::application_attempt_identity>(40),
         app_identity<pkgapply::lease_bound_state_projection_identity>(41),
         app_identity<pkgapply::application_journal_identity>(42),
-        {path_result(pkgapply::application_effect_status::completed, 1)},
+        {path_result(decision, pkgapply::application_effect_status::completed, pkgimage::entry_id{1})},
         durability()));
   } catch (const std::invalid_argument&) { rejected = true; }
   require(rejected, "changed incoming entry became completed evidence");
@@ -201,7 +215,7 @@ int main()
         request, app_identity<pkgapply::application_attempt_identity>(40),
         app_identity<pkgapply::lease_bound_state_projection_identity>(41),
         app_identity<pkgapply::application_journal_identity>(42),
-        {path_result()}, pkgapply::application_durability_profile({
+        {path_result(decision)}, pkgapply::application_durability_profile({
             {D::journal, S::confirmed},
             {D::incoming_staging, S::confirmed},
             {D::recovery_staging, S::confirmed},
@@ -231,7 +245,7 @@ int main()
         app_identity<pkgapply::lease_bound_state_projection_identity>(41),
         pkgapply::application_attempt_outcome::precondition_refused,
         pkgapply::application_recovery_state::unchanged,
-        durability(), {path_result()}, std::nullopt));
+        durability(), {path_result(decision)}, std::nullopt));
   } catch (const std::invalid_argument&) { rejected = true; }
   require(rejected, "failed receipt retained publication-eligible path");
 

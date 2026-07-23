@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Alexandr Savca
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "plan_fixture.h"
 #include "scripted_backend.h"
 
 #include <libpkgapply/admission.h>
@@ -10,6 +11,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -101,18 +103,35 @@ public:
   fake_lease(pkgapply::mutation_lease_instance_identity identity,
              pkgapply::application_target_context_identity target,
              pkgapply::mutation_exclusion_domain_identity domain)
-      : identity_(std::move(identity)), target_(std::move(target)),
+      : identity_(std::move(identity)),
+        target_(std::move(target)),
         domain_(std::move(domain))
   {
   }
 
   const pkgapply::mutation_lease_instance_identity&
-  identity() const noexcept override { return identity_; }
+  identity() const noexcept override
+  {
+    return identity_;
+  }
+
   const pkgapply::application_target_context_identity&
-  target() const noexcept override { return target_; }
+  target() const noexcept override
+  {
+    return target_;
+  }
+
   const pkgapply::mutation_exclusion_domain_identity&
-  exclusion_domain() const noexcept override { return domain_; }
-  bool held() const noexcept override { return true; }
+  exclusion_domain() const noexcept override
+  {
+    return domain_;
+  }
+
+  bool
+  held() const noexcept override
+  {
+    return true;
+  }
 
 private:
   pkgapply::mutation_lease_instance_identity identity_;
@@ -125,20 +144,29 @@ public:
   fake_archive(pkgimage::package_image image,
                pkgimage::complete_archive_digest digest)
       : image_(std::move(image)),
-        receipt_(pkgimage::archive_backend_identity::parse("test/archive-v1"),
+        receipt_(pkgimage::archive_backend_identity::parse(
+                     "test/pkgimage-v1"),
                  std::move(digest),
                  image_.identity(),
                  image_.size())
   {
   }
 
-  const pkgimage::package_image& image() const noexcept override
-  { return image_; }
+  const pkgimage::package_image&
+  image() const noexcept override
+  {
+    return image_;
+  }
+
   const pkgimage::archive_inspection_receipt&
   inspection_receipt() const noexcept override
-  { return receipt_; }
-  void replay(const pkgimage::entry_selection&,
-              pkgimage::payload_sink&) const override
+  {
+    return receipt_;
+  }
+
+  void
+  replay(const pkgimage::entry_selection&,
+         pkgimage::payload_sink&) const override
   {
   }
 
@@ -148,54 +176,50 @@ private:
 };
 
 pkgapply::lease_bound_state_projection
-state(const fake_lease& lease,
-      const pkgplan::installed_state_snapshot_identity& snapshot,
-      const pkgplan::ownership_inventory_identity& ownership,
-      const pkgplan::package_path& path,
-      std::vector<pkgplan::installed_package_identity> owners)
+state(
+    const fake_lease& lease,
+    const pkgplan::operation_preconditions& preconditions,
+    std::optional<pkgplan::installed_state_snapshot_identity> snapshot =
+        std::nullopt,
+    std::optional<std::vector<pkgplan::installed_package_identity>>
+        first_path_owners = std::nullopt)
 {
+  std::vector<pkgapply::projected_path_owners> paths;
+  paths.reserve(preconditions.paths().size());
+  for (std::size_t index = 0; index < preconditions.paths().size(); ++index) {
+    const auto& expected = preconditions.paths()[index];
+    paths.emplace_back(
+        expected.path(),
+        index == 0 && first_path_owners
+            ? *first_path_owners
+            : expected.owners());
+  }
   return pkgapply::lease_bound_state_projection::make(
       lease.identity(),
-      snapshot,
-      ownership,
+      snapshot ? std::move(*snapshot) : preconditions.installed_snapshot(),
+      preconditions.ownership_inventory(),
       pkgapply::state_projection_completeness::complete,
-      {pkgapply::projected_path_owners(path, std::move(owners))},
+      std::move(paths),
       application_identity<
           pkgapply::state_projection_evidence_identity>(30));
 }
 
 pkgapply::installation_application_request
-installation_request(
-    const pkgapply::application_target_context& context,
-    const fake_archive& archive,
-    const pkgplan::installed_state_snapshot_identity& snapshot,
-    const pkgplan::ownership_inventory_identity& ownership,
-    const pkgplan::package_path& plan_path,
-    std::vector<pkgplan::installed_package_identity> owners)
+installation_request(const pkgapply::application_target_context& context,
+                     const fake_archive& archive)
 {
-  pkgplan::operation_preconditions preconditions(
-      context.target(),
-      snapshot,
-      ownership,
-      pkgplan::incoming_archive_precondition(
-          archive.inspection_receipt().archive_digest(),
-          archive.image().identity(),
-          archive.inspection_receipt().identity()),
-      {pkgplan::path_precondition(plan_path, owners)});
-  pkgplan::installation_path_decision decision(
-      plan_path,
-      pkgplan::installation_path_role::incoming_entry,
-      pkgplan::planned_active_outcome::activate_incoming,
-      pkgplan::planned_rejected_outcome::none,
-      pkgimage::entry_id{0},
-      pkgplan::path_ownership_transition(owners, owners, true));
+  const auto path = pkgplan::package_path::parse("tool");
+  const pkgapply::test::fixture::planning_authorities authorities(
+      context.target());
+  const auto plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::regular_entry("tool", 7)},
+      {pkgplan::target_path_observation::absent(path)},
+      {},
+      std::nullopt,
+      archive.inspection_receipt().archive_digest());
   return pkgapply::installation_application_request::make(
-      pkgplan::installation_plan(
-          planning_identity<pkgplan::operation_plan_identity>(40),
-          std::move(preconditions),
-          {std::move(decision)}),
-      context,
-      control());
+      plan, context, control());
 }
 
 template<class Function>
@@ -219,26 +243,18 @@ int
 main()
 {
   const auto context = target();
-  const auto lease_identity =
-      application_identity<pkgapply::mutation_lease_instance_identity>(20);
-  fake_lease lease(lease_identity,
-                   context.identity(),
-                   context.mutation_exclusion_domain());
-  const auto snapshot =
-      planning_identity<pkgplan::installed_state_snapshot_identity>(21);
-  const auto ownership =
-      planning_identity<pkgplan::ownership_inventory_identity>(22);
-  const auto owner = planning_identity<pkgplan::installed_package_identity>(23);
-  const auto path = pkgplan::package_path::parse("usr/bin/tool");
+  fake_lease lease(
+      application_identity<pkgapply::mutation_lease_instance_identity>(20),
+      context.identity(),
+      context.mutation_exclusion_domain());
 
   fake_archive archive(
-      pkgimage::package_image({pkgimage::package_entry(
-          pkgimage::package_path::parse("usr/bin/tool"),
-          pkgimage::entry_type::regular)}),
+      pkgimage::package_image({
+          pkgapply::test::fixture::regular_entry("tool", 7),
+      }),
       archive_digest(50));
-  const auto request = installation_request(
-      context, archive, snapshot, ownership, path, {owner});
-  const auto projection = state(lease, snapshot, ownership, path, {owner});
+  const auto request = installation_request(context, archive);
+  const auto projection = state(lease, request.plan().preconditions());
 
   const auto backend_state =
       std::make_shared<pkgapply::test::scripted_backend_state>();
@@ -258,10 +274,9 @@ main()
       [&] {
         const auto stale = state(
             lease,
-            planning_identity<pkgplan::installed_state_snapshot_identity>(99),
-            ownership,
-            path,
-            {owner});
+            request.plan().preconditions(),
+            planning_identity<
+                pkgplan::installed_state_snapshot_identity>(99));
         pkgapply::validate_application_admission(
             request, stale, lease, backend, archive);
       },
@@ -271,7 +286,12 @@ main()
   require_admission_error(
       [&] {
         const auto wrong_owners = state(
-            lease, snapshot, ownership, path, {});
+            lease,
+            request.plan().preconditions(),
+            std::nullopt,
+            std::vector<pkgplan::installed_package_identity>{
+                planning_identity<pkgplan::installed_package_identity>(23),
+            });
         pkgapply::validate_application_admission(
             request, wrong_owners, lease, backend, archive);
       },
@@ -295,9 +315,9 @@ main()
       "foreign mutation backend was admitted");
 
   fake_archive different_archive(
-      pkgimage::package_image({pkgimage::package_entry(
-          pkgimage::package_path::parse("usr/bin/tool"),
-          pkgimage::entry_type::regular)}),
+      pkgimage::package_image({
+          pkgapply::test::fixture::regular_entry("tool", 7),
+      }),
       archive_digest(51));
   require_admission_error(
       [&] {
@@ -307,45 +327,38 @@ main()
       pkgapply::application_admission_error_code::archive_digest_mismatch,
       "different archive bytes were admitted");
 
-  const auto another_path = pkgplan::package_path::parse("usr/bin/other");
-  const auto mismatched_request = installation_request(
-      context,
-      archive,
-      snapshot,
-      ownership,
-      another_path,
-      {owner});
-  const auto mismatched_state = state(
-      lease, snapshot, ownership, another_path, {owner});
+  fake_archive different_image(
+      pkgimage::package_image({
+          pkgapply::test::fixture::regular_entry("other", 7),
+      }),
+      archive_digest(50));
   require_admission_error(
       [&] {
         pkgapply::validate_application_admission(
-            mismatched_request,
-            mismatched_state,
-            lease,
-            backend,
-            archive);
+            request, projection, lease, backend, different_image);
       },
-      pkgapply::application_admission_error_code::
-          incoming_entry_path_mismatch,
-      "incoming entry bound to another path was admitted");
+      pkgapply::application_admission_error_code::package_image_mismatch,
+      "different package image was admitted");
 
-  pkgplan::operation_preconditions removal_preconditions(
-      context.target(), snapshot, ownership, std::nullopt,
-      {pkgplan::path_precondition(path, {owner})});
-  const auto removal_request = pkgapply::removal_application_request::make(
-      pkgplan::removal_plan(
-          planning_identity<pkgplan::operation_plan_identity>(60),
-          std::move(removal_preconditions),
-          {pkgplan::removal_path_decision(
-              path,
-              pkgplan::planned_active_outcome::remove_observed,
-              pkgplan::planned_rejected_outcome::none,
-              pkgplan::path_ownership_transition({owner}, {}, false))}),
-      context,
-      control());
+  const auto removal_path = pkgplan::package_path::parse("tool");
+  const auto old_object = pkgapply::test::fixture::regular_object(1, 0755);
+  const pkgapply::test::fixture::planning_authorities removal_authorities(
+      context.target());
+  const auto removal_plan = pkgapply::test::fixture::removal_plan(
+      removal_authorities,
+      {pkgplan::installed_ownership_claim(
+          removal_path,
+          removal_authorities.installed_package,
+          old_object)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(removal_path, old_object))});
+  const auto removal_request =
+      pkgapply::removal_application_request::make(
+          removal_plan, context, control());
+  const auto removal_projection =
+      state(lease, removal_request.plan().preconditions());
   pkgapply::validate_application_admission(
-      removal_request, projection, lease, backend);
+      removal_request, removal_projection, lease, backend);
 
   auto transaction =
       backend.begin_with_incoming_image(context, lease, archive.image());

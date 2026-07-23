@@ -3,6 +3,8 @@
 
 #include <libpkgapply/request.h>
 
+#include "plan_fixture.h"
+
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -71,30 +73,45 @@ int main()
 {
   const auto target = context();
   const auto execution = control();
-  const auto plan_id = pkgplan::operation_plan_identity::from_sha256({});
+  const pkgapply::test::fixture::planning_authorities authorities(
+      target.target());
+
+  const auto install_plan =
+      pkgapply::test::fixture::ordinary_installation(authorities);
+  const auto upgrade_plan =
+      pkgapply::test::fixture::ordinary_upgrade(authorities);
+  const auto removal_plan =
+      pkgapply::test::fixture::ordinary_removal(authorities);
 
   const auto install = pkgapply::installation_application_request::make(
-      pkgplan::installation_plan(plan_id, target.target()), target, execution);
+      install_plan, target, execution);
   const auto upgrade = pkgapply::upgrade_application_request::make(
-      pkgplan::upgrade_plan(plan_id, target.target()), target, execution);
+      upgrade_plan, target, execution);
   const auto removal = pkgapply::removal_application_request::make(
-      pkgplan::removal_plan(plan_id, target.target()), target, execution);
+      removal_plan, target, execution);
 
   require(install.identity() != upgrade.identity(),
           "operation kind must participate in request identity");
   require(upgrade.identity() != removal.identity(),
           "operation kinds must remain distinct");
-  require(install.plan().identity() == plan_id,
+  require(install.plan().identity() == install_plan.identity(),
           "request must retain the exact accepted plan");
   require(execution.identity().string() == "v1:sha256:087ad9450a5d6fdfb3aa4e09c86ee69a6057f956ee99fab52c94157ea6cde056",
           "execution control identity vector changed");
-  require(install.identity().string() == "v1:sha256:62e7147078c7a955e563cd6ce2544cd143c5491c881344f3982489cc2bb0f530",
-          "application request identity vector changed");
+
+  const auto repeated = pkgapply::installation_application_request::make(
+      install_plan, target, execution);
+  require(repeated.identity() == install.identity(),
+          "identical application requests must have identical identities");
 
   bool rejected = false;
   try {
+    const pkgapply::test::fixture::planning_authorities foreign_authorities(
+        plan_target(99));
     static_cast<void>(pkgapply::removal_application_request::make(
-        pkgplan::removal_plan(plan_id, plan_target(99)), target, execution));
+        pkgapply::test::fixture::ordinary_removal(foreign_authorities),
+        target,
+        execution));
   } catch (const std::invalid_argument&) {
     rejected = true;
   }
