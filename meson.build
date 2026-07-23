@@ -27,5 +27,11 @@ endif
 
 pkgconf = import('pkgconfig')
 
+libcrypto_dep = dependency(
+  'libcrypto',
+  required: true,
+  static: want_static,
+)
+
 subdir('src')
 subdir('tests')
