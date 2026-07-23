@@ -481,10 +481,11 @@ validate_failed_paths(
 
     if (outcome ==
             application_attempt_outcome::failed_before_target_mutation &&
-        path.active_status() != application_effect_status::not_attempted)
+        path.active_status() != application_effect_status::not_attempted &&
+        path.active_status() != application_effect_status::failed)
     {
       throw std::invalid_argument(
-          "pre-target-mutation failure contains attempted active effects");
+          "pre-target-mutation failure contains a possibly applied active effect");
     }
   }
 }

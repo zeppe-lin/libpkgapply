@@ -206,6 +206,25 @@ int main()
   require(failed.kind() == pkgplan::operation_kind::install,
           "failed receipt operation kind changed");
 
+  const auto failed_command_path = pkgapply::application_path_consequence(
+      decision.path(), pkgapply::application_path_role::incoming_entry,
+      decision.active(), decision.rejected(), decision.incoming_entry(),
+      decision.ownership(), pkgapply::application_effect_status::failed,
+      pkgapply::application_effect_status::not_attempted,
+      pkgapply::application_path_observation::absent(decision.path()),
+      pkgapply::application_path_observation::absent(decision.path()),
+      std::nullopt, pkgapply::ownership_publication_status::ineligible);
+  const auto failed_command = pkgapply::application_receipt::failed(
+      request, app_identity<pkgapply::application_attempt_identity>(51),
+      app_identity<pkgapply::lease_bound_state_projection_identity>(41),
+      pkgapply::application_attempt_outcome::failed_before_target_mutation,
+      pkgapply::application_recovery_state::unchanged, durability(),
+      {failed_command_path},
+      app_identity<pkgapply::application_journal_identity>(52));
+  require(failed_command.paths().front().active_status() ==
+              pkgapply::application_effect_status::failed,
+          "known failed active command was erased before mutation");
+
   bool rejected = false;
   try {
     static_cast<void>(pkgapply::completed_application_evidence::installation(
