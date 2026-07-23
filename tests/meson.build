@@ -31,6 +31,28 @@ if get_option('tests').allowed()
   test('validate typed application identities', digest_test)
 
 
+
+  execution_control_header_test = executable(
+    'execution-control-header-test',
+    'execution_control_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile execution control header independently', execution_control_header_test)
+
+  request_header_test = executable(
+    'request-header-test',
+    'request_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile request header independently', request_header_test)
+
+  request_test = executable(
+    'request-test',
+    'request_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate immutable application requests', request_test)
+
   target_context_header_test = executable(
     'target-context-header-test',
     'target_context_header_test.cpp',
