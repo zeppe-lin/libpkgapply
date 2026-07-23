@@ -13,7 +13,34 @@ libpkgstate   durable installed truth and state publication
 pkgman        transaction composition and final resolution
 ```
 
-The library will:
+Implemented foundation
+----------------------
+
+The current development tree provides the immutable and live-authority
+foundation required before target mutation is admitted:
+
+* strict domain-separated SHA-256 application identities;
+* immutable target application contexts and execution controls;
+* operation-specific installation, upgrade, and removal requests retaining the
+  exact accepted `libpkgplan` objects;
+* complete lease-bound installed-state projections;
+* rich completed filesystem-object facts with explicit known, unknown, and
+  not-applicable fields;
+* path consequences bound back to exact plan decisions and incoming image entry
+  identifiers;
+* typed application outcomes, recovery states, durability profiles, receipts,
+  and publication-eligible completed evidence; and
+* validation of caller-held target mutation leases against the target context,
+  exclusion domain, acquisition instance, and state projection.
+
+No filesystem actuator, archive replay coordinator, journal backend, or POSIX
+backend is present yet. The public model rejects inconsistent evidence before
+those effectful layers are introduced.
+
+Authority boundary
+------------------
+
+The completed library will:
 
 * consume an accepted installation, upgrade, or removal plan;
 * require one caller-held target mutation lease;
@@ -35,8 +62,47 @@ The library will not:
 * publish installed state; or
 * claim global filesystem and state atomicity.
 
-Version 0.1.0 is being built contract-first. The initial repository contains
-only the build and documentation boundary. Effectful code is admitted only
+Requirements
+------------
+
+Build-time requirements are:
+
+* a C++17 compiler;
+* Meson 1.2.0 or later;
+* Ninja;
+* pkg-config;
+* `libpkgimage` 0.3.0 or later;
+* `libpkgplan` 0.1.0 or later; and
+* OpenSSL `libcrypto` with SHA-256 EVP support.
+
+Building
+--------
+
+Shared library:
+
+```sh
+meson setup build
+meson compile -C build
+meson test -C build --print-errorlogs
+```
+
+Static library with static dependencies:
+
+```sh
+meson setup build-static \
+  -Ddefault_library=static \
+  -Dlink_mode=static
+meson compile -C build-static
+meson test -C build-static --print-errorlogs
+```
+
+`default_library=both` is intentionally unsupported. Shared and static
+artifacts are qualified as separate builds with matching dependency linkage.
+
+Development doctrine
+--------------------
+
+Version 0.1.0 is being built contract-first. Effectful code is admitted only
 with direct failure, stale-state, journal, recovery, and identity tests.
 
 See `DESIGN.md` for the normative authority and sequencing model and
