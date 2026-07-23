@@ -34,7 +34,10 @@ foundation required before target mutation is admitted:
   exclusion domain, acquisition instance, and state projection; and
 * constrained backend mechanism contracts for exact observations, private
   payload staging, old-object capture, active and rejected effects, recovery,
-  durability synchronization, and journal publication.
+  durability synchronization, and journal publication; and
+* exact admission checks binding plan schema and kind, target, backend,
+  capabilities, outer lease, installed snapshot, ownership inventory, path
+  owner closure, archive bytes, image, inspection receipt, and image entry IDs.
 
 No concrete filesystem actuator, archive replay coordinator, journal storage
 backend, or POSIX backend is present yet. The public model rejects inconsistent

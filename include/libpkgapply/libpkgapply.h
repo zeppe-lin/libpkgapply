@@ -4,6 +4,7 @@
 #pragma once
 
 #include <libpkgapply/digest.h>
+#include <libpkgapply/admission.h>
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/backend.h>
 #include <libpkgapply/execution_control.h>

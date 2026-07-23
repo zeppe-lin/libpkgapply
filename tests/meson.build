@@ -44,6 +44,23 @@ if get_option('tests').allowed()
   )
   test('validate backend-bound application attempts', attempt_test)
 
+  admission_header_test = executable(
+    'admission-header-test',
+    'admission_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile admission header independently', admission_header_test)
+
+  admission_test = executable(
+    'admission-test',
+    [
+      'admission_test.cpp',
+      'scripted_backend.cpp',
+    ],
+    dependencies: libpkgapply_dep,
+  )
+  test('validate application authority admission', admission_test)
+
   backend_header_test = executable(
     'backend-header-test',
     'backend_header_test.cpp',
