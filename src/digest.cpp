@@ -77,6 +77,22 @@ typed_digest<Domain>::parse(std::string_view value)
   return detail::identity_factory::from_sha256<typed_digest<Domain>>(bytes);
 }
 
+
+template class typed_digest<detail::managed_target_identity_domain>;
+template class typed_digest<detail::root_view_identity_domain>;
+template class typed_digest<detail::observation_backend_identity_domain>;
+template class typed_digest<detail::mutation_backend_identity_domain>;
+template class typed_digest<
+    detail::mutation_exclusion_domain_identity_domain>;
+template class typed_digest<
+    detail::active_object_namespace_identity_domain>;
+template class typed_digest<detail::rejected_object_store_identity_domain>;
+template class typed_digest<detail::staging_namespace_identity_domain>;
+template class typed_digest<detail::journal_namespace_identity_domain>;
+template class typed_digest<
+    detail::execution_capability_profile_identity_domain>;
+template class typed_digest<detail::lifecycle_executor_identity_domain>;
+
 template class typed_digest<detail::application_attempt_identity_domain>;
 template class typed_digest<
     detail::application_target_context_identity_domain>;

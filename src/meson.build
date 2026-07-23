@@ -10,9 +10,10 @@ libpkgapply = library(
     'digest.cpp',
     'sha256.cpp',
     'canonical_record.cpp',
+    'target_context.cpp',
   ],
   include_directories: public_inc,
-  dependencies: libcrypto_dep,
+  dependencies: [libcrypto_dep, libpkgplan_dep],
   install: true,
   version: meson.project_version(),
   soversion: '0',
@@ -21,7 +22,7 @@ libpkgapply = library(
 libpkgapply_dep = declare_dependency(
   link_with: libpkgapply,
   include_directories: public_inc,
-  dependencies: libcrypto_dep,
+  dependencies: [libcrypto_dep, libpkgplan_dep],
 )
 
 meson.override_dependency('libpkgapply', libpkgapply_dep)
@@ -29,6 +30,7 @@ meson.override_dependency('libpkgapply', libpkgapply_dep)
 install_headers(
   '../include/libpkgapply/libpkgapply.h',
   '../include/libpkgapply/digest.h',
+  '../include/libpkgapply/target_context.h',
   '../include/libpkgapply/version.h',
   subdir: 'libpkgapply',
 )
@@ -39,5 +41,6 @@ pkgconf.generate(
   filebase: 'libpkgapply',
   description: 'Package operation application library',
   subdirs: '.',
+  requires: ['libpkgplan >= 0.1.0'],
   requires_private: [libcrypto_dep],
 )

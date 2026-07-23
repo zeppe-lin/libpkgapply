@@ -30,6 +30,21 @@ if get_option('tests').allowed()
   )
   test('validate typed application identities', digest_test)
 
+
+  target_context_header_test = executable(
+    'target-context-header-test',
+    'target_context_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile target context header independently', target_context_header_test)
+
+  target_context_test = executable(
+    'target-context-test',
+    'target_context_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate target application contexts', target_context_test)
+
   canonical_record_test = executable(
     'canonical-record-test',
     'canonical_record_test.cpp',

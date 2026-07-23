@@ -27,6 +27,18 @@ endif
 
 pkgconf = import('pkgconfig')
 
+libpkgplan_dep = dependency(
+  'libpkgplan',
+  version: '>=0.1.0',
+  required: true,
+  static: want_static,
+  fallback: ['libpkgplan', 'libpkgplan_dep'],
+  default_options: [
+    'default_library=' + library_kind,
+    'link_mode=' + get_option('link_mode'),
+  ],
+)
+
 libcrypto_dep = dependency(
   'libcrypto',
   required: true,

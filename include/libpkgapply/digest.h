@@ -41,6 +41,84 @@ namespace detail {
 
 class identity_factory;
 
+
+struct managed_target_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/managed-target-reference/v1";
+  }
+};
+
+struct root_view_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/root-view-reference/v1";
+  }
+};
+
+struct observation_backend_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/observation-backend-reference/v1";
+  }
+};
+
+struct mutation_backend_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/mutation-backend-reference/v1";
+  }
+};
+
+struct mutation_exclusion_domain_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/mutation-exclusion-domain-reference/v1";
+  }
+};
+
+struct active_object_namespace_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/active-object-namespace-reference/v1";
+  }
+};
+
+struct rejected_object_store_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/rejected-object-store-reference/v1";
+  }
+};
+
+struct staging_namespace_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/staging-namespace-reference/v1";
+  }
+};
+
+struct journal_namespace_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/journal-namespace-reference/v1";
+  }
+};
+
+struct execution_capability_profile_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/execution-capability-profile-reference/v1";
+  }
+};
+
+struct lifecycle_executor_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/lifecycle-executor-reference/v1";
+  }
+};
+
 struct application_attempt_identity_domain final {
   [[nodiscard]] static constexpr std::string_view name() noexcept
   {
@@ -159,6 +237,30 @@ private:
   friend class detail::identity_factory;
 };
 
+
+using managed_target_identity =
+    typed_digest<detail::managed_target_identity_domain>;
+using root_view_identity =
+    typed_digest<detail::root_view_identity_domain>;
+using observation_backend_identity =
+    typed_digest<detail::observation_backend_identity_domain>;
+using mutation_backend_identity =
+    typed_digest<detail::mutation_backend_identity_domain>;
+using mutation_exclusion_domain_identity =
+    typed_digest<detail::mutation_exclusion_domain_identity_domain>;
+using active_object_namespace_identity =
+    typed_digest<detail::active_object_namespace_identity_domain>;
+using rejected_object_store_identity =
+    typed_digest<detail::rejected_object_store_identity_domain>;
+using staging_namespace_identity =
+    typed_digest<detail::staging_namespace_identity_domain>;
+using journal_namespace_identity =
+    typed_digest<detail::journal_namespace_identity_domain>;
+using execution_capability_profile_identity =
+    typed_digest<detail::execution_capability_profile_identity_domain>;
+using lifecycle_executor_identity =
+    typed_digest<detail::lifecycle_executor_identity_domain>;
+
 using application_attempt_identity =
     typed_digest<detail::application_attempt_identity_domain>;
 using application_target_context_identity =
@@ -175,6 +277,22 @@ using rejected_object_record_identity =
     typed_digest<detail::rejected_object_record_identity_domain>;
 using application_backend_evidence_identity =
     typed_digest<detail::application_backend_evidence_identity_domain>;
+
+
+extern template class typed_digest<detail::managed_target_identity_domain>;
+extern template class typed_digest<detail::root_view_identity_domain>;
+extern template class typed_digest<detail::observation_backend_identity_domain>;
+extern template class typed_digest<detail::mutation_backend_identity_domain>;
+extern template class typed_digest<
+    detail::mutation_exclusion_domain_identity_domain>;
+extern template class typed_digest<
+    detail::active_object_namespace_identity_domain>;
+extern template class typed_digest<detail::rejected_object_store_identity_domain>;
+extern template class typed_digest<detail::staging_namespace_identity_domain>;
+extern template class typed_digest<detail::journal_namespace_identity_domain>;
+extern template class typed_digest<
+    detail::execution_capability_profile_identity_domain>;
+extern template class typed_digest<detail::lifecycle_executor_identity_domain>;
 
 extern template class typed_digest<detail::application_attempt_identity_domain>;
 extern template class typed_digest<
