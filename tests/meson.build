@@ -58,6 +58,16 @@ if get_option('tests').allowed()
   )
   test('validate constrained backend mechanism values', backend_model_test)
 
+  scripted_backend_test = executable(
+    'scripted-backend-test',
+    [
+      'scripted_backend.cpp',
+      'scripted_backend_test.cpp',
+    ],
+    dependencies: libpkgapply_dep,
+  )
+  test('exercise deterministic backend failure injection', scripted_backend_test)
+
   result_header_test = executable(
     'result-header-test',
     'result_header_test.cpp',
