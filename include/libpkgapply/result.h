@@ -21,6 +21,7 @@ inline constexpr std::uint16_t application_receipt_schema_version = 1;
 /*! \brief Semantic outcome of one physical application attempt. */
 enum class application_attempt_outcome : std::uint8_t {
   precondition_refused = 1,
+  /*! \brief No managed active-object path was mutated. */
   failed_before_target_mutation = 2,
   completed = 3,
   failed_fully_recovered = 4,
@@ -29,7 +30,7 @@ enum class application_attempt_outcome : std::uint8_t {
   indeterminate = 7,
 };
 
-/*! \brief Recovery state established by one application attempt. */
+/*! \brief Recovery state of the managed active-object namespace. */
 enum class application_recovery_state : std::uint8_t {
   unchanged = 1,
   exact_prior_state_restored = 2,

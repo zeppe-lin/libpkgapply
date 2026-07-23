@@ -470,16 +470,21 @@ validate_failed_paths(
       throw std::invalid_argument(
           "failed application path is publication eligible");
 
-    if (outcome == application_attempt_outcome::precondition_refused ||
-        outcome ==
-            application_attempt_outcome::failed_before_target_mutation)
-    {
+    if (outcome == application_attempt_outcome::precondition_refused) {
       if (path.active_status() != application_effect_status::not_attempted ||
           path.rejected_status() != application_effect_status::not_attempted)
       {
         throw std::invalid_argument(
-            "pre-mutation failure contains attempted target effects");
+            "precondition refusal contains attempted application effects");
       }
+    }
+
+    if (outcome ==
+            application_attempt_outcome::failed_before_target_mutation &&
+        path.active_status() != application_effect_status::not_attempted)
+    {
+      throw std::invalid_argument(
+          "pre-target-mutation failure contains attempted active effects");
     }
   }
 }
@@ -495,14 +500,15 @@ void validate_failed_outcome(application_attempt_outcome outcome,
 
   if (outcome == application_attempt_outcome::precondition_refused &&
       recovery != application_recovery_state::unchanged)
-    throw std::invalid_argument("precondition refusal must leave target unchanged");
+    throw std::invalid_argument(
+        "precondition refusal must leave active target unchanged");
 
   if (outcome ==
           application_attempt_outcome::failed_before_target_mutation &&
       recovery != application_recovery_state::unchanged)
   {
     throw std::invalid_argument(
-        "pre-mutation failure must leave target unchanged");
+        "pre-target-mutation failure must leave active target unchanged");
   }
 
   if (outcome == application_attempt_outcome::precondition_refused && journal)
@@ -531,9 +537,14 @@ void validate_failed_outcome(application_attempt_outcome outcome,
       std::none_of(durability.facts().begin(), durability.facts().end(),
                    [](const auto& fact) {
                      return fact.status() ==
-                            application_durability_status::unconfirmed;
+                                application_durability_status::visible ||
+                            fact.status() ==
+                                application_durability_status::unconfirmed;
                    }))
-    throw std::invalid_argument("durability-unconfirmed outcome has no unconfirmed domain");
+  {
+    throw std::invalid_argument(
+        "durability-unconfirmed outcome has no visible or unconfirmed domain");
+  }
 }
 
 application_receipt_identity identify_receipt(

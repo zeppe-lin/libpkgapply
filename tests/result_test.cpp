@@ -116,6 +116,36 @@ pkgapply::application_path_consequence path_result(
       publication);
 }
 
+pkgapply::application_path_consequence rejected_path_result(
+    const pkgplan::installation_path_decision& decision,
+    pkgapply::application_effect_status rejected,
+    std::optional<pkgapply::rejected_object_record_identity> record)
+{
+  const auto observed = pkgapply::application_path_observation::present(
+      directory(decision.path()));
+  return pkgapply::application_path_consequence(
+      decision.path(), pkgapply::application_path_role::incoming_entry,
+      decision.active(), decision.rejected(), decision.incoming_entry(),
+      decision.ownership(), pkgapply::application_effect_status::not_attempted,
+      rejected, observed, observed, std::move(record),
+      pkgapply::ownership_publication_status::ineligible);
+}
+
+pkgapply::application_durability_profile rejected_durability(
+    pkgapply::application_durability_status rejected)
+{
+  using D = pkgapply::application_durability_domain;
+  using S = pkgapply::application_durability_status;
+  return pkgapply::application_durability_profile({
+      {D::journal, S::confirmed},
+      {D::incoming_staging, S::confirmed},
+      {D::recovery_staging, S::not_attempted},
+      {D::active_namespace, S::not_attempted},
+      {D::rejected_object_store, rejected},
+      {D::completed_evidence, S::not_attempted},
+  });
+}
+
 }
 
 int main()
@@ -248,6 +278,62 @@ int main()
         durability(), {path_result(decision)}, std::nullopt));
   } catch (const std::invalid_argument&) { rejected = true; }
   require(rejected, "failed receipt retained publication-eligible path");
+
+  const auto rejected_path = pkgplan::package_path::parse("tool.conf");
+  const auto rejected_policy = pkgapply::test::fixture::policy_snapshot(
+      authorities, pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::retain(
+              pkgplan::rejected_object_policy::stage,
+              pkgplan::retained_active_ownership_policy::
+                  add_operated_owner)));
+  const auto rejected_plan = pkgapply::test::fixture::installation_plan(
+      authorities,
+      {pkgapply::test::fixture::regular_entry("tool.conf", 7)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(
+              rejected_path,
+              pkgapply::test::fixture::directory_object()))},
+      {}, rejected_policy);
+  const auto rejected_request =
+      pkgapply::installation_application_request::make(
+          rejected_plan, context, execution);
+  const auto& rejected_decision = rejected_request.plan().paths().front();
+  const auto rejected_record =
+      app_identity<pkgapply::rejected_object_record_identity>(70);
+  const auto rejected_consequence = rejected_path_result(
+      rejected_decision, pkgapply::application_effect_status::completed,
+      rejected_record);
+
+  const auto rejected_failure = pkgapply::application_receipt::failed(
+      rejected_request,
+      app_identity<pkgapply::application_attempt_identity>(71),
+      app_identity<pkgapply::lease_bound_state_projection_identity>(72),
+      pkgapply::application_attempt_outcome::failed_before_target_mutation,
+      pkgapply::application_recovery_state::unchanged,
+      rejected_durability(pkgapply::application_durability_status::visible),
+      {rejected_consequence},
+      app_identity<pkgapply::application_journal_identity>(73));
+  require(rejected_failure.paths().front().active_status() ==
+              pkgapply::application_effect_status::not_attempted &&
+              rejected_failure.paths().front().rejected_object() ==
+                  rejected_record,
+          "pre-active failure lost its independent rejected consequence");
+
+  const auto visible_failure = pkgapply::application_receipt::failed(
+      rejected_request,
+      app_identity<pkgapply::application_attempt_identity>(74),
+      app_identity<pkgapply::lease_bound_state_projection_identity>(72),
+      pkgapply::application_attempt_outcome::
+          effects_visible_durability_unconfirmed,
+      pkgapply::application_recovery_state::recovery_assets_retained,
+      rejected_durability(pkgapply::application_durability_status::visible),
+      {rejected_consequence},
+      app_identity<pkgapply::application_journal_identity>(73));
+  require(visible_failure.durability().status(
+              pkgapply::application_durability_domain::
+                  rejected_object_store) ==
+              pkgapply::application_durability_status::visible,
+          "visible durability was promoted to confirmed");
 
   rejected = false;
   try {
