@@ -6,6 +6,7 @@
 #include "scripted_backend.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -144,9 +145,20 @@ public:
     return receipt_;
   }
 
-  void replay(const pkgimage::entry_selection&,
-              pkgimage::payload_sink&) const override
+  void replay(const pkgimage::entry_selection& selection,
+              pkgimage::payload_sink& sink) const override
   {
+    selection.validate(image_);
+    for (const auto& entry : image_.entries()) {
+      if (!selection.contains(entry.id))
+        continue;
+      sink.begin(entry);
+      std::vector<std::byte> payload(
+          static_cast<std::size_t>(entry.size), std::byte{0x5a});
+      if (!payload.empty())
+        sink.write(entry, payload.data(), payload.size());
+      sink.end(entry);
+    }
   }
 
 private:
@@ -245,6 +257,31 @@ require_no_effect_boundaries(
                 event.boundary == boundary::transaction_destroyed,
             "admission phase crossed an effectful backend boundary");
   }
+}
+
+void
+require_no_target_effects(
+    const std::vector<pkgapply::test::scripted_backend_event>& events)
+{
+  using boundary = pkgapply::test::scripted_backend_boundary;
+  for (const auto& event : events) {
+    require(event.boundary != boundary::execute_active &&
+                event.boundary != boundary::execute_rejected &&
+                event.boundary != boundary::recover,
+            "preparation crossed the target-mutation boundary");
+  }
+}
+
+std::size_t
+first_boundary(
+    const std::vector<pkgapply::test::scripted_backend_event>& events,
+    pkgapply::test::scripted_backend_boundary wanted)
+{
+  for (std::size_t index = 0; index < events.size(); ++index) {
+    if (events[index].boundary == wanted)
+      return index;
+  }
+  return events.size();
 }
 
 template<class Request>
@@ -529,6 +566,200 @@ main()
             "removal admission opened an archive-bearing transaction");
     require_no_effect_boundaries(backend_state->events());
   }
+  backend_state->clear_events();
+
+  // Installation preparation replays and seals its exact payload closure.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    require(preparation.is_prepared() && preparation.prepared() != nullptr,
+            "installation preparation did not complete");
+    require(preparation.prepared()->journaled().journal().state() ==
+                pkgapply::application_journal_state::prepared,
+            "installation preparation did not publish prepared journal");
+    require(preparation.prepared()->captures().empty(),
+            "ordinary installation captured an absent old object");
+    require(preparation.prepared()->durability().status(
+                pkgapply::application_durability_domain::incoming_staging) ==
+                pkgapply::application_durability_status::confirmed &&
+                preparation.prepared()->durability().status(
+                    pkgapply::application_durability_domain::recovery_staging) ==
+                    pkgapply::application_durability_status::not_attempted,
+            "installation staging durability is incorrect");
+    require(first_boundary(backend_state->events(), boundary::payload_begin) <
+                first_boundary(backend_state->events(), boundary::payload_seal),
+            "payload replay was not sealed in order");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // Upgrade preparation captures the old object before replaying replacement.
+  backend_state->set_observations(
+      matching_observations(upgrade_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), upgrade_request, upgrade_state,
+        lease, upgrade_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), upgrade_request, upgrade_state, lease,
+        upgrade_archive);
+    require(preparation.is_prepared() && preparation.prepared() != nullptr,
+            "upgrade preparation did not complete");
+    require(preparation.prepared()->captures().size() == 1 &&
+                preparation.prepared()->captures().front().outcome() ==
+                    pkgapply::backend_operation_outcome::completed,
+            "upgrade recovery capture is incomplete");
+    require(preparation.prepared()->durability().status(
+                pkgapply::application_durability_domain::incoming_staging) ==
+                pkgapply::application_durability_status::confirmed &&
+                preparation.prepared()->durability().status(
+                    pkgapply::application_durability_domain::recovery_staging) ==
+                    pkgapply::application_durability_status::confirmed,
+            "upgrade preparation did not confirm both staging domains");
+    require(first_boundary(backend_state->events(), boundary::capture_old) <
+                first_boundary(backend_state->events(),
+                               boundary::begin_payload_stage),
+            "upgrade replay preceded required old-object capture");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // Removal preparation uses no archive but durably captures recovery input.
+  backend_state->set_observations(
+      matching_observations(removal_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        removal_request, removal_state, lease, backend);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), removal_request, removal_state, lease);
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), removal_request, removal_state, lease);
+    require(preparation.is_prepared() &&
+                preparation.prepared()->captures().size() == 1,
+            "removal preparation did not retain its old object");
+    require(first_boundary(backend_state->events(),
+                           boundary::begin_payload_stage) ==
+                backend_state->events().size(),
+            "removal preparation opened an incoming payload stage");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->clear_events();
+
+  // A typed payload-stage failure seals a truthful pre-mutation receipt.
+  backend_state->set_outcome(
+      boundary::payload_seal, pkgapply::backend_operation_outcome::failed);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    require(!preparation.is_prepared() && preparation.failure() != nullptr,
+            "failed payload stage did not return a failure receipt");
+    require(preparation.failure()->outcome() ==
+                pkgapply::application_attempt_outcome::
+                    failed_before_target_mutation &&
+                preparation.failure()->recovery() ==
+                    pkgapply::application_recovery_state::unchanged &&
+                preparation.failure()->journal().has_value(),
+            "payload failure crossed or lost the mutation boundary");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::abandoned &&
+                backend_state->published_journal()->receipt().has_value() &&
+                *backend_state->published_journal()->receipt() ==
+                    preparation.failure()->identity(),
+            "payload failure journal did not retain its receipt");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->set_outcome(
+      boundary::payload_seal, pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // Exact recovery is refused before payload replay when capture is insufficient.
+  const auto exact_upgrade_request =
+      pkgapply::upgrade_application_request::make(
+          upgrade_request.plan(),
+          context,
+          pkgapply::application_execution_control::make(
+              pkgapply::application_recovery_requirement::exact_prior_state,
+              pkgapply::application_durability_requirement::journal_and_recovery,
+              pkgapply::application_cancellation_policy::
+                  recover_after_target_mutation));
+  const auto exact_upgrade_state = state(
+      lease, exact_upgrade_request.plan().preconditions());
+  backend_state->set_exact_recovery_possible(false);
+  backend_state->set_observations(
+      matching_observations(exact_upgrade_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        exact_upgrade_request, exact_upgrade_state, lease, backend,
+        upgrade_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), exact_upgrade_request,
+        exact_upgrade_state, lease, upgrade_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), exact_upgrade_request, exact_upgrade_state,
+        lease, upgrade_archive);
+    require(!preparation.is_prepared() && preparation.failure() != nullptr,
+            "inexact recovery capture satisfied an exact requirement");
+    require(preparation.failure()->durability().status(
+                pkgapply::application_durability_domain::recovery_staging) ==
+                pkgapply::application_durability_status::visible,
+            "exact-recovery refusal lost established capture visibility");
+    require(first_boundary(backend_state->events(),
+                           boundary::begin_payload_stage) ==
+                backend_state->events().size(),
+            "exact-recovery refusal replayed incoming payloads");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->set_exact_recovery_possible(true);
+  backend_state->clear_events();
+
+  // Failed journal synchronization remains explicit in the failure receipt.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::journal,
+      pkgapply::application_durability_status::unconfirmed);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    require(!preparation.is_prepared() && preparation.failure() != nullptr,
+            "unconfirmed journal synchronization produced a prepared attempt");
+    require(preparation.failure()->durability().status(
+                pkgapply::application_durability_domain::journal) ==
+                pkgapply::application_durability_status::unconfirmed &&
+                preparation.failure()->durability().status(
+                    pkgapply::application_durability_domain::incoming_staging) ==
+                    pkgapply::application_durability_status::confirmed,
+            "journal synchronization failure was reported as confirmed");
+    require_no_target_effects(backend_state->events());
+  }
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::journal,
+      pkgapply::application_durability_status::confirmed);
 
   return 0;
 }
