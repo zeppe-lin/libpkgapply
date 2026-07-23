@@ -162,6 +162,20 @@ if get_option('tests').allowed()
   )
   test('derive old-object rejected and recovery captures', capture_test)
 
+  schedule_header_test = executable(
+    'schedule-header-test',
+    'schedule_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile schedule header independently', schedule_header_test)
+
+  schedule_test = executable(
+    'schedule-test',
+    'schedule_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('derive deterministic safe application order', schedule_test)
+
   object_fact_test = executable(
     'object-fact-test',
     'object_fact_test.cpp',

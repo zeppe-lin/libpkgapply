@@ -45,7 +45,13 @@ foundation required before target mutation is admitted:
 * exact incoming regular-payload closure derivation, including deduplicated
   hard-link anchors and separate active versus rejected consumers; and
 * pre-mutation old-object capture derivation that merges rejected staging and
-  selected recovery needs without admitting absent or retained paths.
+  selected recovery needs without admitting absent or retained paths; and
+* deterministic safe mechanism schedules that place old-object capture
+  before mutation, regular payload staging in archive order, rejected
+  publication before destructive active effects, incoming directories before
+  descendants, child
+  removals before parent cleanup, hard-link anchors before links, and final
+  observation after all planned effects.
 
 No concrete filesystem actuator, archive replay coordinator, journal storage
 backend, or POSIX backend is present yet. The public model rejects inconsistent

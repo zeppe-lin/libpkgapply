@@ -17,6 +17,7 @@
 #include <libpkgapply/precondition.h>
 #include <libpkgapply/request.h>
 #include <libpkgapply/result.h>
+#include <libpkgapply/schedule.h>
 #include <libpkgapply/state_projection.h>
 #include <libpkgapply/target_context.h>
 #include <libpkgapply/version.h>

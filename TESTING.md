@@ -51,10 +51,11 @@ Precondition qualification must cover:
 * fresh observations containing additional facts; and
 * all-or-nothing refusal before mutation.
 
-Archive and staging tests
--------------------------
+Archive staging and schedule tests
+----------------------------------
 
-Composition with `libpkgimage` must cover:
+Composition with `libpkgimage` and deterministic mechanism scheduling must
+cover:
 
 * exact archive, image, and inspection-receipt binding;
 * rejection of a different but same-named archive;
@@ -65,7 +66,13 @@ Composition with `libpkgimage` must cover:
 * binary payload bytes;
 * sink failure before and after partial delivery;
 * changed retained source;
-* content-digest mismatch; and
+* content-digest mismatch;
+* old-object capture before any target mutation;
+* rejected-object publication after its source is staged or captured;
+* incoming directory parents before descendant publication;
+* child removals before conditional parent cleanup;
+* regular anchors before hard-link publication;
+* final observation after all active and rejected effects; and
 * no target mutation before private staging completes.
 
 Scripted backend

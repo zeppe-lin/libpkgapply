@@ -25,6 +25,7 @@ libpkgapply = library(
     'payload.cpp',
     'precondition.cpp',
     'result.cpp',
+    'schedule.cpp',
   ],
   include_directories: public_inc,
   dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
@@ -59,6 +60,7 @@ install_headers(
   '../include/libpkgapply/payload.h',
   '../include/libpkgapply/precondition.h',
   '../include/libpkgapply/result.h',
+  '../include/libpkgapply/schedule.h',
   '../include/libpkgapply/version.h',
   subdir: 'libpkgapply',
 )
