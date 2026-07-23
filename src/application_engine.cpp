@@ -599,16 +599,17 @@ publish_snapshot(journaled_application& application,
 }
 
 void
-publish_event(journaled_application& application,
-              application_journal_state state,
-              const application_journal_effect& effect,
-              application_journal_event_kind kind,
-              std::vector<application_backend_evidence_identity> evidence = {})
+publish_event(
+    journaled_application& application,
+    application_journal_state state,
+    application_journal_effect_identity effect,
+    application_journal_event_kind kind,
+    std::vector<application_backend_evidence_identity> evidence = {})
 {
   std::vector<application_journal_event> events =
       application.journal().events();
   events.emplace_back(
-      static_cast<std::uint64_t>(events.size()), kind, effect.identity(),
+      static_cast<std::uint64_t>(events.size()), kind, std::move(effect),
       std::move(evidence));
   publish_snapshot(application, state, std::move(events));
 }
@@ -731,10 +732,10 @@ capture_old_objects(
   result.captures.reserve(application.captures().requests().size());
 
   for (const auto& request : application.captures().requests()) {
-    const auto& effect = find_effect(
+    const application_journal_effect_identity effect = find_effect(
         application.journal(),
         application_journal_effect_kind::capture_old_object,
-        request.path());
+        request.path()).identity();
     publish_event(
         application, application_journal_state::preparing, effect,
         application_journal_event_kind::intent);
@@ -809,10 +810,10 @@ stage_incoming_payloads(
   for (const auto& step : application.schedule().steps()) {
     if (step.kind() != application_effect_step_kind::stage_regular_payload)
       continue;
-    const auto& effect = find_effect(
+    const application_journal_effect_identity effect = find_effect(
         application.journal(),
         application_journal_effect_kind::stage_incoming_payload,
-        step.path());
+        step.path()).identity();
     publish_event(
         application, application_journal_state::preparing, effect,
         application_journal_event_kind::intent);
@@ -839,9 +840,9 @@ stage_incoming_payloads(
 
   const auto terminal = terminal_event(sealed.outcome());
   for (const auto& path : effect_paths) {
-    const auto& effect = find_effect(
+    const application_journal_effect_identity effect = find_effect(
         application.journal(),
-        application_journal_effect_kind::stage_incoming_payload, path);
+        application_journal_effect_kind::stage_incoming_payload, path).identity();
     publish_event(
         application, application_journal_state::preparing, effect,
         terminal, sealed.evidence());
@@ -865,7 +866,8 @@ synchronize_preparation_domain(
     application_journal_effect_kind kind,
     application_durability_status& status)
 {
-  const auto& effect = find_effect(application.journal(), kind);
+  const application_journal_effect_identity effect =
+      find_effect(application.journal(), kind).identity();
   publish_event(
       application, application_journal_state::preparing, effect,
       application_journal_event_kind::intent);
