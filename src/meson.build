@@ -14,6 +14,8 @@ libpkgapply = library(
     'execution_control.cpp',
     'request.cpp',
     'state_projection.cpp',
+    'object_fact.cpp',
+    'path_consequence.cpp',
   ],
   include_directories: public_inc,
   dependencies: [libcrypto_dep, libpkgplan_dep],
@@ -37,6 +39,8 @@ install_headers(
   '../include/libpkgapply/execution_control.h',
   '../include/libpkgapply/request.h',
   '../include/libpkgapply/state_projection.h',
+  '../include/libpkgapply/object_fact.h',
+  '../include/libpkgapply/path_consequence.h',
   '../include/libpkgapply/version.h',
   subdir: 'libpkgapply',
 )

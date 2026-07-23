@@ -33,6 +33,28 @@ if get_option('tests').allowed()
 
 
 
+
+  object_fact_header_test = executable(
+    'object-fact-header-test',
+    'object_fact_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile object fact header independently', object_fact_header_test)
+
+  path_consequence_header_test = executable(
+    'path-consequence-header-test',
+    'path_consequence_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile path consequence header independently', path_consequence_header_test)
+
+  object_fact_test = executable(
+    'object-fact-test',
+    'object_fact_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate completed object facts', object_fact_test)
+
   state_projection_header_test = executable(
     'state-projection-header-test',
     'state_projection_header_test.cpp',

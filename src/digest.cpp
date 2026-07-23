@@ -109,6 +109,8 @@ template class typed_digest<detail::application_journal_identity_domain>;
 template class typed_digest<detail::application_receipt_identity_domain>;
 template class typed_digest<
     detail::completed_application_evidence_identity_domain>;
+template class typed_digest<
+    detail::completed_regular_content_identity_domain>;
 template class typed_digest<detail::rejected_object_record_identity_domain>;
 template class typed_digest<
     detail::application_backend_evidence_identity_domain>;

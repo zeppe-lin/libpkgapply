@@ -189,6 +189,13 @@ struct completed_application_evidence_identity_domain final {
   }
 };
 
+struct completed_regular_content_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/completed-regular-content/v1";
+  }
+};
+
 struct rejected_object_record_identity_domain final {
   [[nodiscard]] static constexpr std::string_view name() noexcept
   {
@@ -310,6 +317,8 @@ using application_receipt_identity =
     typed_digest<detail::application_receipt_identity_domain>;
 using completed_application_evidence_identity =
     typed_digest<detail::completed_application_evidence_identity_domain>;
+using completed_regular_content_identity =
+    typed_digest<detail::completed_regular_content_identity_domain>;
 using rejected_object_record_identity =
     typed_digest<detail::rejected_object_record_identity_domain>;
 using application_backend_evidence_identity =
@@ -347,6 +356,8 @@ extern template class typed_digest<detail::application_journal_identity_domain>;
 extern template class typed_digest<detail::application_receipt_identity_domain>;
 extern template class typed_digest<
     detail::completed_application_evidence_identity_domain>;
+extern template class typed_digest<
+    detail::completed_regular_content_identity_domain>;
 extern template class typed_digest<detail::rejected_object_record_identity_domain>;
 extern template class typed_digest<
     detail::application_backend_evidence_identity_domain>;
