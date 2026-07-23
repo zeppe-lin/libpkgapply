@@ -18,7 +18,7 @@ libpkgapply = library(
     'path_consequence.cpp',
   ],
   include_directories: public_inc,
-  dependencies: [libcrypto_dep, libpkgplan_dep],
+  dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
   install: true,
   version: meson.project_version(),
   soversion: '0',
@@ -27,7 +27,7 @@ libpkgapply = library(
 libpkgapply_dep = declare_dependency(
   link_with: libpkgapply,
   include_directories: public_inc,
-  dependencies: [libcrypto_dep, libpkgplan_dep],
+  dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
 )
 
 meson.override_dependency('libpkgapply', libpkgapply_dep)
@@ -51,6 +51,9 @@ pkgconf.generate(
   filebase: 'libpkgapply',
   description: 'Package operation application library',
   subdirs: '.',
-  requires: ['libpkgplan >= 0.1.0'],
+  requires: [
+    'libpkgimage >= 0.3.0',
+    'libpkgplan >= 0.1.0',
+  ],
   requires_private: [libcrypto_dep],
 )

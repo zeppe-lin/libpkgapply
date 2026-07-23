@@ -8,6 +8,7 @@
 
 #include <libpkgapply/digest.h>
 #include <libpkgapply/object_fact.h>
+#include <libpkgimage/package_entry.h>
 #include <libpkgplan/plan.h>
 
 namespace pkgapply {
@@ -67,6 +68,7 @@ public:
       application_path_role role,
       pkgplan::planned_active_outcome requested_active,
       pkgplan::planned_rejected_outcome requested_rejected,
+      std::optional<pkgimage::entry_id> incoming_entry,
       pkgplan::path_ownership_transition ownership,
       application_effect_status active_status,
       application_effect_status rejected_status,
@@ -79,6 +81,8 @@ public:
   [[nodiscard]] application_path_role role() const noexcept;
   [[nodiscard]] pkgplan::planned_active_outcome requested_active() const noexcept;
   [[nodiscard]] pkgplan::planned_rejected_outcome requested_rejected() const noexcept;
+  [[nodiscard]] const std::optional<pkgimage::entry_id>&
+  incoming_entry() const noexcept;
   [[nodiscard]] const pkgplan::path_ownership_transition& ownership() const noexcept;
   [[nodiscard]] application_effect_status active_status() const noexcept;
   [[nodiscard]] application_effect_status rejected_status() const noexcept;
@@ -93,6 +97,7 @@ private:
   application_path_role role_;
   pkgplan::planned_active_outcome requested_active_;
   pkgplan::planned_rejected_outcome requested_rejected_;
+  std::optional<pkgimage::entry_id> incoming_entry_;
   pkgplan::path_ownership_transition ownership_;
   application_effect_status active_status_;
   application_effect_status rejected_status_;

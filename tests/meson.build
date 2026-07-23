@@ -30,10 +30,6 @@ if get_option('tests').allowed()
   )
   test('validate typed application identities', digest_test)
 
-
-
-
-
   object_fact_header_test = executable(
     'object-fact-header-test',
     'object_fact_header_test.cpp',
@@ -47,6 +43,13 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_dep,
   )
   test('compile path consequence header independently', path_consequence_header_test)
+
+  path_consequence_test = executable(
+    'path-consequence-test',
+    'path_consequence_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate application path consequences', path_consequence_test)
 
   object_fact_test = executable(
     'object-fact-test',

@@ -39,6 +39,18 @@ libpkgplan_dep = dependency(
   ],
 )
 
+libpkgimage_dep = dependency(
+  'libpkgimage',
+  version: '>=0.3.0',
+  required: true,
+  static: want_static,
+  fallback: ['libpkgimage', 'libpkgimage_dep'],
+  default_options: [
+    'default_library=' + library_kind,
+    'link_mode=' + get_option('link_mode'),
+  ],
+)
+
 libcrypto_dep = dependency(
   'libcrypto',
   required: true,

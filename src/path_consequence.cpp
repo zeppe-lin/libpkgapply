@@ -59,6 +59,7 @@ application_path_consequence::application_path_consequence(
     application_path_role role,
     pkgplan::planned_active_outcome requested_active,
     pkgplan::planned_rejected_outcome requested_rejected,
+    std::optional<pkgimage::entry_id> incoming_entry,
     pkgplan::path_ownership_transition ownership,
     application_effect_status active_status,
     application_effect_status rejected_status,
@@ -70,6 +71,7 @@ application_path_consequence::application_path_consequence(
       role_(role),
       requested_active_(requested_active),
       requested_rejected_(requested_rejected),
+      incoming_entry_(std::move(incoming_entry)),
       ownership_(std::move(ownership)),
       active_status_(active_status),
       rejected_status_(rejected_status),
@@ -81,10 +83,32 @@ application_path_consequence::application_path_consequence(
   if (before_.path() != path_ || after_.path() != path_)
     throw std::invalid_argument("application consequence observation path mismatch");
 
+  const bool incoming_role = role_ == application_path_role::incoming_entry;
+  if (incoming_role != incoming_entry_.has_value())
+    throw std::invalid_argument("application consequence incoming entry mismatch");
+
   const bool rejected_requested =
       requested_rejected_ != pkgplan::planned_rejected_outcome::none;
-  if (!rejected_requested && rejected_object_)
-    throw std::invalid_argument("unplanned rejected object identity");
+  if (!rejected_requested) {
+    if (rejected_status_ != application_effect_status::not_attempted ||
+        rejected_object_)
+      throw std::invalid_argument("unplanned rejected consequence");
+  } else {
+    if (rejected_status_ == application_effect_status::completed &&
+        !rejected_object_)
+      throw std::invalid_argument("completed rejected consequence lacks record");
+    if (rejected_object_ &&
+        rejected_status_ != application_effect_status::completed)
+      throw std::invalid_argument("rejected record lacks completed consequence");
+  }
+
+  if (active_status_ == application_effect_status::conditional_retained &&
+      requested_active_ !=
+          pkgplan::planned_active_outcome::remove_directory_if_empty)
+  {
+    throw std::invalid_argument(
+        "conditional retention requires conditional directory removal");
+  }
 
   if (publication_ == ownership_publication_status::eligible &&
       (active_status_ != application_effect_status::completed &&
@@ -93,6 +117,10 @@ application_path_consequence::application_path_consequence(
     throw std::invalid_argument(
         "ownership publication requires a completed active consequence");
   }
+  if (publication_ == ownership_publication_status::eligible &&
+      after_.state() == fact_state::unknown)
+    throw std::invalid_argument(
+        "ownership publication requires a known resulting observation");
 }
 
 const pkgplan::package_path& application_path_consequence::path() const noexcept
@@ -105,6 +133,9 @@ application_path_consequence::requested_active() const noexcept
 pkgplan::planned_rejected_outcome
 application_path_consequence::requested_rejected() const noexcept
 { return requested_rejected_; }
+const std::optional<pkgimage::entry_id>&
+application_path_consequence::incoming_entry() const noexcept
+{ return incoming_entry_; }
 const pkgplan::path_ownership_transition&
 application_path_consequence::ownership() const noexcept
 { return ownership_; }
