@@ -78,9 +78,12 @@ main()
               pkgplan::rejected_object_policy::stage)));
   const auto upgrade = pkgapply::test::fixture::upgrade_plan(
       upgrade_authorities,
-      {},
-      {pkgplan::target_path_observation::present(
-          pkgplan::filesystem_object_fact(existing, active))},
+      {pkgapply::test::fixture::regular_entry("new", 1)},
+      {
+          pkgplan::target_path_observation::present(
+              pkgplan::filesystem_object_fact(existing, active)),
+          pkgplan::target_path_observation::absent(incoming),
+      },
       {pkgplan::installed_ownership_claim(
           existing, upgrade_authorities.installed_package, active)},
       upgrade_policy);

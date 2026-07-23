@@ -49,6 +49,29 @@ planning_identity(std::uint8_t value)
   return Identity::from_sha256(bytes);
 }
 
+pkgimage::sha256_digest_bytes
+image_bytes(std::uint8_t value)
+{
+  pkgimage::sha256_digest_bytes bytes{};
+  bytes.fill(value);
+  return bytes;
+}
+
+pkgimage::package_image
+incoming_image()
+{
+  pkgimage::package_entry entry(
+      pkgimage::package_path::parse("usr/bin/tool"),
+      pkgimage::entry_type::regular);
+  entry.mode = 0755;
+  entry.uid = 0;
+  entry.gid = 0;
+  entry.size = 1;
+  entry.regular_content =
+      pkgimage::regular_content_digest::from_sha256(image_bytes(1));
+  return pkgimage::package_image({std::move(entry)});
+}
+
 pkgapply::application_attempt_nonce
 nonce()
 {
@@ -192,7 +215,7 @@ main()
           pkgapply::application_backend_evidence_identity>(31),
       state);
 
-  pkgimage::package_image image({});
+  pkgimage::package_image image = incoming_image();
   const auto selection = pkgimage::entry_selection::all_regular(image);
 
   {
@@ -217,9 +240,7 @@ main()
             "scripted observation did not return configured fact");
 
     auto payload = transaction->begin_payload_stage(image, selection);
-    pkgimage::package_entry entry(
-        pkgimage::package_path::parse("usr/bin/tool"),
-        pkgimage::entry_type::regular);
+    const pkgimage::package_entry& entry = image.entries().front();
     const std::byte byte{0x42};
     payload->begin(entry);
     payload->write(entry, &byte, 1);
