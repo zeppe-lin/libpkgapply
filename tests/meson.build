@@ -44,6 +44,20 @@ if get_option('tests').allowed()
   )
   test('validate backend-bound application attempts', attempt_test)
 
+  backend_header_test = executable(
+    'backend-header-test',
+    'backend_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile backend header independently', backend_header_test)
+
+  backend_model_test = executable(
+    'backend-model-test',
+    'backend_model_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate constrained backend mechanism values', backend_model_test)
+
   result_header_test = executable(
     'result-header-test',
     'result_header_test.cpp',

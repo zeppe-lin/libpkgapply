@@ -31,11 +31,14 @@ foundation required before target mutation is admitted:
 * typed application outcomes, recovery states, durability profiles, receipts,
   and publication-eligible completed evidence; and
 * validation of caller-held target mutation leases against the target context,
-  exclusion domain, acquisition instance, and state projection.
+  exclusion domain, acquisition instance, and state projection; and
+* constrained backend mechanism contracts for exact observations, private
+  payload staging, old-object capture, active and rejected effects, recovery,
+  durability synchronization, and journal publication.
 
-No filesystem actuator, archive replay coordinator, journal backend, or POSIX
-backend is present yet. The public model rejects inconsistent evidence before
-those effectful layers are introduced.
+No concrete filesystem actuator, archive replay coordinator, journal storage
+backend, or POSIX backend is present yet. The public model rejects inconsistent
+evidence before those effectful layers are introduced.
 
 Authority boundary
 ------------------
