@@ -119,6 +119,27 @@ struct lifecycle_executor_identity_domain final {
   }
 };
 
+struct mutation_lease_instance_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/mutation-lease-instance-reference/v1";
+  }
+};
+
+struct state_projection_evidence_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/state-projection-evidence-reference/v1";
+  }
+};
+
+struct lease_bound_state_projection_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/lease-bound-state-projection/v1";
+  }
+};
+
 struct application_attempt_identity_domain final {
   [[nodiscard]] static constexpr std::string_view name() noexcept
   {
@@ -268,6 +289,13 @@ using execution_capability_profile_identity =
 using lifecycle_executor_identity =
     typed_digest<detail::lifecycle_executor_identity_domain>;
 
+using mutation_lease_instance_identity =
+    typed_digest<detail::mutation_lease_instance_identity_domain>;
+using state_projection_evidence_identity =
+    typed_digest<detail::state_projection_evidence_identity_domain>;
+using lease_bound_state_projection_identity =
+    typed_digest<detail::lease_bound_state_projection_identity_domain>;
+
 using application_attempt_identity =
     typed_digest<detail::application_attempt_identity_domain>;
 using application_target_context_identity =
@@ -303,6 +331,12 @@ extern template class typed_digest<
     detail::execution_capability_profile_identity_domain>;
 extern template class typed_digest<detail::lifecycle_executor_identity_domain>;
 
+extern template class typed_digest<
+    detail::mutation_lease_instance_identity_domain>;
+extern template class typed_digest<
+    detail::state_projection_evidence_identity_domain>;
+extern template class typed_digest<
+    detail::lease_bound_state_projection_identity_domain>;
 extern template class typed_digest<detail::application_attempt_identity_domain>;
 extern template class typed_digest<
     detail::application_target_context_identity_domain>;

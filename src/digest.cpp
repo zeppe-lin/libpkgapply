@@ -93,6 +93,12 @@ template class typed_digest<
     detail::execution_capability_profile_identity_domain>;
 template class typed_digest<detail::lifecycle_executor_identity_domain>;
 
+template class typed_digest<
+    detail::mutation_lease_instance_identity_domain>;
+template class typed_digest<
+    detail::state_projection_evidence_identity_domain>;
+template class typed_digest<
+    detail::lease_bound_state_projection_identity_domain>;
 template class typed_digest<detail::application_attempt_identity_domain>;
 template class typed_digest<
     detail::application_target_context_identity_domain>;

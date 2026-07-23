@@ -32,6 +32,21 @@ if get_option('tests').allowed()
 
 
 
+
+  state_projection_header_test = executable(
+    'state-projection-header-test',
+    'state_projection_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile state projection header independently', state_projection_header_test)
+
+  state_projection_test = executable(
+    'state-projection-test',
+    'state_projection_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate lease-bound state projections', state_projection_test)
+
   execution_control_header_test = executable(
     'execution-control-header-test',
     'execution_control_header_test.cpp',
