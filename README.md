@@ -41,7 +41,9 @@ foundation required before target mutation is admitted:
   and
 * fresh filesystem-precondition checks where every planning-time fact that was
   known must remain known and equal, while additional current facts are retained
-  as richer evidence rather than rejected as drift.
+  as richer evidence rather than rejected as drift; and
+* exact incoming regular-payload closure derivation, including deduplicated
+  hard-link anchors and separate active versus rejected consumers.
 
 No concrete filesystem actuator, archive replay coordinator, journal storage
 backend, or POSIX backend is present yet. The public model rejects inconsistent

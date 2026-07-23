@@ -134,6 +134,20 @@ if get_option('tests').allowed()
   )
   test('revalidate planning-time filesystem preconditions', precondition_test)
 
+  payload_header_test = executable(
+    'payload-header-test',
+    'payload_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile payload header independently', payload_header_test)
+
+  payload_test = executable(
+    'payload-test',
+    'payload_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('derive exact incoming regular payload closure', payload_test)
+
   object_fact_test = executable(
     'object-fact-test',
     'object_fact_test.cpp',
