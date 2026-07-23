@@ -185,45 +185,75 @@ state(const fake_lease& lease,
 }
 
 pkgapply::completed_object_fact
-observed_regular(const pkgplan::package_path& path,
-                 const pkgplan::filesystem_object_metadata& metadata)
+observed_object(const pkgplan::package_path& path,
+                const pkgplan::filesystem_object_metadata& metadata)
 {
-  require(metadata.kind() == pkgplan::filesystem_object_kind::regular,
-          "engine fixture expected a regular planning object");
-
-  const auto size = metadata.size()
-      ? pkgapply::qualified_fact<std::uint64_t>::known(*metadata.size())
-      : pkgapply::qualified_fact<std::uint64_t>::unknown();
+  const auto mode =
+      pkgapply::qualified_fact<std::uint32_t>::known(metadata.mode());
+  const auto uid =
+      pkgapply::qualified_fact<std::uint64_t>::known(metadata.uid());
+  const auto gid =
+      pkgapply::qualified_fact<std::uint64_t>::known(metadata.gid());
   const auto mtime = metadata.mtime()
       ? pkgapply::qualified_fact<
             pkgapply::completed_object_timestamp>::known(
             {metadata.mtime()->seconds(), metadata.mtime()->nanoseconds()})
       : pkgapply::qualified_fact<
             pkgapply::completed_object_timestamp>::unknown();
-  const auto content = metadata.regular_content()
-      ? pkgapply::qualified_fact<
-            pkgapply::completed_regular_content_identity>::known(
-            pkgapply::completed_regular_content_identity::parse(
-                metadata.regular_content()->string()))
-      : pkgapply::qualified_fact<
-            pkgapply::completed_regular_content_identity>::unknown();
 
-  return pkgapply::completed_object_fact(
-      path,
-      pkgapply::completed_object_kind::regular,
-      pkgapply::qualified_fact<std::uint32_t>::known(metadata.mode()),
-      pkgapply::qualified_fact<std::uint64_t>::known(metadata.uid()),
-      pkgapply::qualified_fact<std::uint64_t>::known(metadata.gid()),
-      size,
-      mtime,
-      content,
-      pkgapply::qualified_fact<std::string>::not_applicable(),
-      pkgapply::qualified_fact<
-          pkgapply::completed_device_number>::not_applicable(),
-      pkgapply::qualified_fact<
-          pkgapply::completed_hardlink_relation>::unknown(),
-      pkgapply::object_fact_provenance::application_observation,
-      pkgapply::object_fact_completeness::partial);
+  switch (metadata.kind()) {
+    case pkgplan::filesystem_object_kind::regular: {
+      const auto size = metadata.size()
+          ? pkgapply::qualified_fact<std::uint64_t>::known(*metadata.size())
+          : pkgapply::qualified_fact<std::uint64_t>::unknown();
+      const auto content = metadata.regular_content()
+          ? pkgapply::qualified_fact<
+                pkgapply::completed_regular_content_identity>::known(
+                pkgapply::completed_regular_content_identity::parse(
+                    metadata.regular_content()->string()))
+          : pkgapply::qualified_fact<
+                pkgapply::completed_regular_content_identity>::unknown();
+      return pkgapply::completed_object_fact(
+          path,
+          pkgapply::completed_object_kind::regular,
+          mode,
+          uid,
+          gid,
+          size,
+          mtime,
+          content,
+          pkgapply::qualified_fact<std::string>::not_applicable(),
+          pkgapply::qualified_fact<
+              pkgapply::completed_device_number>::not_applicable(),
+          pkgapply::qualified_fact<
+              pkgapply::completed_hardlink_relation>::unknown(),
+          pkgapply::object_fact_provenance::application_observation,
+          pkgapply::object_fact_completeness::partial);
+    }
+
+    case pkgplan::filesystem_object_kind::directory:
+      return pkgapply::completed_object_fact(
+          path,
+          pkgapply::completed_object_kind::directory,
+          mode,
+          uid,
+          gid,
+          pkgapply::qualified_fact<std::uint64_t>::not_applicable(),
+          mtime,
+          pkgapply::qualified_fact<
+              pkgapply::completed_regular_content_identity>::not_applicable(),
+          pkgapply::qualified_fact<std::string>::not_applicable(),
+          pkgapply::qualified_fact<
+              pkgapply::completed_device_number>::not_applicable(),
+          pkgapply::qualified_fact<
+              pkgapply::completed_hardlink_relation>::not_applicable(),
+          pkgapply::object_fact_provenance::application_observation,
+          pkgapply::object_fact_completeness::partial);
+
+    default:
+      throw std::runtime_error(
+          "engine fixture supports only regular and directory observations");
+  }
 }
 
 std::vector<pkgapply::application_path_observation>
@@ -240,7 +270,7 @@ matching_observations(const pkgplan::operation_preconditions& preconditions)
     require(path.observation().object() != nullptr,
             "present planning observation lacks object metadata");
     observations.push_back(pkgapply::application_path_observation::present(
-        observed_regular(path.path(), *path.observation().object())));
+        observed_object(path.path(), *path.observation().object())));
   }
   return observations;
 }
@@ -1023,6 +1053,324 @@ main()
   }
   backend_state->set_durability(
       pkgapply::application_durability_domain::rejected_object_store,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // Ordinary installation executes the exact incoming active command and
+  // stops at the effects-visible boundary before final observation.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(active.is_complete() && active.complete() != nullptr &&
+                active.complete()->active_effects().size() == 1,
+            "ordinary installation did not complete its active effect");
+    const auto& effect = active.complete()->active_effects().front();
+    require(effect.request().outcome() ==
+                pkgplan::planned_active_outcome::activate_incoming &&
+                effect.request().incoming_entry().has_value() &&
+                effect.result().outcome() ==
+                    pkgapply::backend_operation_outcome::completed &&
+                effect.changed_target(),
+            "installation active effect lost incoming or completion authority");
+    require(active.complete()->durability().status(
+                pkgapply::application_durability_domain::active_namespace) ==
+                pkgapply::application_durability_status::visible &&
+                active.complete()->rejected().prepared().journaled().journal().
+                    state() ==
+                    pkgapply::application_journal_state::effects_visible,
+            "installation active visibility used the wrong boundary");
+    require(first_boundary(backend_state->events(), boundary::payload_seal) <
+                first_boundary(backend_state->events(),
+                               boundary::execute_active),
+            "installation active effect preceded payload sealing");
+    require(first_synchronization(
+                backend_state->events(),
+                pkgapply::application_durability_domain::active_namespace) ==
+                backend_state->events().size(),
+            "journal-and-recovery synchronized the active namespace");
+    require(first_boundary(backend_state->events(), boundary::recover) ==
+                backend_state->events().size(),
+            "successful active execution entered recovery");
+  }
+  backend_state->clear_events();
+
+  // Upgrade replacement uses the same prepared transaction and runs only
+  // after its exact old-object capture and incoming payload sealing.
+  backend_state->set_observations(
+      matching_observations(upgrade_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), upgrade_request, upgrade_state,
+        lease, upgrade_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), upgrade_request, upgrade_state, lease,
+        upgrade_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), upgrade_request, upgrade_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), upgrade_request, upgrade_state,
+        lease);
+    require(active.is_complete() && active.complete() != nullptr &&
+                active.complete()->active_effects().size() == 1 &&
+                active.complete()->active_effects().front().changed_target(),
+            "upgrade replacement did not complete its active effect");
+    require(first_boundary(backend_state->events(), boundary::capture_old) <
+                first_boundary(backend_state->events(),
+                               boundary::execute_active) &&
+                first_boundary(backend_state->events(),
+                               boundary::payload_seal) <
+                first_boundary(backend_state->events(),
+                               boundary::execute_active),
+            "upgrade active replacement preceded preparation authority");
+  }
+  backend_state->clear_events();
+
+  // Conditional directory cleanup is semantic completion without claiming a
+  // managed active-namespace mutation or unnecessary synchronization.
+  const auto directory_path = pkgplan::package_path::parse("usr/share/tool");
+  const auto directory_active = pkgapply::test::fixture::directory_object();
+  const auto directory_removal_request =
+      pkgapply::removal_application_request::make(
+          pkgapply::test::fixture::removal_plan(
+              authorities,
+              {pkgplan::installed_ownership_claim(
+                  directory_path, authorities.installed_package,
+                  directory_active)},
+              {pkgplan::target_path_observation::present(
+                  pkgplan::filesystem_object_fact(
+                      directory_path, directory_active))}),
+          context, control());
+  const auto directory_removal_state = state(
+      lease, directory_removal_request.plan().preconditions());
+  backend_state->set_outcome(
+      boundary::execute_active,
+      pkgapply::backend_operation_outcome::conditional_retained);
+  backend_state->set_observations(matching_observations(
+      directory_removal_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        directory_removal_request, directory_removal_state, lease, backend);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), directory_removal_request,
+        directory_removal_state, lease);
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), directory_removal_request,
+        directory_removal_state, lease);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), directory_removal_request,
+        directory_removal_state, lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), directory_removal_request,
+        directory_removal_state, lease);
+    require(active.is_complete() && active.complete() != nullptr &&
+                active.complete()->active_effects().size() == 1 &&
+                active.complete()->active_effects().front().result().outcome() ==
+                    pkgapply::backend_operation_outcome::conditional_retained &&
+                !active.complete()->active_effects().front().changed_target() &&
+                active.complete()->durability().status(
+                    pkgapply::application_durability_domain::active_namespace) ==
+                    pkgapply::application_durability_status::not_attempted,
+            "conditional directory retention claimed a target mutation");
+    require(first_synchronization(
+                backend_state->events(),
+                pkgapply::application_durability_domain::active_namespace) ==
+                backend_state->events().size(),
+            "conditional directory retention synchronized an unchanged target");
+  }
+  backend_state->set_outcome(
+      boundary::execute_active,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // A failed active effect retains the live transaction and recovery assets;
+  // recovery itself belongs to the next engine phase.
+  backend_state->set_outcome(
+      boundary::execute_active, pkgapply::backend_operation_outcome::failed);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(!active.is_complete() && active.interruption() != nullptr &&
+                active.interruption()->interruption() ==
+                    pkgapply::detail::active_execution_interruption::
+                        effect_failed &&
+                active.interruption()->active_effects().size() == 1 &&
+                active.interruption()->durability().status(
+                    pkgapply::application_durability_domain::active_namespace) ==
+                    pkgapply::application_durability_status::not_attempted &&
+                active.interruption()->rejected().prepared().journaled().
+                    journal().state() ==
+                    pkgapply::application_journal_state::
+                        external_resolution_pending,
+            "failed active effect was collapsed or finalized prematurely");
+    require(first_boundary(backend_state->events(), boundary::recover) ==
+                backend_state->events().size(),
+            "active execution performed recovery inside the effect phase");
+  }
+  backend_state->set_outcome(
+      boundary::execute_active,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // An indeterminate active effect retains indeterminate target durability and
+  // an indeterminate journal rather than pretending the target is unchanged.
+  backend_state->set_outcome(
+      boundary::execute_active,
+      pkgapply::backend_operation_outcome::indeterminate);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(!active.is_complete() && active.interruption() != nullptr &&
+                active.interruption()->interruption() ==
+                    pkgapply::detail::active_execution_interruption::
+                        effect_indeterminate &&
+                active.interruption()->durability().status(
+                    pkgapply::application_durability_domain::active_namespace) ==
+                    pkgapply::application_durability_status::indeterminate &&
+                active.interruption()->rejected().prepared().journaled().
+                    journal().state() ==
+                    pkgapply::application_journal_state::indeterminate,
+            "indeterminate active effect was collapsed into ordinary failure");
+  }
+  backend_state->set_outcome(
+      boundary::execute_active,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // All-domain success synchronizes the active namespace after every active
+  // command and retains confirmed durability for final observation.
+  const auto durable_active_request =
+      pkgapply::installation_application_request::make(
+          install_request.plan(), context,
+          pkgapply::application_execution_control::make(
+              pkgapply::application_recovery_requirement::best_effort,
+              pkgapply::application_durability_requirement::
+                  all_application_domains,
+              pkgapply::application_cancellation_policy::
+                  recover_after_target_mutation));
+  const auto durable_active_state = state(
+      lease, durable_active_request.plan().preconditions());
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->set_observations(matching_observations(
+      durable_active_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        durable_active_request, durable_active_state, lease, backend,
+        install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), durable_active_request,
+        durable_active_state, lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), durable_active_request, durable_active_state,
+        lease, install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), durable_active_request,
+        durable_active_state, lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), durable_active_request,
+        durable_active_state, lease);
+    require(active.is_complete() && active.complete() != nullptr &&
+                active.complete()->durability().status(
+                    pkgapply::application_durability_domain::active_namespace) ==
+                    pkgapply::application_durability_status::confirmed,
+            "all-domain active execution did not confirm durability");
+    require(first_boundary(backend_state->events(), boundary::execute_active) <
+                first_synchronization(
+                    backend_state->events(),
+                    pkgapply::application_durability_domain::active_namespace),
+            "active-namespace synchronization preceded active effects");
+  }
+  backend_state->clear_events();
+
+  // A failed active synchronization retains all completed effects and hands
+  // the same transaction to recovery instead of manufacturing success.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::unconfirmed);
+  backend_state->set_observations(matching_observations(
+      durable_active_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        durable_active_request, durable_active_state, lease, backend,
+        install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), durable_active_request,
+        durable_active_state, lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), durable_active_request, durable_active_state,
+        lease, install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), durable_active_request,
+        durable_active_state, lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), durable_active_request,
+        durable_active_state, lease);
+    require(!active.is_complete() && active.interruption() != nullptr &&
+                active.interruption()->interruption() ==
+                    pkgapply::detail::active_execution_interruption::
+                        durability_unconfirmed &&
+                active.interruption()->active_effects().size() == 1 &&
+                active.interruption()->active_effects().front().changed_target() &&
+                active.interruption()->durability().status(
+                    pkgapply::application_durability_domain::active_namespace) ==
+                    pkgapply::application_durability_status::unconfirmed &&
+                active.interruption()->rejected().prepared().journaled().
+                    journal().state() ==
+                    pkgapply::application_journal_state::
+                        external_resolution_pending,
+            "active durability failure discarded completed target effects");
+    require(first_boundary(backend_state->events(), boundary::recover) ==
+                backend_state->events().size(),
+            "active durability failure recovered inside the effect phase");
+  }
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
       pkgapply::application_durability_status::confirmed);
   backend_state->clear_events();
 

@@ -61,7 +61,7 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_dep,
   )
   test(
-    'admit backend transactions before mutation',
+    'execute application engine through active effects',
     application_engine_test,
   )
 

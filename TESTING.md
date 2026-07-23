@@ -132,7 +132,10 @@ before publication, completed publication retains an immutable record identity,
 and rejected-store synchronization is selected by durability domain rather
 than confused with earlier private-stage synchronization. Failure before the
 active target boundary may contain rejected consequences, but no active effect
-or recovery command.
+or recovery command. Active-effect tests prove exact incoming bindings,
+conditional directory retention, per-effect write-ahead ordering, explicit
+visibility versus confirmed durability, and retention of the live transaction
+for a separate recovery phase after failure or indeterminate completion.
 
 Operation tests
 ---------------
