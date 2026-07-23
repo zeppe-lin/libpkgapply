@@ -4,12 +4,15 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <variant>
 
 #include <libpkgapply/admission.h>
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/precondition.h>
 #include <libpkgapply/result.h>
+#include <libpkgapply/schedule.h>
+#include <libpkgapply/journal.h>
 
 namespace pkgapply::detail {
 
@@ -99,5 +102,60 @@ admit_application_engine(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend);
+
+} // namespace pkgapply::detail
+
+namespace pkgapply::detail {
+
+/*! \brief One admitted transaction with its complete durable effect graph. */
+class journaled_application final {
+public:
+  journaled_application(
+      admitted_application admitted,
+      std::optional<incoming_payload_plan> payloads,
+      old_object_capture_plan captures,
+      application_effect_schedule schedule,
+      application_journal_record journal);
+
+  journaled_application(const journaled_application&) = delete;
+  journaled_application& operator=(const journaled_application&) = delete;
+  journaled_application(journaled_application&&) noexcept = default;
+  journaled_application& operator=(journaled_application&&) noexcept = default;
+
+  [[nodiscard]] admitted_application& admitted() noexcept;
+  [[nodiscard]] const admitted_application& admitted() const noexcept;
+  [[nodiscard]] const std::optional<incoming_payload_plan>&
+  payloads() const noexcept;
+  [[nodiscard]] const old_object_capture_plan& captures() const noexcept;
+  [[nodiscard]] const application_effect_schedule& schedule() const noexcept;
+  [[nodiscard]] const application_journal_record& journal() const noexcept;
+
+private:
+  admitted_application admitted_;
+  std::optional<incoming_payload_plan> payloads_;
+  old_object_capture_plan captures_;
+  application_effect_schedule schedule_;
+  application_journal_record journal_;
+};
+
+[[nodiscard]] journaled_application journal_application_engine(
+    admitted_application admitted,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image);
+
+[[nodiscard]] journaled_application journal_application_engine(
+    admitted_application admitted,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image);
+
+[[nodiscard]] journaled_application journal_application_engine(
+    admitted_application admitted,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
 
 } // namespace pkgapply::detail

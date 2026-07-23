@@ -46,6 +46,9 @@ enum class application_journal_effect_kind : std::uint8_t {
   synchronize_active_namespace = 7,
   synchronize_rejected_store = 8,
   seal_receipt = 9,
+  synchronize_incoming_staging = 10,
+  synchronize_recovery_staging = 11,
+  synchronize_completed_evidence = 12,
 };
 
 /*! \brief Append-only event class for one journal effect. */

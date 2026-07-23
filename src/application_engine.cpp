@@ -246,3 +246,205 @@ admit_application_engine(
 }
 
 } // namespace pkgapply::detail
+
+namespace pkgapply::detail {
+namespace {
+
+application_journal_effect_kind
+journal_kind(application_effect_step_kind kind)
+{
+  switch (kind) {
+    case application_effect_step_kind::capture_old_object:
+      return application_journal_effect_kind::capture_old_object;
+    case application_effect_step_kind::stage_regular_payload:
+      return application_journal_effect_kind::stage_incoming_payload;
+    case application_effect_step_kind::publish_rejected_object:
+      return application_journal_effect_kind::publish_rejected_object;
+    case application_effect_step_kind::publish_active_object:
+      return application_journal_effect_kind::publish_active_object;
+    case application_effect_step_kind::observe_result:
+      return application_journal_effect_kind::observe_result;
+  }
+  throw std::invalid_argument("invalid application schedule step kind");
+}
+
+std::vector<application_journal_effect>
+journal_effects(const application_effect_schedule& schedule,
+                bool has_incoming,
+                bool has_recovery,
+                bool has_active,
+                bool has_rejected)
+{
+  std::vector<application_journal_effect> effects;
+  effects.reserve(schedule.steps().size() + 7);
+  for (const auto& step : schedule.steps()) {
+    effects.push_back(application_journal_effect::make(
+        effects.size(), journal_kind(step.kind()), step.path()));
+  }
+
+  const auto append = [&effects](application_journal_effect_kind kind) {
+    effects.push_back(application_journal_effect::make(effects.size(), kind));
+  };
+  append(application_journal_effect_kind::synchronize_journal);
+  if (has_incoming)
+    append(application_journal_effect_kind::synchronize_incoming_staging);
+  if (has_recovery)
+    append(application_journal_effect_kind::synchronize_recovery_staging);
+  if (has_active)
+    append(application_journal_effect_kind::synchronize_active_namespace);
+  if (has_rejected)
+    append(application_journal_effect_kind::synchronize_rejected_store);
+  append(application_journal_effect_kind::synchronize_completed_evidence);
+  append(application_journal_effect_kind::seal_receipt);
+  return effects;
+}
+
+template<class Request>
+application_journal_header
+journal_header(const Request& request,
+               const admitted_application& admitted,
+               const lease_bound_state_projection& state,
+               const target_mutation_lease& lease)
+{
+  return application_journal_header::make(
+      request.plan().kind(), request.identity(), request.plan().identity(),
+      admitted.attempt(), request.target().identity(), request.control().identity(),
+      state.identity(), lease.identity(), admitted.transaction().backend());
+}
+
+template<class Request>
+journaled_application
+publish_initial_journal(admitted_application admitted,
+                        const Request& request,
+                        const lease_bound_state_projection& state,
+                        const target_mutation_lease& lease,
+                        std::optional<incoming_payload_plan> payloads,
+                        old_object_capture_plan captures,
+                        application_effect_schedule schedule,
+                        bool has_recovery,
+                        bool has_active,
+                        bool has_rejected)
+{
+  application_journal_record intended = application_journal_record::make(
+      journal_header(request, admitted, state, lease),
+      application_journal_state::preparing,
+      journal_effects(schedule, payloads.has_value() &&
+                      payloads->selection().size() != 0, has_recovery,
+                      has_active, has_rejected),
+      {});
+  application_journal_record durable =
+      admitted.transaction().publish_journal(intended);
+  if (durable.identity() != intended.identity() ||
+      durable.header().identity() != intended.header().identity())
+    throw std::logic_error("backend changed the application journal snapshot");
+  return journaled_application(
+      std::move(admitted), std::move(payloads), std::move(captures),
+      std::move(schedule), std::move(durable));
+}
+
+template<class Plan>
+bool has_active_effect(const Plan& plan)
+{
+  for (const auto& path : plan.paths()) {
+    if (path.active() != pkgplan::planned_active_outcome::retain_observed &&
+        path.active() != pkgplan::planned_active_outcome::remain_absent)
+      return true;
+  }
+  return false;
+}
+
+template<class Plan>
+bool has_rejected_effect(const Plan& plan)
+{
+  for (const auto& path : plan.paths()) {
+    if (path.rejected() != pkgplan::planned_rejected_outcome::none)
+      return true;
+  }
+  return false;
+}
+
+} // namespace
+
+journaled_application::journaled_application(
+    admitted_application admitted,
+    std::optional<incoming_payload_plan> payloads,
+    old_object_capture_plan captures,
+    application_effect_schedule schedule,
+    application_journal_record journal)
+    : admitted_(std::move(admitted)),
+      payloads_(std::move(payloads)),
+      captures_(std::move(captures)),
+      schedule_(std::move(schedule)),
+      journal_(std::move(journal))
+{
+  if (journal_.state() != application_journal_state::preparing)
+    throw std::invalid_argument("initial engine journal is not preparing");
+  if (journal_.header().attempt().identity() != admitted_.attempt().identity())
+    throw std::invalid_argument("engine journal names another attempt");
+}
+
+admitted_application& journaled_application::admitted() noexcept { return admitted_; }
+const admitted_application& journaled_application::admitted() const noexcept { return admitted_; }
+const std::optional<incoming_payload_plan>&
+journaled_application::payloads() const noexcept { return payloads_; }
+const old_object_capture_plan&
+journaled_application::captures() const noexcept { return captures_; }
+const application_effect_schedule& journaled_application::schedule() const noexcept { return schedule_; }
+const application_journal_record& journaled_application::journal() const noexcept { return journal_; }
+
+journaled_application
+journal_application_engine(
+    admitted_application admitted,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image)
+{
+  auto payloads = prepare_incoming_payloads(request.plan(), image);
+  auto captures = prepare_old_object_captures(request.plan(), request.control());
+  auto schedule = prepare_application_schedule(
+      request.plan(), image, payloads, captures);
+  const bool has_recovery = !captures.requests().empty();
+  return publish_initial_journal(
+      std::move(admitted), request, state, lease, std::move(payloads),
+      std::move(captures), std::move(schedule), has_recovery,
+      has_active_effect(request.plan()), has_rejected_effect(request.plan()));
+}
+
+journaled_application
+journal_application_engine(
+    admitted_application admitted,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image)
+{
+  auto payloads = prepare_incoming_payloads(request.plan(), image);
+  auto captures = prepare_old_object_captures(request.plan(), request.control());
+  auto schedule = prepare_application_schedule(
+      request.plan(), image, payloads, captures);
+  const bool has_recovery = !captures.requests().empty();
+  return publish_initial_journal(
+      std::move(admitted), request, state, lease, std::move(payloads),
+      std::move(captures), std::move(schedule), has_recovery,
+      has_active_effect(request.plan()), has_rejected_effect(request.plan()));
+}
+
+journaled_application
+journal_application_engine(
+    admitted_application admitted,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  auto captures = prepare_old_object_captures(request.plan(), request.control());
+  auto schedule = prepare_application_schedule(request.plan(), captures);
+  const bool has_recovery = !captures.requests().empty();
+  return publish_initial_journal(
+      std::move(admitted), request, state, lease, std::nullopt,
+      std::move(captures), std::move(schedule), has_recovery,
+      has_active_effect(request.plan()),
+      has_rejected_effect(request.plan()));
+}
+
+} // namespace pkgapply::detail

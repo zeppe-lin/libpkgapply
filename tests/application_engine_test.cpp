@@ -437,6 +437,46 @@ main()
           "admitted installation transaction was not released with session");
   backend_state->clear_events();
 
+  // The complete effect graph is durable before any effectful boundary.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    require(admission.is_admitted() && admission.admitted() != nullptr,
+            "journal fixture was not admitted");
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()),
+        install_request,
+        install_state,
+        lease,
+        install_archive.image());
+    require(journaled.journal().state() ==
+                pkgapply::application_journal_state::preparing,
+            "initial durable journal is not preparing");
+    require(journaled.journal().header().attempt().identity() ==
+                journaled.admitted().attempt().identity(),
+            "durable journal changed the admitted attempt");
+    require(!journaled.journal().effects().empty() &&
+                journaled.journal().events().empty(),
+            "initial durable journal did not freeze an untouched effect graph");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->identity() ==
+                    journaled.journal().identity(),
+            "backend did not retain the exact initial journal snapshot");
+    require(backend_state->events().size() == 3 &&
+                backend_state->events()[0].boundary ==
+                    boundary::begin_with_incoming_image &&
+                backend_state->events()[1].boundary == boundary::observe &&
+                backend_state->events()[2].boundary ==
+                    boundary::publish_journal,
+            "journal preparation crossed an effect boundary");
+  }
+  require(backend_state->events().back().boundary ==
+              boundary::transaction_destroyed,
+          "journaled transaction was not retained through preparation");
+  backend_state->clear_events();
+
   // Upgrade follows the same archive-bearing admission discipline.
   fake_archive upgrade_archive({
       pkgapply::test::fixture::regular_entry("tool", 2, 0755),
