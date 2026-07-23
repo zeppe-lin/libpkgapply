@@ -5,6 +5,7 @@
 
 #include <libpkgapply/digest.h>
 #include <libpkgapply/execution_control.h>
+#include <libpkgapply/journal.h>
 #include <libpkgapply/mutation_lease.h>
 #include <libpkgapply/object_fact.h>
 #include <libpkgapply/path_consequence.h>

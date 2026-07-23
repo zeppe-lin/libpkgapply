@@ -100,6 +100,20 @@ if get_option('tests').allowed()
   )
   test('validate caller-held target mutation leases', mutation_lease_test)
 
+  journal_header_test = executable(
+    'journal-header-test',
+    'journal_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile journal header independently', journal_header_test)
+
+  journal_test = executable(
+    'journal-test',
+    'journal_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate durable application journal records', journal_test)
+
   execution_control_header_test = executable(
     'execution-control-header-test',
     'execution_control_header_test.cpp',

@@ -106,6 +106,10 @@ template class typed_digest<
     detail::application_execution_control_identity_domain>;
 template class typed_digest<detail::application_request_identity_domain>;
 template class typed_digest<detail::application_journal_identity_domain>;
+template class typed_digest<
+    detail::application_journal_effect_identity_domain>;
+template class typed_digest<
+    detail::application_journal_record_identity_domain>;
 template class typed_digest<detail::application_receipt_identity_domain>;
 template class typed_digest<
     detail::completed_application_evidence_identity_domain>;

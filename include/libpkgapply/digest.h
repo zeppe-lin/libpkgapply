@@ -175,6 +175,20 @@ struct application_journal_identity_domain final {
   }
 };
 
+struct application_journal_effect_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/application-journal-effect/v1";
+  }
+};
+
+struct application_journal_record_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/application-journal-record/v1";
+  }
+};
+
 struct application_receipt_identity_domain final {
   [[nodiscard]] static constexpr std::string_view name() noexcept
   {
@@ -313,6 +327,10 @@ using application_request_identity =
     typed_digest<detail::application_request_identity_domain>;
 using application_journal_identity =
     typed_digest<detail::application_journal_identity_domain>;
+using application_journal_effect_identity =
+    typed_digest<detail::application_journal_effect_identity_domain>;
+using application_journal_record_identity =
+    typed_digest<detail::application_journal_record_identity_domain>;
 using application_receipt_identity =
     typed_digest<detail::application_receipt_identity_domain>;
 using completed_application_evidence_identity =
@@ -353,6 +371,10 @@ extern template class typed_digest<
     detail::application_execution_control_identity_domain>;
 extern template class typed_digest<detail::application_request_identity_domain>;
 extern template class typed_digest<detail::application_journal_identity_domain>;
+extern template class typed_digest<
+    detail::application_journal_effect_identity_domain>;
+extern template class typed_digest<
+    detail::application_journal_record_identity_domain>;
 extern template class typed_digest<detail::application_receipt_identity_domain>;
 extern template class typed_digest<
     detail::completed_application_evidence_identity_domain>;
