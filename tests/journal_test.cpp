@@ -51,18 +51,31 @@ planning_identity(std::uint8_t value)
 pkgapply::application_journal_header
 header()
 {
+  pkgapply::application_attempt_nonce::byte_array nonce_bytes{};
+  for (std::size_t index = 0; index < nonce_bytes.size(); ++index)
+    nonce_bytes[index] = static_cast<std::uint8_t>(3 + index);
+  const auto request =
+      application_identity<pkgapply::application_request_identity>(1);
+  const auto target =
+      application_identity<pkgapply::application_target_context_identity>(4);
+  const auto backend =
+      application_identity<pkgapply::mutation_backend_identity>(8);
+  const auto attempt = pkgapply::application_attempt::make(
+      request, target, backend,
+      pkgapply::application_attempt_nonce::from_bytes(nonce_bytes));
+
   return pkgapply::application_journal_header::make(
       pkgplan::operation_kind::install,
-      application_identity<pkgapply::application_request_identity>(1),
+      request,
       planning_identity<pkgplan::operation_plan_identity>(2),
-      application_identity<pkgapply::application_attempt_identity>(3),
-      application_identity<pkgapply::application_target_context_identity>(4),
+      attempt,
+      target,
       application_identity<
           pkgapply::application_execution_control_identity>(5),
       application_identity<
           pkgapply::lease_bound_state_projection_identity>(6),
       application_identity<pkgapply::mutation_lease_instance_identity>(7),
-      application_identity<pkgapply::mutation_backend_identity>(8));
+      backend);
 }
 
 std::vector<pkgapply::application_journal_effect>
@@ -117,11 +130,11 @@ main()
       receipt,
       evidence);
 
-  require(journal_header.identity().string() == "v1:sha256:db0547334422d489e21888814bf1e5c80195c280bca4683d59c5529e5c976bea",
+  require(journal_header.identity().string() == "v1:sha256:e9414af7976e237f8945b2d33b89fb14974783c4ecb6743f6cc0ca152efd83a0",
           "application journal header identity vector changed");
   require(journal_effects[0].identity().string() == "v1:sha256:1e1a549c38805eff0cac6b13aae44814560780bff354342f7d0fd48ea038e228",
           "application journal effect identity vector changed");
-  require(record.identity().string() == "v1:sha256:512c0de816897456afe39dc51439caac06b26d99cdb3059bedc984808dab8f3e",
+  require(record.identity().string() == "v1:sha256:38c9eafe215977f66f7146daa358435b95bdffc39757ce73b8871a8d47b911a0",
           "application journal record identity vector changed");
 
   auto reversed = journal_effects;

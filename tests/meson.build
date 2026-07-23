@@ -30,6 +30,20 @@ if get_option('tests').allowed()
   )
   test('validate typed application identities', digest_test)
 
+  attempt_header_test = executable(
+    'attempt-header-test',
+    'attempt_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile attempt header independently', attempt_header_test)
+
+  attempt_test = executable(
+    'attempt-test',
+    'attempt_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate backend-bound application attempts', attempt_test)
+
   result_header_test = executable(
     'result-header-test',
     'result_header_test.cpp',

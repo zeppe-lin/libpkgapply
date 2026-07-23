@@ -7,6 +7,7 @@
 #include <optional>
 #include <vector>
 
+#include <libpkgapply/attempt.h>
 #include <libpkgapply/digest.h>
 #include <libpkgplan/digest.h>
 #include <libpkgplan/package_path.h>
@@ -62,7 +63,7 @@ public:
       pkgplan::operation_kind kind,
       application_request_identity request,
       pkgplan::operation_plan_identity plan,
-      application_attempt_identity attempt,
+      application_attempt attempt,
       application_target_context_identity target,
       application_execution_control_identity control,
       lease_bound_state_projection_identity state_projection,
@@ -74,7 +75,7 @@ public:
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
   [[nodiscard]] const application_request_identity& request() const noexcept;
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
-  [[nodiscard]] const application_attempt_identity& attempt() const noexcept;
+  [[nodiscard]] const application_attempt& attempt() const noexcept;
   [[nodiscard]] const application_target_context_identity& target() const noexcept;
   [[nodiscard]] const application_execution_control_identity& control() const noexcept;
   [[nodiscard]] const lease_bound_state_projection_identity&
@@ -88,7 +89,7 @@ private:
       pkgplan::operation_kind kind,
       application_request_identity request,
       pkgplan::operation_plan_identity plan,
-      application_attempt_identity attempt,
+      application_attempt attempt,
       application_target_context_identity target,
       application_execution_control_identity control,
       lease_bound_state_projection_identity state_projection,
@@ -100,7 +101,7 @@ private:
   pkgplan::operation_kind kind_;
   application_request_identity request_;
   pkgplan::operation_plan_identity plan_;
-  application_attempt_identity attempt_;
+  application_attempt attempt_;
   application_target_context_identity target_;
   application_execution_control_identity control_;
   lease_bound_state_projection_identity state_projection_;

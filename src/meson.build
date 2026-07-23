@@ -10,6 +10,7 @@ libpkgapply = library(
     'digest.cpp',
     'sha256.cpp',
     'canonical_record.cpp',
+    'attempt.cpp',
     'target_context.cpp',
     'execution_control.cpp',
     'request.cpp',
@@ -38,6 +39,7 @@ meson.override_dependency('libpkgapply', libpkgapply_dep)
 install_headers(
   '../include/libpkgapply/libpkgapply.h',
   '../include/libpkgapply/digest.h',
+  '../include/libpkgapply/attempt.h',
   '../include/libpkgapply/target_context.h',
   '../include/libpkgapply/execution_control.h',
   '../include/libpkgapply/request.h',

@@ -90,7 +90,7 @@ identify_header(
     pkgplan::operation_kind kind,
     const application_request_identity& request,
     const pkgplan::operation_plan_identity& plan,
-    const application_attempt_identity& attempt,
+    const application_attempt& attempt,
     const application_target_context_identity& target,
     const application_execution_control_identity& control,
     const lease_bound_state_projection_identity& state_projection,
@@ -103,7 +103,7 @@ identify_header(
   record.append_u8(canonical_kind(kind));
   record.append_digest(request);
   record.append_bytes(plan.string());
-  record.append_digest(attempt);
+  record.append_digest(attempt.identity());
   record.append_digest(target);
   record.append_digest(control);
   record.append_digest(state_projection);
@@ -267,13 +267,23 @@ application_journal_header::make(
     pkgplan::operation_kind kind,
     application_request_identity request,
     pkgplan::operation_plan_identity plan,
-    application_attempt_identity attempt,
+    application_attempt attempt,
     application_target_context_identity target,
     application_execution_control_identity control,
     lease_bound_state_projection_identity state_projection,
     mutation_lease_instance_identity lease,
     mutation_backend_identity backend)
 {
+  if (attempt.request() != request)
+    throw std::invalid_argument(
+        "application journal attempt belongs to another request");
+  if (attempt.target() != target)
+    throw std::invalid_argument(
+        "application journal attempt belongs to another target");
+  if (attempt.backend() != backend)
+    throw std::invalid_argument(
+        "application journal attempt belongs to another backend");
+
   auto identity = identify_header(
       kind, request, plan, attempt, target, control, state_projection, lease,
       backend);
@@ -288,7 +298,7 @@ application_journal_header::application_journal_header(
     pkgplan::operation_kind kind,
     application_request_identity request,
     pkgplan::operation_plan_identity plan,
-    application_attempt_identity attempt,
+    application_attempt attempt,
     application_target_context_identity target,
     application_execution_control_identity control,
     lease_bound_state_projection_identity state_projection,
@@ -312,7 +322,7 @@ const application_request_identity&
 application_journal_header::request() const noexcept { return request_; }
 const pkgplan::operation_plan_identity&
 application_journal_header::plan() const noexcept { return plan_; }
-const application_attempt_identity&
+const application_attempt&
 application_journal_header::attempt() const noexcept { return attempt_; }
 const application_target_context_identity&
 application_journal_header::target() const noexcept { return target_; }

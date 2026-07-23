@@ -4,6 +4,7 @@
 #pragma once
 
 #include <libpkgapply/digest.h>
+#include <libpkgapply/attempt.h>
 #include <libpkgapply/execution_control.h>
 #include <libpkgapply/journal.h>
 #include <libpkgapply/mutation_lease.h>
