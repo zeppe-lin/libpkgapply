@@ -362,4 +362,163 @@ publish_rejected_application_engine(
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);
 
+/*! \brief One attempted managed active-object effect and its exact command. */
+class active_effect_application_result final {
+public:
+  active_effect_application_result(
+      backend_active_effect_request request,
+      backend_operation_result result);
+
+  [[nodiscard]] const backend_active_effect_request&
+  request() const noexcept;
+  [[nodiscard]] const backend_operation_result& result() const noexcept;
+
+  /*! \brief Test whether this effect is known to have changed the target. */
+  [[nodiscard]] bool changed_target() const noexcept;
+
+private:
+  backend_active_effect_request request_;
+  backend_operation_result result_;
+};
+
+/*! \brief Reason active execution stopped before final observation. */
+enum class active_execution_interruption : std::uint8_t {
+  effect_failed = 1,
+  effect_indeterminate = 2,
+  durability_unconfirmed = 3,
+  durability_indeterminate = 4,
+};
+
+/*! \brief Transaction after every active effect reached a semantic terminal state. */
+class active_mutated_application final {
+public:
+  active_mutated_application(
+      rejected_published_application rejected,
+      std::vector<active_effect_application_result> active_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  active_mutated_application(const active_mutated_application&) = delete;
+  active_mutated_application& operator=(
+      const active_mutated_application&) = delete;
+  active_mutated_application(active_mutated_application&&) noexcept = default;
+  active_mutated_application& operator=(
+      active_mutated_application&&) noexcept = default;
+
+  [[nodiscard]] rejected_published_application& rejected() noexcept;
+  [[nodiscard]] const rejected_published_application& rejected() const noexcept;
+  [[nodiscard]] const std::vector<active_effect_application_result>&
+  active_effects() const noexcept;
+  [[nodiscard]] const application_durability_profile&
+  durability() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  backend_evidence() const noexcept;
+
+private:
+  rejected_published_application rejected_;
+  std::vector<active_effect_application_result> active_effects_;
+  application_durability_profile durability_;
+  std::vector<application_backend_evidence_identity> backend_evidence_;
+};
+
+/*! \brief Interrupted active execution retaining transaction and recovery assets. */
+class active_interrupted_application final {
+public:
+  active_interrupted_application(
+      rejected_published_application rejected,
+      std::vector<active_effect_application_result> active_effects,
+      active_execution_interruption interruption,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  active_interrupted_application(
+      const active_interrupted_application&) = delete;
+  active_interrupted_application& operator=(
+      const active_interrupted_application&) = delete;
+  active_interrupted_application(
+      active_interrupted_application&&) noexcept = default;
+  active_interrupted_application& operator=(
+      active_interrupted_application&&) noexcept = default;
+
+  [[nodiscard]] rejected_published_application& rejected() noexcept;
+  [[nodiscard]] const rejected_published_application& rejected() const noexcept;
+  [[nodiscard]] const std::vector<active_effect_application_result>&
+  active_effects() const noexcept;
+  [[nodiscard]] active_execution_interruption interruption() const noexcept;
+  [[nodiscard]] const application_durability_profile&
+  durability() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  backend_evidence() const noexcept;
+
+private:
+  rejected_published_application rejected_;
+  std::vector<active_effect_application_result> active_effects_;
+  active_execution_interruption interruption_;
+  application_durability_profile durability_;
+  std::vector<application_backend_evidence_identity> backend_evidence_;
+};
+
+/*! \brief Complete active phase or interruption awaiting recovery policy. */
+class application_engine_active_execution final {
+public:
+  [[nodiscard]] static application_engine_active_execution complete(
+      rejected_published_application rejected,
+      std::vector<active_effect_application_result> active_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  [[nodiscard]] static application_engine_active_execution interrupted(
+      rejected_published_application rejected,
+      std::vector<active_effect_application_result> active_effects,
+      active_execution_interruption interruption,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence);
+
+  application_engine_active_execution(
+      const application_engine_active_execution&) = delete;
+  application_engine_active_execution& operator=(
+      const application_engine_active_execution&) = delete;
+  application_engine_active_execution(
+      application_engine_active_execution&&) noexcept = default;
+  application_engine_active_execution& operator=(
+      application_engine_active_execution&&) noexcept = default;
+
+  [[nodiscard]] bool is_complete() const noexcept;
+  [[nodiscard]] active_mutated_application* complete() noexcept;
+  [[nodiscard]] const active_mutated_application* complete() const noexcept;
+  [[nodiscard]] active_interrupted_application* interruption() noexcept;
+  [[nodiscard]] const active_interrupted_application*
+  interruption() const noexcept;
+
+private:
+  using value_type =
+      std::variant<active_mutated_application, active_interrupted_application>;
+  explicit application_engine_active_execution(value_type value);
+  value_type value_;
+};
+
+/*! \brief Execute installation active effects without final observation. */
+[[nodiscard]] application_engine_active_execution
+execute_active_application_engine(
+    rejected_published_application rejected,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Execute upgrade active effects without final observation. */
+[[nodiscard]] application_engine_active_execution
+execute_active_application_engine(
+    rejected_published_application rejected,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Execute removal active effects without final observation. */
+[[nodiscard]] application_engine_active_execution
+execute_active_application_engine(
+    rejected_published_application rejected,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
 } // namespace pkgapply::detail

@@ -1824,3 +1824,385 @@ publish_rejected_application_engine(
 }
 
 } // namespace pkgapply::detail
+
+namespace pkgapply::detail {
+namespace {
+
+std::vector<const application_effect_step*>
+active_schedule_steps(const rejected_published_application& rejected)
+{
+  std::vector<const application_effect_step*> steps;
+  for (const auto& step :
+       rejected.prepared().journaled().schedule().steps()) {
+    if (step.kind() == application_effect_step_kind::publish_active_object)
+      steps.push_back(&step);
+  }
+  return steps;
+}
+
+void
+validate_active_effect_prefix(
+    const rejected_published_application& rejected,
+    const std::vector<active_effect_application_result>& effects,
+    bool require_complete)
+{
+  const auto expected = active_schedule_steps(rejected);
+  if ((require_complete && effects.size() != expected.size()) ||
+      (!require_complete && effects.size() > expected.size()))
+  {
+    throw std::invalid_argument("active application effect closure mismatch");
+  }
+
+  for (std::size_t index = 0; index < effects.size(); ++index) {
+    if (effects[index].request().path() != expected[index]->path() ||
+        effects[index].request().incoming_entry() !=
+            expected[index]->incoming_entry())
+    {
+      throw std::invalid_argument(
+          "active application effect order or source mismatch");
+    }
+  }
+}
+
+void
+validate_active_durability_base(
+    const rejected_published_application& rejected,
+    const application_durability_profile& durability)
+{
+  for (const auto& fact : rejected.durability().facts()) {
+    if (fact.domain() == application_durability_domain::active_namespace)
+      continue;
+    if (durability.status(fact.domain()) != fact.status())
+      throw std::invalid_argument(
+          "active application changed an earlier durability domain");
+  }
+  if (durability.status(
+          application_durability_domain::completed_evidence) !=
+      application_durability_status::not_attempted)
+  {
+    throw std::invalid_argument(
+        "active application invented completed-evidence durability");
+  }
+}
+
+void
+normalize_unique_evidence(
+    std::vector<application_backend_evidence_identity>& evidence,
+    const char* duplicate_message)
+{
+  std::sort(evidence.begin(), evidence.end());
+  if (std::adjacent_find(evidence.begin(), evidence.end()) != evidence.end())
+    throw std::invalid_argument(duplicate_message);
+}
+
+bool
+all_active_effects_semantically_complete(
+    const std::vector<active_effect_application_result>& effects)
+{
+  return std::all_of(
+      effects.begin(), effects.end(), [](const auto& effect) {
+        return effect.result().outcome() ==
+                   backend_operation_outcome::completed ||
+               effect.result().outcome() ==
+                   backend_operation_outcome::conditional_retained;
+      });
+}
+
+} // namespace
+
+active_effect_application_result::active_effect_application_result(
+    backend_active_effect_request request,
+    backend_operation_result result)
+    : request_(std::move(request)), result_(std::move(result))
+{
+  if (result_.outcome() ==
+          backend_operation_outcome::conditional_retained &&
+      request_.outcome() !=
+          pkgplan::planned_active_outcome::remove_directory_if_empty)
+  {
+    throw std::invalid_argument(
+        "conditional active retention requires directory cleanup");
+  }
+}
+
+const backend_active_effect_request&
+active_effect_application_result::request() const noexcept
+{
+  return request_;
+}
+
+const backend_operation_result&
+active_effect_application_result::result() const noexcept
+{
+  return result_;
+}
+
+bool
+active_effect_application_result::changed_target() const noexcept
+{
+  if (result_.outcome() != backend_operation_outcome::completed)
+    return false;
+  switch (request_.outcome()) {
+    case pkgplan::planned_active_outcome::activate_incoming:
+    case pkgplan::planned_active_outcome::remove_observed:
+    case pkgplan::planned_active_outcome::remove_directory_if_empty:
+      return true;
+    case pkgplan::planned_active_outcome::retain_observed:
+    case pkgplan::planned_active_outcome::remain_absent:
+      return false;
+  }
+  return false;
+}
+
+active_mutated_application::active_mutated_application(
+    rejected_published_application rejected,
+    std::vector<active_effect_application_result> active_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+    : rejected_(std::move(rejected)),
+      active_effects_(std::move(active_effects)),
+      durability_(std::move(durability)),
+      backend_evidence_(std::move(backend_evidence))
+{
+  if (rejected_.prepared().journaled().journal().state() !=
+      application_journal_state::effects_visible)
+  {
+    throw std::invalid_argument(
+        "active-mutated application journal is not effects-visible");
+  }
+  validate_active_effect_prefix(rejected_, active_effects_, true);
+  if (!all_active_effects_semantically_complete(active_effects_))
+    throw std::invalid_argument(
+        "active-mutated application contains an incomplete effect");
+
+  validate_active_durability_base(rejected_, durability_);
+  const bool changed = std::any_of(
+      active_effects_.begin(), active_effects_.end(),
+      [](const auto& effect) { return effect.changed_target(); });
+  const application_durability_status active = durability_.status(
+      application_durability_domain::active_namespace);
+  if ((!changed && active != application_durability_status::not_attempted) ||
+      (changed && active != application_durability_status::visible &&
+       active != application_durability_status::confirmed))
+  {
+    throw std::invalid_argument(
+        "active-mutated application has an invalid durability boundary");
+  }
+
+  normalize_unique_evidence(
+      backend_evidence_, "duplicate active-application backend evidence");
+}
+
+rejected_published_application&
+active_mutated_application::rejected() noexcept
+{
+  return rejected_;
+}
+
+const rejected_published_application&
+active_mutated_application::rejected() const noexcept
+{
+  return rejected_;
+}
+
+const std::vector<active_effect_application_result>&
+active_mutated_application::active_effects() const noexcept
+{
+  return active_effects_;
+}
+
+const application_durability_profile&
+active_mutated_application::durability() const noexcept
+{
+  return durability_;
+}
+
+const std::vector<application_backend_evidence_identity>&
+active_mutated_application::backend_evidence() const noexcept
+{
+  return backend_evidence_;
+}
+
+active_interrupted_application::active_interrupted_application(
+    rejected_published_application rejected,
+    std::vector<active_effect_application_result> active_effects,
+    active_execution_interruption interruption,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+    : rejected_(std::move(rejected)),
+      active_effects_(std::move(active_effects)),
+      interruption_(interruption),
+      durability_(std::move(durability)),
+      backend_evidence_(std::move(backend_evidence))
+{
+  const application_journal_state state =
+      rejected_.prepared().journaled().journal().state();
+  const bool indeterminate =
+      interruption_ == active_execution_interruption::effect_indeterminate ||
+      interruption_ ==
+          active_execution_interruption::durability_indeterminate;
+  if ((indeterminate && state != application_journal_state::indeterminate) ||
+      (!indeterminate &&
+       state != application_journal_state::external_resolution_pending))
+  {
+    throw std::invalid_argument(
+        "interrupted active application has the wrong journal state");
+  }
+
+  const bool durability_interruption =
+      interruption_ ==
+          active_execution_interruption::durability_unconfirmed ||
+      interruption_ ==
+          active_execution_interruption::durability_indeterminate;
+  validate_active_effect_prefix(
+      rejected_, active_effects_, durability_interruption);
+  if (active_effects_.empty() && !durability_interruption)
+    throw std::invalid_argument(
+        "active effect interruption contains no attempted effect");
+
+  if (durability_interruption) {
+    if (!all_active_effects_semantically_complete(active_effects_))
+      throw std::invalid_argument(
+          "active durability interruption contains an incomplete effect");
+  }
+  else {
+    const backend_operation_outcome terminal =
+        active_effects_.back().result().outcome();
+    const backend_operation_outcome expected =
+        interruption_ == active_execution_interruption::effect_failed
+            ? backend_operation_outcome::failed
+            : backend_operation_outcome::indeterminate;
+    if (terminal != expected)
+      throw std::invalid_argument(
+          "active effect interruption contradicts its terminal outcome");
+  }
+
+  validate_active_durability_base(rejected_, durability_);
+  const application_durability_status active = durability_.status(
+      application_durability_domain::active_namespace);
+  switch (interruption_) {
+    case active_execution_interruption::effect_failed:
+      if (active != application_durability_status::not_attempted &&
+          active != application_durability_status::visible)
+      {
+        throw std::invalid_argument(
+            "failed active effect has an invalid durability state");
+      }
+      break;
+    case active_execution_interruption::effect_indeterminate:
+    case active_execution_interruption::durability_indeterminate:
+      if (active != application_durability_status::indeterminate)
+        throw std::invalid_argument(
+            "indeterminate active execution lacks indeterminate durability");
+      break;
+    case active_execution_interruption::durability_unconfirmed:
+      if (active != application_durability_status::unconfirmed)
+        throw std::invalid_argument(
+            "active durability failure lacks unconfirmed durability");
+      break;
+  }
+
+  normalize_unique_evidence(
+      backend_evidence_, "duplicate interrupted-active backend evidence");
+}
+
+rejected_published_application&
+active_interrupted_application::rejected() noexcept
+{
+  return rejected_;
+}
+
+const rejected_published_application&
+active_interrupted_application::rejected() const noexcept
+{
+  return rejected_;
+}
+
+const std::vector<active_effect_application_result>&
+active_interrupted_application::active_effects() const noexcept
+{
+  return active_effects_;
+}
+
+active_execution_interruption
+active_interrupted_application::interruption() const noexcept
+{
+  return interruption_;
+}
+
+const application_durability_profile&
+active_interrupted_application::durability() const noexcept
+{
+  return durability_;
+}
+
+const std::vector<application_backend_evidence_identity>&
+active_interrupted_application::backend_evidence() const noexcept
+{
+  return backend_evidence_;
+}
+
+application_engine_active_execution
+application_engine_active_execution::complete(
+    rejected_published_application rejected,
+    std::vector<active_effect_application_result> active_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+{
+  return application_engine_active_execution(value_type(
+      std::in_place_type<active_mutated_application>,
+      std::move(rejected), std::move(active_effects),
+      std::move(durability), std::move(backend_evidence)));
+}
+
+application_engine_active_execution
+application_engine_active_execution::interrupted(
+    rejected_published_application rejected,
+    std::vector<active_effect_application_result> active_effects,
+    active_execution_interruption interruption,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence)
+{
+  return application_engine_active_execution(value_type(
+      std::in_place_type<active_interrupted_application>,
+      std::move(rejected), std::move(active_effects), interruption,
+      std::move(durability), std::move(backend_evidence)));
+}
+
+application_engine_active_execution::application_engine_active_execution(
+    value_type value)
+    : value_(std::move(value))
+{
+}
+
+bool
+application_engine_active_execution::is_complete() const noexcept
+{
+  return std::holds_alternative<active_mutated_application>(value_);
+}
+
+active_mutated_application*
+application_engine_active_execution::complete() noexcept
+{
+  return std::get_if<active_mutated_application>(&value_);
+}
+
+const active_mutated_application*
+application_engine_active_execution::complete() const noexcept
+{
+  return std::get_if<active_mutated_application>(&value_);
+}
+
+active_interrupted_application*
+application_engine_active_execution::interruption() noexcept
+{
+  return std::get_if<active_interrupted_application>(&value_);
+}
+
+const active_interrupted_application*
+application_engine_active_execution::interruption() const noexcept
+{
+  return std::get_if<active_interrupted_application>(&value_);
+}
+
+} // namespace pkgapply::detail
