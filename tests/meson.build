@@ -148,6 +148,20 @@ if get_option('tests').allowed()
   )
   test('derive exact incoming regular payload closure', payload_test)
 
+  capture_header_test = executable(
+    'capture-header-test',
+    'capture_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile capture header independently', capture_header_test)
+
+  capture_test = executable(
+    'capture-test',
+    'capture_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('derive old-object rejected and recovery captures', capture_test)
+
   object_fact_test = executable(
     'object-fact-test',
     'object_fact_test.cpp',
