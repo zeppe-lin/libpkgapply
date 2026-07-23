@@ -279,10 +279,30 @@ journal_effects(const application_effect_schedule& schedule,
                 bool has_rejected)
 {
   std::vector<application_journal_effect> effects;
-  effects.reserve(schedule.steps().size() + 7);
+  const std::size_t active_count = static_cast<std::size_t>(std::count_if(
+      schedule.steps().begin(), schedule.steps().end(),
+      [](const auto& step) {
+        return step.kind() ==
+            application_effect_step_kind::publish_active_object;
+      }));
+  effects.reserve(schedule.steps().size() + active_count + 8);
   for (const auto& step : schedule.steps()) {
     effects.push_back(application_journal_effect::make(
         effects.size(), journal_kind(step.kind()), step.path()));
+  }
+
+  // Recovery is a distinct, optional branch of the frozen effect graph.  Its
+  // path order is the exact reverse of active execution so parent/child and
+  // hard-link dependencies are undone without backend reinterpretation.
+  for (auto step = schedule.steps().rbegin();
+       step != schedule.steps().rend(); ++step) {
+    if (step->kind() !=
+        application_effect_step_kind::publish_active_object)
+      continue;
+    effects.push_back(application_journal_effect::make(
+        effects.size(),
+        application_journal_effect_kind::recover_active_object,
+        step->path()));
   }
 
   const auto append = [&effects](application_journal_effect_kind kind) {
@@ -293,8 +313,10 @@ journal_effects(const application_effect_schedule& schedule,
     append(application_journal_effect_kind::synchronize_incoming_staging);
   if (has_recovery)
     append(application_journal_effect_kind::synchronize_recovery_staging);
-  if (has_active)
+  if (has_active) {
     append(application_journal_effect_kind::synchronize_active_namespace);
+    append(application_journal_effect_kind::synchronize_recovered_namespace);
+  }
   if (has_rejected)
     append(application_journal_effect_kind::synchronize_rejected_store);
   append(application_journal_effect_kind::synchronize_completed_evidence);

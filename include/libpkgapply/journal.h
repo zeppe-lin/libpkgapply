@@ -50,6 +50,8 @@ enum class application_journal_effect_kind : std::uint8_t {
   synchronize_incoming_staging = 10,
   synchronize_recovery_staging = 11,
   synchronize_completed_evidence = 12,
+  recover_active_object = 13,
+  synchronize_recovered_namespace = 14,
 };
 
 /*! \brief Append-only event class for one journal effect. */
