@@ -461,7 +461,7 @@ main()
   const auto install_path = pkgplan::package_path::parse("tool");
   backend_state->set_observations({
       pkgapply::application_path_observation::present(
-          observed_regular(
+          observed_object(
               install_path,
               pkgapply::test::fixture::regular_object(9))),
   });
