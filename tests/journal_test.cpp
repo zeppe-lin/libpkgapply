@@ -149,7 +149,35 @@ main()
   require(normalized.identity() == record.identity(),
           "effect input order changed journal record identity");
 
+  auto interrupted_events = journal_events;
+  interrupted_events.back() = {
+      3, pkgapply::application_journal_event_kind::failed,
+      journal_effects[1].identity()};
+  const auto recovery_pending = pkgapply::application_journal_record::make(
+      journal_header,
+      pkgapply::application_journal_state::recovery_pending,
+      journal_effects,
+      interrupted_events);
+  require(recovery_pending.state() ==
+              pkgapply::application_journal_state::recovery_pending &&
+              !recovery_pending.receipt().has_value() &&
+              !recovery_pending.completed_evidence().has_value(),
+          "recovery-pending journal invented terminal resolution evidence");
+
   bool rejected = false;
+  try {
+    static_cast<void>(pkgapply::application_journal_record::make(
+        journal_header,
+        pkgapply::application_journal_state::external_resolution_pending,
+        journal_effects,
+        journal_events));
+  } catch (const std::invalid_argument&) {
+    rejected = true;
+  }
+  require(rejected,
+          "external-resolution journal accepted missing terminal evidence");
+
+  rejected = false;
   try {
     static_cast<void>(pkgapply::application_journal_effect::make(
         3,

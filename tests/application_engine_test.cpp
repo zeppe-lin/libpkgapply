@@ -1230,8 +1230,7 @@ main()
                     pkgapply::application_durability_status::not_attempted &&
                 active.interruption()->rejected().prepared().journaled().
                     journal().state() ==
-                    pkgapply::application_journal_state::
-                        external_resolution_pending,
+                    pkgapply::application_journal_state::recovery_pending,
             "failed active effect was collapsed or finalized prematurely");
     require(first_boundary(backend_state->events(), boundary::recover) ==
                 backend_state->events().size(),
@@ -1362,8 +1361,7 @@ main()
                     pkgapply::application_durability_status::unconfirmed &&
                 active.interruption()->rejected().prepared().journaled().
                     journal().state() ==
-                    pkgapply::application_journal_state::
-                        external_resolution_pending,
+                    pkgapply::application_journal_state::recovery_pending,
             "active durability failure discarded completed target effects");
     require(first_boundary(backend_state->events(), boundary::recover) ==
                 backend_state->events().size(),

@@ -2043,7 +2043,7 @@ active_interrupted_application::active_interrupted_application(
           active_execution_interruption::durability_indeterminate;
   if ((indeterminate && state != application_journal_state::indeterminate) ||
       (!indeterminate &&
-       state != application_journal_state::external_resolution_pending))
+       state != application_journal_state::recovery_pending))
   {
     throw std::invalid_argument(
         "interrupted active application has the wrong journal state");
@@ -2383,7 +2383,7 @@ interrupt_active_execution(
   publish_snapshot(
       rejected.prepared().journaled(),
       indeterminate ? application_journal_state::indeterminate
-                    : application_journal_state::external_resolution_pending,
+                    : application_journal_state::recovery_pending,
       rejected.prepared().journaled().journal().events());
 
   application_durability_profile durability = with_active_durability(

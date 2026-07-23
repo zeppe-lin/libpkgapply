@@ -33,6 +33,7 @@ enum class application_journal_state : std::uint8_t {
   finalized = 10,
   abandoned = 11,
   indeterminate = 12,
+  recovery_pending = 13,
 };
 
 /*! \brief Semantic mechanism step recorded by the application journal. */

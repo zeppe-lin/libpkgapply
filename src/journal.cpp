@@ -33,7 +33,7 @@ std::uint8_t
 canonical_state(application_journal_state state)
 {
   const auto value = static_cast<std::uint8_t>(state);
-  if (value < 1 || value > 12)
+  if (value < 1 || value > 13)
     throw std::invalid_argument("invalid application journal state");
   return value;
 }
