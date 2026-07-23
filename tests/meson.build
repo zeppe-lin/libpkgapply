@@ -86,6 +86,20 @@ if get_option('tests').allowed()
   )
   test('validate lease-bound state projections', state_projection_test)
 
+  mutation_lease_header_test = executable(
+    'mutation-lease-header-test',
+    'mutation_lease_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile mutation lease header independently', mutation_lease_header_test)
+
+  mutation_lease_test = executable(
+    'mutation-lease-test',
+    'mutation_lease_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('validate caller-held target mutation leases', mutation_lease_test)
+
   execution_control_header_test = executable(
     'execution-control-header-test',
     'execution_control_header_test.cpp',
