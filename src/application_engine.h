@@ -522,4 +522,28 @@ execute_active_application_engine(
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);
 
+/*! \brief Recover an interrupted installation and seal its failure receipt. */
+[[nodiscard]] application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Recover an interrupted upgrade and seal its failure receipt. */
+[[nodiscard]] application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Recover an interrupted removal and seal its failure receipt. */
+[[nodiscard]] application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
 } // namespace pkgapply::detail

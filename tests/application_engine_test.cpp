@@ -1235,6 +1235,24 @@ main()
     require(first_boundary(backend_state->events(), boundary::recover) ==
                 backend_state->events().size(),
             "active execution performed recovery inside the effect phase");
+    auto receipt = pkgapply::detail::recover_application_engine(
+        std::move(*active.interruption()), install_request, install_state,
+        lease);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::
+                    failed_before_target_mutation &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::unchanged &&
+                receipt.paths().size() == 1 &&
+                receipt.paths().front().active_status() ==
+                    pkgapply::application_effect_status::failed,
+            "known failed command did not seal an unchanged receipt");
+    require(first_boundary(backend_state->events(), boundary::recover) ==
+                backend_state->events().size() &&
+                backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::abandoned,
+            "unchanged failure entered recovery or retained a live journal");
   }
   backend_state->set_outcome(
       boundary::execute_active,
@@ -1366,6 +1384,184 @@ main()
     require(first_boundary(backend_state->events(), boundary::recover) ==
                 backend_state->events().size(),
             "active durability failure recovered inside the effect phase");
+  }
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // Recovery reverses the completed active prefix, including dependency order,
+  // and seals a fully recovered failure only after the restored namespace is
+  // visible and the requested all-domain synchronization completes.
+  const auto tree = pkgplan::package_path::parse("tree");
+  const auto tree_file = pkgplan::package_path::parse("tree/file");
+  fake_archive recovery_archive({
+      pkgapply::test::fixture::directory_entry("tree"),
+      pkgapply::test::fixture::regular_entry("tree/file", 6),
+  });
+  const auto recovery_request =
+      pkgapply::installation_application_request::make(
+          pkgapply::test::fixture::installation_plan(
+              authorities,
+              {pkgapply::test::fixture::directory_entry("tree"),
+               pkgapply::test::fixture::regular_entry("tree/file", 6)},
+              {pkgplan::target_path_observation::absent(tree),
+               pkgplan::target_path_observation::absent(tree_file)}),
+          context,
+          pkgapply::application_execution_control::make(
+              pkgapply::application_recovery_requirement::best_effort,
+              pkgapply::application_durability_requirement::
+                  all_application_domains,
+              pkgapply::application_cancellation_policy::
+                  recover_after_target_mutation));
+  const auto recovery_state =
+      state(lease, recovery_request.plan().preconditions());
+
+  const auto interrupt_recovery_request = [&]() {
+    backend_state->set_observations(
+        matching_observations(recovery_request.plan().preconditions()));
+    auto admission = pkgapply::detail::admit_application_engine(
+        recovery_request, recovery_state, lease, backend, recovery_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), recovery_request, recovery_state,
+        lease, recovery_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), recovery_request, recovery_state, lease,
+        recovery_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), recovery_request, recovery_state,
+        lease);
+    return pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), recovery_request, recovery_state,
+        lease);
+  };
+
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::unconfirmed);
+  {
+    auto active = interrupt_recovery_request();
+    require(!active.is_complete() && active.interruption() != nullptr &&
+                active.interruption()->active_effects().size() == 2,
+            "multi-path recovery fixture did not reach interruption");
+    backend_state->set_durability(
+        pkgapply::application_durability_domain::active_namespace,
+        pkgapply::application_durability_status::confirmed);
+    auto receipt = pkgapply::detail::recover_application_engine(
+        std::move(*active.interruption()), recovery_request, recovery_state,
+        lease);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::
+                    failed_fully_recovered &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::
+                        exact_prior_state_restored &&
+                receipt.paths().size() == 2 &&
+                receipt.paths()[0].after().state() ==
+                    pkgapply::fact_state::not_applicable &&
+                receipt.paths()[1].after().state() ==
+                    pkgapply::fact_state::not_applicable,
+            "completed reverse recovery did not restore the admitted state");
+    std::vector<pkgplan::package_path> recovered_paths;
+    for (const auto& event : backend_state->events()) {
+      if (event.boundary == boundary::recover && event.path)
+        recovered_paths.push_back(*event.path);
+    }
+    require(recovered_paths.size() == 2 &&
+                recovered_paths[0] == tree_file &&
+                recovered_paths[1] == tree &&
+                backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::recovered &&
+                backend_state->published_journal()->receipt() ==
+                    receipt.identity(),
+            "recovery did not reverse the active dependency order");
+  }
+  backend_state->clear_events();
+
+  // A failed recovery stops the reverse walk and reports known residual
+  // effects without claiming a restored or publication-eligible target.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::unconfirmed);
+  backend_state->set_outcome(
+      boundary::recover, pkgapply::backend_operation_outcome::failed);
+  {
+    auto active = interrupt_recovery_request();
+    auto receipt = pkgapply::detail::recover_application_engine(
+        std::move(*active.interruption()), recovery_request, recovery_state,
+        lease);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::
+                    failed_with_partial_effects &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::
+                        known_residual_effects &&
+                receipt.paths().size() == 2 &&
+                receipt.paths()[0].after().state() ==
+                    pkgapply::fact_state::unknown &&
+                receipt.paths()[1].after().state() ==
+                    pkgapply::fact_state::unknown &&
+                backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::effects_visible,
+            "failed reverse recovery concealed residual target effects");
+  }
+  backend_state->set_outcome(
+      boundary::recover, pkgapply::backend_operation_outcome::completed);
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // Recovery policy none resolves a durability interruption without issuing
+  // backend recovery commands or pretending recovery assets exist.
+  const auto no_recovery_request =
+      pkgapply::installation_application_request::make(
+          install_request.plan(), context,
+          pkgapply::application_execution_control::make(
+              pkgapply::application_recovery_requirement::none,
+              pkgapply::application_durability_requirement::
+                  all_application_domains,
+              pkgapply::application_cancellation_policy::
+                  recover_after_target_mutation));
+  const auto no_recovery_state =
+      state(lease, no_recovery_request.plan().preconditions());
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::active_namespace,
+      pkgapply::application_durability_status::unconfirmed);
+  backend_state->set_observations(
+      matching_observations(no_recovery_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        no_recovery_request, no_recovery_state, lease, backend,
+        install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), no_recovery_request,
+        no_recovery_state, lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), no_recovery_request, no_recovery_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), no_recovery_request,
+        no_recovery_state, lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), no_recovery_request,
+        no_recovery_state, lease);
+    const std::size_t recovery_boundary =
+        first_boundary(backend_state->events(), boundary::recover);
+    auto receipt = pkgapply::detail::recover_application_engine(
+        std::move(*active.interruption()), no_recovery_request,
+        no_recovery_state, lease);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::
+                    effects_visible_durability_unconfirmed &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::
+                        recovery_not_representable &&
+                first_boundary(backend_state->events(), boundary::recover) ==
+                    recovery_boundary,
+            "recovery-none control issued or invented recovery");
   }
   backend_state->set_durability(
       pkgapply::application_durability_domain::active_namespace,

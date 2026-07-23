@@ -2582,3 +2582,532 @@ execute_active_application_engine(
 }
 
 } // namespace pkgapply::detail
+
+namespace pkgapply::detail {
+namespace {
+
+struct recovery_effect_result final {
+  pkgplan::package_path path;
+  backend_operation_result result;
+  bool exact_prior_state_possible;
+};
+
+application_effect_status
+active_effect_status(backend_operation_outcome outcome)
+{
+  switch (outcome) {
+    case backend_operation_outcome::completed:
+      return application_effect_status::completed;
+    case backend_operation_outcome::conditional_retained:
+      return application_effect_status::conditional_retained;
+    case backend_operation_outcome::failed:
+      return application_effect_status::failed;
+    case backend_operation_outcome::indeterminate:
+      return application_effect_status::indeterminate;
+  }
+  throw std::logic_error("invalid active-effect outcome");
+}
+
+const active_effect_application_result*
+find_active_effect(
+    const active_interrupted_application& interrupted,
+    const pkgplan::package_path& path) noexcept
+{
+  const auto item = std::find_if(
+      interrupted.active_effects().begin(),
+      interrupted.active_effects().end(),
+      [&path](const auto& effect) {
+        return effect.request().path() == path;
+      });
+  return item == interrupted.active_effects().end() ? nullptr : &*item;
+}
+
+const rejected_effect_application_result*
+find_rejected_effect(
+    const active_interrupted_application& interrupted,
+    const pkgplan::package_path& path) noexcept
+{
+  const auto& effects = interrupted.rejected().rejected_effects();
+  const auto item = std::find_if(
+      effects.begin(), effects.end(),
+      [&path](const auto& effect) {
+        return effect.request().path() == path;
+      });
+  return item == effects.end() ? nullptr : &*item;
+}
+
+const recovery_effect_result*
+find_recovery_effect(
+    const std::vector<recovery_effect_result>& effects,
+    const pkgplan::package_path& path) noexcept
+{
+  const auto item = std::find_if(
+      effects.begin(), effects.end(),
+      [&path](const auto& effect) { return effect.path == path; });
+  return item == effects.end() ? nullptr : &*item;
+}
+
+const old_object_capture_result*
+find_completed_capture(
+    const active_interrupted_application& interrupted,
+    const pkgplan::package_path& path) noexcept
+{
+  const auto& captures = interrupted.rejected().prepared().captures();
+  const auto item = std::find_if(
+      captures.begin(), captures.end(),
+      [&path](const auto& capture) {
+        return capture.captured().path() == path &&
+               capture.outcome() == backend_operation_outcome::completed;
+      });
+  return item == captures.end() ? nullptr : &*item;
+}
+
+bool
+exact_recovery_possible(
+    const active_interrupted_application& interrupted,
+    const pkgplan::package_path& path)
+{
+  const application_path_observation* before =
+      interrupted.rejected().prepared().journaled().admitted().
+          preconditions().observations().find(path);
+  if (before == nullptr)
+    throw std::logic_error("recovery path lacks admitted observation");
+  if (before->state() == fact_state::not_applicable)
+    return true;
+  if (before->state() != fact_state::known)
+    return false;
+
+  const old_object_capture_result* capture =
+      find_completed_capture(interrupted, path);
+  return capture != nullptr && capture->exact_recovery_possible();
+}
+
+std::vector<const active_effect_application_result*>
+recovery_candidates(const active_interrupted_application& interrupted)
+{
+  std::vector<const active_effect_application_result*> candidates;
+  for (auto effect = interrupted.active_effects().rbegin();
+       effect != interrupted.active_effects().rend(); ++effect)
+  {
+    if (effect->changed_target() ||
+        effect->result().outcome() ==
+            backend_operation_outcome::indeterminate)
+    {
+      candidates.push_back(&*effect);
+    }
+  }
+  return candidates;
+}
+
+template<class Decision>
+application_path_role
+recovery_path_role(const Decision& decision)
+{
+  if constexpr (std::is_same_v<Decision, pkgplan::removal_path_decision>)
+    return application_path_role::installed_owned_path;
+  else
+    return rejected_path_role(decision.role());
+}
+
+template<class Decision>
+application_path_consequence
+recovery_path_consequence(
+    const active_interrupted_application& interrupted,
+    const Decision& decision,
+    const std::vector<recovery_effect_result>& recoveries)
+{
+  const active_effect_application_result* active =
+      find_active_effect(interrupted, decision.path());
+  const rejected_effect_application_result* rejected =
+      find_rejected_effect(interrupted, decision.path());
+  const application_path_observation* before =
+      interrupted.rejected().prepared().journaled().admitted().
+          preconditions().observations().find(decision.path());
+  if (before == nullptr)
+    throw std::logic_error("failure consequence lacks admitted observation");
+
+  application_effect_status active_status =
+      application_effect_status::not_attempted;
+  application_path_observation after = *before;
+  if (active != nullptr) {
+    active_status = active_effect_status(active->result().outcome());
+    if (active->changed_target() ||
+        active->result().outcome() == backend_operation_outcome::indeterminate)
+    {
+      const recovery_effect_result* recovery =
+          find_recovery_effect(recoveries, decision.path());
+      if (recovery == nullptr ||
+          recovery->result.outcome() != backend_operation_outcome::completed ||
+          !recovery->exact_prior_state_possible)
+      {
+        after = application_path_observation::unknown(decision.path());
+      }
+    }
+  }
+
+  application_effect_status rejected_status =
+      application_effect_status::not_attempted;
+  std::optional<rejected_object_record_identity> rejected_record;
+  if (rejected != nullptr) {
+    rejected_status = rejected_effect_status(rejected->result().outcome());
+    rejected_record = rejected->result().record();
+  }
+
+  return application_path_consequence(
+      decision.path(), recovery_path_role(decision), decision.active(),
+      decision.rejected(), active_incoming_entry(decision),
+      decision.ownership(), active_status, rejected_status, *before,
+      std::move(after), std::move(rejected_record),
+      ownership_publication_status::ineligible);
+}
+
+template<class Plan>
+std::vector<application_path_consequence>
+recovery_path_consequences(
+    const active_interrupted_application& interrupted,
+    const Plan& plan,
+    const std::vector<recovery_effect_result>& recoveries)
+{
+  std::vector<application_path_consequence> paths;
+  for (const auto& decision : plan.paths()) {
+    if (find_active_effect(interrupted, decision.path()) == nullptr &&
+        find_rejected_effect(interrupted, decision.path()) == nullptr)
+    {
+      continue;
+    }
+    paths.push_back(
+        recovery_path_consequence(interrupted, decision, recoveries));
+  }
+  return paths;
+}
+
+template<class Request>
+void
+validate_recovery_binding(
+    const active_interrupted_application& interrupted,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_target_mutation_lease(request.target(), state, lease);
+  const auto& journal =
+      interrupted.rejected().prepared().journaled().journal();
+  const auto& header = journal.header();
+  const bool indeterminate =
+      interrupted.interruption() ==
+          active_execution_interruption::effect_indeterminate ||
+      interrupted.interruption() ==
+          active_execution_interruption::durability_indeterminate;
+  const application_journal_state expected = indeterminate
+      ? application_journal_state::indeterminate
+      : application_journal_state::recovery_pending;
+
+  if (journal.state() != expected ||
+      header.request() != request.identity() ||
+      header.plan() != request.plan().identity() ||
+      header.target() != request.target().identity() ||
+      header.control() != request.control().identity() ||
+      header.state_projection() != state.identity() ||
+      header.lease() != lease.identity() ||
+      header.attempt().identity() !=
+          interrupted.rejected().prepared().journaled().admitted().
+              attempt().identity())
+  {
+    throw std::invalid_argument(
+        "recovery inputs differ from interrupted active execution");
+  }
+}
+
+bool
+recovery_selected(const application_execution_control& control)
+{
+  switch (control.recovery()) {
+    case application_recovery_requirement::none:
+      return false;
+    case application_recovery_requirement::best_effort:
+    case application_recovery_requirement::exact_prior_state:
+      return true;
+  }
+  throw std::logic_error("invalid recovery requirement");
+}
+
+bool
+requires_recovered_namespace_synchronization(
+    const application_execution_control& control)
+{
+  return control.durability() ==
+      application_durability_requirement::all_application_domains;
+}
+
+application_journal_state
+terminal_failure_journal_state(
+    const active_interrupted_application& interrupted,
+    application_attempt_outcome outcome)
+{
+  switch (outcome) {
+    case application_attempt_outcome::failed_fully_recovered:
+      return application_journal_state::recovered;
+    case application_attempt_outcome::effects_visible_durability_unconfirmed:
+    case application_attempt_outcome::failed_with_partial_effects:
+      return application_journal_state::effects_visible;
+    case application_attempt_outcome::indeterminate:
+      return application_journal_state::indeterminate;
+    case application_attempt_outcome::failed_before_target_mutation: {
+      const bool rejected_visible = std::any_of(
+          interrupted.rejected().rejected_effects().begin(),
+          interrupted.rejected().rejected_effects().end(),
+          [](const auto& effect) {
+            return effect.result().outcome() ==
+                backend_operation_outcome::completed;
+          });
+      return rejected_visible ? application_journal_state::effects_visible
+                              : application_journal_state::abandoned;
+    }
+    case application_attempt_outcome::precondition_refused:
+    case application_attempt_outcome::completed:
+      break;
+  }
+  throw std::logic_error("invalid terminal recovery outcome");
+}
+
+template<class Request>
+application_receipt
+seal_recovery_receipt(
+    active_interrupted_application& interrupted,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    application_attempt_outcome outcome,
+    application_recovery_state recovery,
+    application_durability_profile durability,
+    const std::vector<recovery_effect_result>& recoveries,
+    std::vector<application_backend_evidence_identity> evidence)
+{
+  std::vector<application_path_consequence> paths =
+      recovery_path_consequences(interrupted, request.plan(), recoveries);
+  application_receipt receipt = application_receipt::failed(
+      request,
+      interrupted.rejected().prepared().journaled().admitted().
+          attempt().identity(),
+      state.identity(), outcome, recovery, std::move(durability),
+      std::move(paths),
+      interrupted.rejected().prepared().journaled().journal().
+          header().identity(),
+      std::move(evidence));
+  publish_snapshot(
+      interrupted.rejected().prepared().journaled(),
+      terminal_failure_journal_state(interrupted, outcome),
+      interrupted.rejected().prepared().journaled().journal().events(),
+      receipt.identity());
+  return receipt;
+}
+
+template<class Request>
+application_receipt
+recover_interrupted(
+    active_interrupted_application interrupted,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_recovery_binding(interrupted, request, state, lease);
+
+  const auto candidates = recovery_candidates(interrupted);
+  std::vector<recovery_effect_result> recoveries;
+  std::vector<application_backend_evidence_identity> evidence =
+      interrupted.backend_evidence();
+
+  if (candidates.empty()) {
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::failed_before_target_mutation,
+        application_recovery_state::unchanged,
+        interrupted.durability(), recoveries, std::move(evidence));
+  }
+
+  if (!recovery_selected(request.control())) {
+    if (interrupted.interruption() ==
+            active_execution_interruption::effect_indeterminate ||
+        interrupted.interruption() ==
+            active_execution_interruption::durability_indeterminate)
+    {
+      return seal_recovery_receipt(
+          interrupted, request, state,
+          application_attempt_outcome::indeterminate,
+          application_recovery_state::requires_authoritative_observation,
+          interrupted.durability(), recoveries, std::move(evidence));
+    }
+
+    if (interrupted.interruption() ==
+        active_execution_interruption::durability_unconfirmed)
+    {
+      return seal_recovery_receipt(
+          interrupted, request, state,
+          application_attempt_outcome::
+              effects_visible_durability_unconfirmed,
+          application_recovery_state::recovery_not_representable,
+          interrupted.durability(), recoveries, std::move(evidence));
+    }
+
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::failed_with_partial_effects,
+        application_recovery_state::known_residual_effects,
+        interrupted.durability(), recoveries, std::move(evidence));
+  }
+
+  publish_snapshot(
+      interrupted.rejected().prepared().journaled(),
+      application_journal_state::recovering,
+      interrupted.rejected().prepared().journaled().journal().events());
+
+  bool original_indeterminate =
+      interrupted.interruption() ==
+          active_execution_interruption::effect_indeterminate ||
+      interrupted.interruption() ==
+          active_execution_interruption::durability_indeterminate;
+  bool all_exact = true;
+  bool all_recovered = true;
+  bool recovery_indeterminate = false;
+
+  for (const active_effect_application_result* candidate : candidates) {
+    const pkgplan::package_path& path = candidate->request().path();
+    const bool exact = exact_recovery_possible(interrupted, path);
+    all_exact = all_exact && exact;
+
+    const application_journal_effect_identity effect = find_effect(
+        interrupted.rejected().prepared().journaled().journal(),
+        application_journal_effect_kind::recover_active_object,
+        path).identity();
+    publish_event(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, effect,
+        application_journal_event_kind::intent);
+
+    backend_operation_result result =
+        interrupted.rejected().prepared().journaled().admitted().
+            transaction().recover(path);
+    append_unique_evidence(evidence, result.evidence());
+    const backend_operation_outcome result_outcome = result.outcome();
+    publish_event(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, effect,
+        terminal_event(result_outcome), result.evidence());
+    recoveries.push_back(
+        {path, std::move(result), exact});
+
+    if (result_outcome != backend_operation_outcome::completed) {
+      all_recovered = false;
+      recovery_indeterminate = result_outcome ==
+          backend_operation_outcome::indeterminate;
+      break;
+    }
+  }
+
+  application_durability_profile durability = interrupted.durability();
+  if (!recoveries.empty() &&
+      std::any_of(
+          recoveries.begin(), recoveries.end(),
+          [](const auto& recovery) {
+            return recovery.result.outcome() ==
+                backend_operation_outcome::completed;
+          }))
+  {
+    durability = with_active_durability(
+        durability, application_durability_status::visible);
+  }
+
+  if (all_recovered &&
+      requires_recovered_namespace_synchronization(request.control()))
+  {
+    const application_journal_effect_identity synchronize_effect = find_effect(
+        interrupted.rejected().prepared().journaled().journal(),
+        application_journal_effect_kind::synchronize_recovered_namespace).
+            identity();
+    publish_event(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, synchronize_effect,
+        application_journal_event_kind::intent);
+    const application_durability_fact synchronized =
+        interrupted.rejected().prepared().journaled().admitted().
+            transaction().synchronize(
+                application_durability_domain::active_namespace);
+    if (synchronized.domain() !=
+        application_durability_domain::active_namespace)
+    {
+      throw std::logic_error(
+          "backend synchronized another recovered namespace domain");
+    }
+    if (synchronized.status() ==
+        application_durability_status::not_attempted)
+    {
+      throw std::logic_error(
+          "backend reported unattempted recovered namespace durability");
+    }
+    publish_event(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, synchronize_effect,
+        terminal_event(synchronized.status()));
+    durability = with_active_durability(durability, synchronized.status());
+  }
+
+  if (all_recovered && all_exact) {
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::failed_fully_recovered,
+        application_recovery_state::exact_prior_state_restored,
+        std::move(durability), recoveries, std::move(evidence));
+  }
+
+  if (original_indeterminate || recovery_indeterminate ||
+      (all_recovered && !all_exact))
+  {
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::indeterminate,
+        application_recovery_state::requires_authoritative_observation,
+        std::move(durability), recoveries, std::move(evidence));
+  }
+
+  return seal_recovery_receipt(
+      interrupted, request, state,
+      application_attempt_outcome::failed_with_partial_effects,
+      application_recovery_state::known_residual_effects,
+      std::move(durability), recoveries, std::move(evidence));
+}
+
+} // namespace
+
+application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return recover_interrupted(
+      std::move(interrupted), request, state, lease);
+}
+
+application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return recover_interrupted(
+      std::move(interrupted), request, state, lease);
+}
+
+application_receipt
+recover_application_engine(
+    active_interrupted_application interrupted,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return recover_interrupted(
+      std::move(interrupted), request, state, lease);
+}
+
+} // namespace pkgapply::detail
