@@ -253,6 +253,20 @@ if get_option('tests').allowed()
   )
   test('compile execution control header independently', execution_control_header_test)
 
+  restart_header_test = executable(
+    'restart-header-test',
+    'restart_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile restart header independently', restart_header_test)
+
+  restart_test = executable(
+    'restart-test',
+    'restart_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('classify durable application restart journals', restart_test)
+
   request_header_test = executable(
     'request-header-test',
     'request_header_test.cpp',
