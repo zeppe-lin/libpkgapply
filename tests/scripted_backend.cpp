@@ -213,7 +213,9 @@ public:
         journal.identity(), *state_->admitted_observations_,
         state_->incoming_payload_, state_->restart_captures_,
         state_->restart_rejected_effects_, state_->restart_active_effects_,
-        state_->checkpoint_durability(), {evidence_},
+        state_->restart_recovery_effects_,
+        state_->restart_synchronizations_, state_->checkpoint_durability(),
+        {evidence_},
         state_->published_completed_evidence_);
   }
 
@@ -359,8 +361,11 @@ public:
   {
     state_->record(scripted_backend_boundary::recover, path);
     state_->maybe_throw(scripted_backend_boundary::recover);
-    return backend_operation_result(
+    backend_operation_result result(
         state_->outcome(scripted_backend_boundary::recover), {evidence_});
+    state_->retain_recovery(
+        application_restart_recovery_effect(path, result));
+    return result;
   }
 
   application_durability_fact synchronize(
@@ -371,8 +376,10 @@ public:
                    domain);
     state_->maybe_throw(scripted_backend_boundary::synchronize);
     const application_durability_status status = state_->durability(domain);
+    application_durability_fact result(domain, status);
     state_->retain_durability(domain, status);
-    return application_durability_fact(domain, status);
+    state_->retain_synchronization(result);
+    return result;
   }
 
   application_journal_record publish_journal(
@@ -416,6 +423,8 @@ scripted_backend_state::reset_attempt_checkpoint()
   restart_captures_.clear();
   restart_rejected_effects_.clear();
   restart_active_effects_.clear();
+  restart_recovery_effects_.clear();
+  restart_synchronizations_.clear();
   established_durability_.clear();
 }
 
@@ -454,11 +463,38 @@ scripted_backend_state::retain_active(
 }
 
 void
+scripted_backend_state::retain_recovery(
+    application_restart_recovery_effect effect)
+{
+  retain_restart_value(restart_recovery_effects_, std::move(effect));
+}
+
+void
 scripted_backend_state::retain_durability(
     application_durability_domain domain,
     application_durability_status status)
 {
   established_durability_[domain] = status;
+}
+
+void
+scripted_backend_state::retain_synchronization(
+    application_durability_fact result)
+{
+  const auto item = std::lower_bound(
+      restart_synchronizations_.begin(), restart_synchronizations_.end(),
+      result.domain(), [](const auto& candidate, const auto domain) {
+        return candidate.domain() < domain;
+      });
+  application_restart_synchronization value(std::move(result));
+  if (item != restart_synchronizations_.end() &&
+      item->domain() == value.domain())
+  {
+    *item = std::move(value);
+  }
+  else {
+    restart_synchronizations_.insert(item, std::move(value));
+  }
 }
 
 application_durability_profile

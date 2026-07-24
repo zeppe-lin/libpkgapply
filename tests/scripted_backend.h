@@ -91,8 +91,10 @@ private:
   void retain_capture(application_restart_capture capture);
   void retain_rejected(application_restart_rejected_effect effect);
   void retain_active(application_restart_active_effect effect);
+  void retain_recovery(application_restart_recovery_effect effect);
   void retain_durability(application_durability_domain domain,
                          application_durability_status status);
+  void retain_synchronization(application_durability_fact result);
   [[nodiscard]] application_durability_profile
   checkpoint_durability() const;
 
@@ -112,6 +114,9 @@ private:
   std::vector<application_restart_capture> restart_captures_;
   std::vector<application_restart_rejected_effect> restart_rejected_effects_;
   std::vector<application_restart_active_effect> restart_active_effects_;
+  std::vector<application_restart_recovery_effect> restart_recovery_effects_;
+  std::vector<application_restart_synchronization>
+      restart_synchronizations_;
   std::map<application_durability_domain, application_durability_status>
       established_durability_;
   bool exact_recovery_possible_ = true;

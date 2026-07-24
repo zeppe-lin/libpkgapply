@@ -157,6 +157,14 @@ main()
   require(completed_prefix.disposition() == disposition::resume_forward,
           "durably completed active prefix was forced into recovery");
 
+  const auto terminal_visible = pkgapply::assess_application_restart(
+      pkgapply::application_journal_record::make(
+          header(), state::effects_visible, effects(), {},
+          application_identity<pkgapply::application_receipt_identity>(8)));
+  require(terminal_visible.disposition() == disposition::terminal &&
+              !terminal_visible.resumable(),
+          "receipt-bearing visible journal was considered resumable");
+
   const auto abandoned = pkgapply::assess_application_restart(
       record(state::abandoned));
   require(abandoned.disposition() == disposition::terminal &&
@@ -186,9 +194,9 @@ main()
           pkgapply::backend_operation_outcome::completed),
       {pkgapply::application_restart_capture(
           pkgapply::old_object_capture_result(
-              pkgapply::backend_operation_outcome::completed,
+              pkgapply::backend_operation_outcome::failed,
               pkgapply::application_path_observation::unknown(checkpoint_path),
-              true))},
+              false))},
       {pkgapply::application_restart_rejected_effect(
           checkpoint_path,
           pkgapply::rejected_object_publication_result(
@@ -199,6 +207,11 @@ main()
           checkpoint_path,
           pkgapply::backend_operation_result(
               pkgapply::backend_operation_outcome::completed))},
+      {},
+      {pkgapply::application_restart_synchronization(
+          pkgapply::application_durability_fact(
+              pkgapply::application_durability_domain::journal,
+              pkgapply::application_durability_status::confirmed))},
       checkpoint_durability());
   require(checkpoint.journal() == checkpoint_record.identity() &&
               checkpoint.find_capture(checkpoint_path) != nullptr &&
@@ -206,6 +219,27 @@ main()
               checkpoint.find_active_effect(checkpoint_path) != nullptr &&
               checkpoint.incoming_payload().has_value(),
           "restart checkpoint lost durable attempt material");
+
+  bool rejected_durability_contradiction = false;
+  try {
+    static_cast<void>(pkgapply::application_restart_checkpoint::make(
+        checkpoint_record.identity(),
+        pkgapply::backend_observation_batch::make(
+            {checkpoint_path},
+            {pkgapply::application_path_observation::unknown(
+                checkpoint_path)}),
+        std::nullopt, {}, {}, {}, {},
+        {pkgapply::application_restart_synchronization(
+            pkgapply::application_durability_fact(
+                pkgapply::application_durability_domain::journal,
+                pkgapply::application_durability_status::unconfirmed))},
+        checkpoint_durability()));
+  }
+  catch (const std::invalid_argument&) {
+    rejected_durability_contradiction = true;
+  }
+  require(rejected_durability_contradiction,
+          "restart checkpoint accepted contradictory synchronization truth");
 
   return 0;
 }

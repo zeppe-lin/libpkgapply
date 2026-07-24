@@ -2248,6 +2248,108 @@ main()
                   boundary::transaction_destroyed,
           "restarted transaction lifetime escaped its session");
 
+  // A completed active prefix is reconstructed from durable checkpoint
+  // facts. Restart performs final observation but never reissues the active
+  // actuator command.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  const auto effects_visible_restart = [&] {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(active.is_complete(),
+            "restart fixture did not complete its active prefix");
+    return active.complete()->rejected().prepared().journaled().journal();
+  }();
+  require(!backend_state->transaction_alive(),
+          "effects-visible restart fixture retained its transaction");
+  backend_state->set_observations({
+      pkgapply::application_path_observation::present(
+          observed_incoming(install_archive.image().entries().front())),
+  });
+  backend_state->clear_events();
+  {
+    const auto receipt = pkgapply::resume_application(
+        install_request, restart_state, restart_lease, backend,
+        effects_visible_restart, install_archive);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::completed &&
+                count_boundary(backend_state->events(),
+                               boundary::execute_active) == 0 &&
+                count_boundary(backend_state->events(), boundary::observe) == 1,
+            "restart repeated a durably completed active effect");
+  }
+  backend_state->clear_events();
+
+  // An unresolved active intent is never repeated. Restart treats it as
+  // physically indeterminate and enters recovery using the original attempt.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  const auto unresolved_active_restart = [&] {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto& retained = *publication.published();
+    const auto& current = retained.prepared().journaled().journal();
+    const auto effect = std::find_if(
+        current.effects().begin(), current.effects().end(),
+        [](const auto& candidate) {
+          return candidate.kind() ==
+              pkgapply::application_journal_effect_kind::
+                  publish_active_object;
+        });
+    require(effect != current.effects().end(),
+            "restart fixture lacks an active effect");
+    auto events = current.events();
+    events.emplace_back(
+        static_cast<std::uint64_t>(events.size()),
+        pkgapply::application_journal_event_kind::intent,
+        effect->identity());
+    auto unresolved = pkgapply::application_journal_record::make(
+        current.header(), pkgapply::application_journal_state::mutating,
+        current.effects(), std::move(events));
+    const auto published = retained.prepared().journaled().admitted().
+        transaction().publish_journal(unresolved);
+    require(published.identity() == unresolved.identity(),
+            "scripted backend changed unresolved restart journal");
+    return unresolved;
+  }();
+  require(!backend_state->transaction_alive(),
+          "unresolved restart fixture retained its transaction");
+  backend_state->clear_events();
+  {
+    const auto receipt = pkgapply::resume_application(
+        install_request, restart_state, restart_lease, backend,
+        unresolved_active_restart, install_archive);
+    require(count_boundary(backend_state->events(),
+                           boundary::execute_active) == 0 &&
+                count_boundary(backend_state->events(), boundary::recover) == 1 &&
+                receipt.outcome() ==
+                    pkgapply::application_attempt_outcome::
+                        failed_fully_recovered,
+            "restart repeated or discarded an unresolved active intent");
+  }
+  backend_state->clear_events();
+
   // Terminal journals are refused before the backend reopen boundary.
   const auto abandoned_restart = pkgapply::application_journal_record::make(
       restart_journal.header(),
