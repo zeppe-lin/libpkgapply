@@ -5,6 +5,7 @@
 #include "plan_fixture.h"
 #include "scripted_backend.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -324,6 +325,16 @@ first_boundary(
       return index;
   }
   return events.size();
+}
+
+std::size_t
+count_boundary(
+    const std::vector<pkgapply::test::scripted_backend_event>& events,
+    pkgapply::test::scripted_backend_boundary wanted)
+{
+  return static_cast<std::size_t>(std::count_if(
+      events.begin(), events.end(),
+      [wanted](const auto& event) { return event.boundary == wanted; }));
 }
 
 std::size_t
@@ -1548,8 +1559,8 @@ main()
     auto active = pkgapply::detail::execute_active_application_engine(
         std::move(*publication.published()), no_recovery_request,
         no_recovery_state, lease);
-    const std::size_t recovery_boundary =
-        first_boundary(backend_state->events(), boundary::recover);
+    const std::size_t recovery_commands_before =
+        count_boundary(backend_state->events(), boundary::recover);
     auto receipt = pkgapply::detail::recover_application_engine(
         std::move(*active.interruption()), no_recovery_request,
         no_recovery_state, lease);
@@ -1559,8 +1570,8 @@ main()
                 receipt.recovery() ==
                     pkgapply::application_recovery_state::
                         recovery_not_representable &&
-                first_boundary(backend_state->events(), boundary::recover) ==
-                    recovery_boundary,
+                count_boundary(backend_state->events(), boundary::recover) ==
+                    recovery_commands_before,
             "recovery-none control issued or invented recovery");
   }
   backend_state->set_durability(
