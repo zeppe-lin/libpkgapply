@@ -830,13 +830,25 @@ application_receipt::completed(
       evidence.target(), evidence.control(), evidence.state_projection(),
       application_attempt_outcome::completed, recovery, evidence.durability(),
       evidence.paths(), evidence.journal(), evidence, backend_evidence);
+
+  const pkgplan::operation_kind kind = evidence.kind();
+  application_request_identity request = evidence.request();
+  pkgplan::operation_plan_identity plan = evidence.plan();
+  application_attempt_identity attempt = evidence.attempt();
+  application_target_context_identity target = evidence.target();
+  application_execution_control_identity control = evidence.control();
+  lease_bound_state_projection_identity state_projection =
+      evidence.state_projection();
+  application_durability_profile durability = evidence.durability();
+  std::vector<application_path_consequence> paths = evidence.paths();
+  application_journal_identity journal = evidence.journal();
+
   return application_receipt(
-      std::move(identity), evidence.kind(), evidence.request(), evidence.plan(),
-      evidence.attempt(), evidence.target(), evidence.control(),
-      evidence.state_projection(),
-      application_attempt_outcome::completed, recovery, evidence.durability(),
-      evidence.paths(), evidence.journal(), std::move(evidence),
-      std::move(backend_evidence));
+      std::move(identity), kind, std::move(request), std::move(plan),
+      std::move(attempt), std::move(target), std::move(control),
+      std::move(state_projection), application_attempt_outcome::completed,
+      recovery, std::move(durability), std::move(paths), std::move(journal),
+      std::move(evidence), std::move(backend_evidence));
 }
 
 application_receipt

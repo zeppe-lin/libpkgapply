@@ -176,6 +176,10 @@ int main()
           "completed receipt operation kind changed");
   require(receipt.completed_evidence().has_value(),
           "completed receipt lost completed evidence");
+  require(receipt.paths().size() == evidence.paths().size() &&
+              receipt.paths().front().publication() ==
+                  pkgapply::ownership_publication_status::eligible,
+          "completed receipt lost publication-eligible paths while moving evidence");
   const auto repeated_evidence =
       pkgapply::completed_application_evidence::installation(
           request,
