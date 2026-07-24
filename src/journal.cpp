@@ -42,7 +42,7 @@ std::uint8_t
 canonical_effect(application_journal_effect_kind kind)
 {
   const auto value = static_cast<std::uint8_t>(kind);
-  if (value < 1 || value > 14)
+  if (value < 1 || value > 15)
     throw std::invalid_argument("invalid application journal effect kind");
   return value;
 }
@@ -76,6 +76,7 @@ requires_path(application_journal_effect_kind kind)
     case application_journal_effect_kind::synchronize_recovery_staging:
     case application_journal_effect_kind::synchronize_completed_evidence:
     case application_journal_effect_kind::synchronize_recovered_namespace:
+    case application_journal_effect_kind::publish_completed_evidence:
       return false;
   }
   throw std::invalid_argument("invalid application journal effect kind");
@@ -180,19 +181,35 @@ validate_events(
 }
 
 bool
-all_effects_completed(const std::vector<effect_progress>& progress) noexcept
+success_effect_required(application_journal_effect_kind kind) noexcept
 {
-  return std::all_of(
-      progress.begin(), progress.end(),
-      [](const auto& item) {
-        return item.intended && item.terminal ==
-            application_journal_event_kind::completed;
-      });
+  return kind != application_journal_effect_kind::recover_active_object &&
+         kind !=
+             application_journal_effect_kind::synchronize_recovered_namespace;
+}
+
+bool
+success_effects_completed(
+    const std::vector<application_journal_effect>& effects,
+    const std::vector<effect_progress>& progress) noexcept
+{
+  for (std::size_t index = 0; index < effects.size(); ++index) {
+    if (!success_effect_required(effects[index].kind()))
+      continue;
+    if (!progress[index].intended ||
+        progress[index].terminal !=
+            application_journal_event_kind::completed)
+    {
+      return false;
+    }
+  }
+  return true;
 }
 
 void
 validate_resolution(
     application_journal_state state,
+    const std::vector<application_journal_effect>& effects,
     const std::vector<effect_progress>& progress,
     const std::optional<application_receipt_identity>& receipt,
     const std::optional<completed_application_evidence_identity>& evidence)
@@ -210,7 +227,7 @@ validate_resolution(
     if (!receipt || !evidence)
       throw std::invalid_argument(
           "completed journal state lacks receipt or completed evidence");
-    if (!all_effects_completed(progress))
+    if (!success_effects_completed(effects, progress))
       throw std::invalid_argument(
           "completed journal state has unfinished effects");
   } else if (evidence) {
@@ -415,7 +432,8 @@ application_journal_record::make(
   }
 
   const auto progress = validate_events(effects, events);
-  validate_resolution(state, progress, receipt, completed_evidence);
+  validate_resolution(
+      state, effects, progress, receipt, completed_evidence);
   auto identity = identify_record(
       header, state, effects, events, receipt, completed_evidence);
   return application_journal_record(

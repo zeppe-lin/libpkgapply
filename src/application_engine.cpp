@@ -319,6 +319,7 @@ journal_effects(const application_effect_schedule& schedule,
   }
   if (has_rejected)
     append(application_journal_effect_kind::synchronize_rejected_store);
+  append(application_journal_effect_kind::publish_completed_evidence);
   append(application_journal_effect_kind::synchronize_completed_evidence);
   append(application_journal_effect_kind::seal_receipt);
   return effects;

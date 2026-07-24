@@ -149,6 +149,23 @@ main()
   require(normalized.identity() == record.identity(),
           "effect input order changed journal record identity");
 
+  auto branched_effects = journal_effects;
+  branched_effects.push_back(pkgapply::application_journal_effect::make(
+      2, pkgapply::application_journal_effect_kind::recover_active_object,
+      pkgplan::package_path::parse("usr/bin/tool")));
+  branched_effects.push_back(pkgapply::application_journal_effect::make(
+      3,
+      pkgapply::application_journal_effect_kind::
+          synchronize_recovered_namespace));
+  const auto completed_without_recovery =
+      pkgapply::application_journal_record::make(
+          journal_header,
+          pkgapply::application_journal_state::application_completed,
+          branched_effects, journal_events, receipt, evidence);
+  require(completed_without_recovery.state() ==
+              pkgapply::application_journal_state::application_completed,
+          "successful journal required its mutually exclusive recovery branch");
+
   auto interrupted_events = journal_events;
   interrupted_events.back() = {
       3, pkgapply::application_journal_event_kind::failed,
