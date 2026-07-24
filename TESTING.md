@@ -318,3 +318,11 @@ filesystems, foreign architectures, or allocator fault injection.
 A missing environment is not permission to omit the semantic failure test.
 The scripted backend remains responsible for deterministic qualification of
 the contract.
+
+## POSIX target observation
+
+The POSIX observer tests use a temporary target tree to verify descriptor-anchored
+regular-file hashing, metadata capture, symbolic-link inspection, FIFO and
+absence classification, explicit hard-link proof, root-pathname replacement,
+and refusal to traverse a symbolic-link parent. The observer is read-only; no
+mutation backend authority is exercised by these tests.

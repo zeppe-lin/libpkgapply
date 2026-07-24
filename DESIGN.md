@@ -619,3 +619,23 @@ Hard invariants
 18. `libpkgapply` does not publish installed state.
 19. `libpkgstate` is absent from the core dependency graph.
 20. No receipt or journal record invents global filesystem/state atomicity.
+
+## FD-anchored target observation
+
+`libpkgapply-posix` observes managed target objects relative to a retained root
+directory descriptor. Parent components are opened one at a time with
+`openat(2)`, `O_DIRECTORY`, and `O_NOFOLLOW`; a symbolic-link parent is an
+observation error rather than an alternate route through the host namespace.
+The leaf is inspected with no-follow metadata operations, so a leaf symbolic
+link is reported as a symbolic link and is never traversed.
+
+Regular content identities are SHA-256 digests of bytes read from an opened
+regular-file descriptor. Metadata is sampled before and after the read. A
+replacement or concurrent modification yields an unknown observation instead
+of evidence assembled from different objects. Hard-link relations are claimed
+only when the caller supplies an expected logical anchor and both paths are
+observed as the same regular inode. The observer does not infer package
+semantics from arbitrary inode aliases.
+
+This layer is observation mechanism only. It does not acquire mutation leases,
+execute active effects, capture recovery objects, or publish durable records.

@@ -83,6 +83,11 @@ identity and use link-without-replace publication. Exact republication is
 idempotent; stale, rewritten, foreign, conflicting, corrupt, symlinked, or
 non-regular material is rejected.
 
+The POSIX layer also provides a read-only target observer anchored to an open
+root directory. It refuses symbolic-link parents, inspects leaf links without
+following them, hashes regular bytes from stable descriptors, and verifies only
+explicitly requested hard-link relations.
+
 No concrete filesystem actuator or complete POSIX application backend is
 present yet. The core can classify a validated durable journal, reopen the exact
 backend attempt under a new outer lease, reconcile a stored replay checkpoint
