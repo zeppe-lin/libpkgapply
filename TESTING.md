@@ -121,7 +121,8 @@ rejected-store synchronization
 active mutation
 effect completion synchronization
 final observation
-durability synchronization
+completed-evidence publication
+completed-evidence synchronization
 receipt sealing
 ```
 
@@ -136,6 +137,10 @@ or recovery command. Active-effect tests prove exact incoming bindings,
 conditional directory retention, per-effect write-ahead ordering, explicit
 visibility versus confirmed durability, and retention of the live transaction
 for a separate recovery phase after failure or indeterminate completion.
+Completion tests prove exact final-observation closure, contradiction and
+unknown-result recovery seams, publication-ineligible evidence failures, exact
+completed-record identity return, completed-evidence durability, terminal
+receipt binding, and archive-free removal completion.
 
 Operation tests
 ---------------

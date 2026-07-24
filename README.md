@@ -56,15 +56,21 @@ foundation required before target mutation is admitted:
   publication before destructive active effects, incoming directories before
   descendants, child removals before parent cleanup, hard-link anchors before
   links, and final observation after all planned effects; and
-* a private non-virtual execution prefix that durably freezes the complete
-  effect graph, captures old objects, replays and synchronizes private incoming
-  payloads, publishes source-bound rejected-object records, and stops before
-  any active target path is changed.
+* a private non-virtual semantic engine that durably freezes the complete
+  effect graph, captures old objects, replays private incoming payloads,
+  publishes source-bound rejected-object records, executes the accepted active
+  effects, and retains the live transaction for recovery; and
+* reverse recovery of the completed or potentially indeterminate active-effect
+  prefix, with exact, partial, disabled, and indeterminate recovery truth; and
+* final result observation, publication-eligibility checks, durable completed-
+  evidence publication, terminal journal resolution, and immutable success or
+  failure receipts.
 
-No concrete filesystem actuator, durable journal-store implementation, or
-POSIX backend is present yet. The semantic engine now reaches the rejected
-object store, but active-path mutation, final observation, recovery execution,
-and completed evidence remain absent.
+No concrete filesystem actuator, durable journal-store implementation, restart
+recovery implementation, or POSIX backend is present yet. The internal semantic
+engine now spans one in-process physical attempt through recovery or completed
+evidence. Installed-state publication and the public package-manager-facing
+orchestration facade remain outside this repository stage.
 
 Authority boundary
 ------------------

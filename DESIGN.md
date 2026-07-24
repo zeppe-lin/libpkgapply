@@ -348,11 +348,16 @@ The non-virtual semantic engine owns this sequence:
     identity returned by the backend.
 13. Synchronize the rejected-object store to the guarantee selected by the
     application execution control.
-14. Execute the remaining core-derived active effect graph.
-15. Observe all resulting active and rejected facts.
-16. Synchronize the remaining required durability domains.
-17. Seal the application receipt.
-18. Construct completed evidence only after every eligibility check passes.
+14. Execute the remaining core-derived active effect graph and synchronize the
+    managed target when the selected durability contract requires it.
+15. Observe the complete resulting active-path universe and compare it with the
+    frozen plan consequences.
+16. On contradiction or unknown result truth, retain the live transaction and
+    enter the recovery branch without publishing completed evidence.
+17. Construct completed evidence only after every path is observed and eligible.
+18. Publish and synchronize the exact completed-evidence record.
+19. Seal the terminal receipt and journal with the exact receipt and completed-
+    evidence identities.
 
 The target-mutation boundary refers to the managed active-object namespace.
 The rejected-object store is an independent application-effect domain. A
@@ -369,6 +374,13 @@ a separate rejected-store synchronization and accepts only confirmed durability.
 Backend implementations report mechanism outcomes. They do not skip
 validation, reinterpret policy, select different paths, manufacture
 ownership, or classify semantic success.
+
+A completed-evidence record is a backend authority, not an in-memory assertion.
+The backend must return the exact identity it published, and the engine accepts
+that record for installed-state publication only after completed-evidence
+durability is confirmed. Failed or indeterminate evidence publication leaves
+the already observed target truth explicit but every path publication-
+ineligible.
 
 Operation-specific semantics
 ----------------------------
