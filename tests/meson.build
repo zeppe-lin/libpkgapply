@@ -342,4 +342,32 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_dep,
   )
   test('validate canonical application records', canonical_record_test)
+  restart_checkpoint_codec_header_test = executable(
+    'restart-checkpoint-codec-header-test',
+    'restart_checkpoint_codec_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile restart checkpoint codec header independently', restart_checkpoint_codec_header_test)
+
+  restart_checkpoint_codec_test = executable(
+    'restart-checkpoint-codec-test',
+    'restart_checkpoint_codec_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('encode durable restart checkpoints', restart_checkpoint_codec_test)
+
+  posix_checkpoint_store_header_test = executable(
+    'posix-checkpoint-store-header-test',
+    'posix_checkpoint_store_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('compile POSIX checkpoint store header independently', posix_checkpoint_store_header_test)
+
+  posix_checkpoint_store_test = executable(
+    'posix-checkpoint-store-test',
+    'posix_checkpoint_store_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('persist durable restart checkpoints', posix_checkpoint_store_test)
+
 endif
