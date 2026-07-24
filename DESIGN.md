@@ -573,6 +573,45 @@ identity before granting a read-only payload descriptor. Exact republication is
 idempotent and does not reread a target that may already have changed. Namespace
 synchronization remains a separate backend durability operation.
 
+The POSIX rejected-object store is a separate attempt-scoped authority. Its
+immutable binding commits to the application-attempt identity, request identity,
+target identity, mutation-backend identity, nonce, and exactly one accepted
+operation-plan identity. Separate `incoming-v1` and `old-v1` namespaces prevent
+source-class aliasing. Every immutable record additionally binds the exact
+rejected-effect request, logical path, source class, completed object facts,
+completeness, and provenance.
+
+Incoming publication first resolves the exact package-image entry named by the
+rejected-effect request and verifies its logical path. Directories, symbolic
+links, FIFOs, and device entries are published from those image facts without
+inventing a payload-stage requirement. Regular and hard-link entries require a
+sealed payload set bound to the same attempt, nonce, and package-image identity.
+A hard-link record preserves its logical anchor relation and copies the anchor's
+verified regular bytes, so restart does not depend on private incoming staging
+or the current active target.
+
+Old publication accepts only a capture from the same attempt and logical path
+whose capture request explicitly admitted rejected-object use. Regular bytes are
+copied from that immutable pre-mutation capture. The store never reopens the
+managed-target path and therefore cannot substitute a post-mutation pathname for
+old-object authority.
+
+Regular payloads are size- and digest-verified, synchronized, and linked into
+immutable stable names before their records are published. Record identities are
+domain-separated over canonical source-bound record bodies. Exact republication
+verifies the existing request, source, object facts, and payload before
+returning the same record and backend-evidence identities. Restart loading
+revalidates the
+attempt and plan bindings, record checksum, request, source class, object facts,
+and any regular payload before granting a read-only descriptor. Corrupt bindings
+and records become typed rejected-store failures.
+
+Non-regular objects remain typed records; the store does not materialize them as
+live filesystem nodes. Record visibility does not claim rejected-store
+durability. The backend must synchronize the attempt namespace separately and
+report only the guarantee actually established. This mechanism neither mutates
+the active namespace nor classifies the complete application outcome.
+
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable
 attempt, then supplies both to `resume_application()`.
@@ -613,17 +652,15 @@ Core and backend split
 
 The reference `libpkgapply-posix` library is built in mechanism-sized
 tranches. It currently contains FD-anchored journal and immutable restart-
-checkpoint stores, target observation, private incoming-payload staging, and
-attempt-bound old-object capture storage. Its complete boundary will contain:
+checkpoint stores, target observation, private incoming-payload staging,
+attempt-bound old-object capture storage, and immutable source-bound rejected-
+object publication. Its complete boundary will additionally contain:
 
 * target-root and lease interoperability;
-* FD-anchored observation;
-* private staging;
-* journal and restart-checkpoint storage;
 * active namespace mutation;
-* rejected-object storage;
-* durability synchronization; and
-* conservative restart recovery.
+* cross-mechanism durability coordination;
+* conservative recovery actuation; and
+* complete application-backend transaction composition.
 
 The core depends publicly on `libpkgplan` and `libpkgimage`, and privately on
 its identity implementation. It has no direct archive-decoder dependency and

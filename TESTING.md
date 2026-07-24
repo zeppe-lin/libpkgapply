@@ -275,6 +275,29 @@ Private old-object capture tests prove:
 * foreign attempts cannot alias existing capture material; and
 * storage and target descriptors remain authoritative after pathname movement.
 
+Immutable rejected-store tests prove:
+
+* one full application-attempt identity owns each rejected namespace;
+* one accepted operation-plan identity binds the complete attempt namespace,
+  including previously unpublished paths;
+* incoming and old records cannot substitute for one another;
+* metadata-only incoming packages require no fabricated payload stage;
+* incoming regular and hard-link records refuse publication without the exact
+  sealed attempt, image, and payload authority;
+* failed source-authority checks leave no completed rejected record;
+* old records consume only pre-mutation captures admitted for rejected use;
+* regular and hard-link records retain independently verified, self-contained
+  bytes;
+* hard-link records preserve their logical anchor relation;
+* directories, symbolic links, FIFOs, and devices retain typed facts without
+  granting regular-payload descriptors or creating live special objects;
+* exact republication returns the same immutable record identity;
+* foreign attempts, foreign plans, and source mismatches are rejected;
+* restart loading rejects malformed bindings, malformed records, and corrupted
+  payloads through typed store failures before granting a descriptor;
+* namespace descriptors remain authoritative after pathname movement; and
+* record visibility and namespace synchronization remain separate operations.
+
 The complete reference backend must additionally qualify:
 
 * no-follow component traversal below the managed target root;

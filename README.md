@@ -104,6 +104,20 @@ published last, so incomplete bytes never become rejected or recovery authority.
 Hard-link recovery is claimed exact only when the admitted anchor is physically
 proved, or when the source has no additional links.
 
+Rejected consequences can now be published into an attempt-scoped immutable
+store. One binding admits exactly one accepted operation-plan identity for the
+full application attempt, while incoming and old records occupy separate source
+namespaces. Each record retains the exact rejected-effect request, logical path,
+typed object facts, completeness, and provenance.
+
+Incoming metadata-only objects are published directly from the exact package
+image. Incoming regular and hard-link records additionally require the matching
+sealed payload authority; hard links preserve their anchor relation and retain
+self-contained verified bytes. Old records consume only captures made for
+rejected publication before active mutation and never reread the target path.
+Exact republication is idempotent. Record visibility and rejected-store
+durability remain separate facts established by separate operations.
+
 No concrete filesystem actuator or complete POSIX application backend is
 present yet. The core can classify a validated durable journal, reopen the exact
 backend attempt under a new outer lease, reconcile a stored replay checkpoint
