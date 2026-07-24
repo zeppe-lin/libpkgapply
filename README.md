@@ -71,10 +71,12 @@ foundation required before target mutation is admitted:
   returning a terminal receipt.
 
 No concrete filesystem actuator, durable journal-store implementation, restart
-recovery implementation, or POSIX backend is present yet. The semantic engine
-now spans one in-process physical attempt through recovery or completed
-evidence behind the public package-manager-facing application facade.
-Installed-state publication remains outside this repository stage.
+replay implementation, or POSIX backend is present yet. The core can classify
+a validated durable journal and reopen the exact backend attempt under a new
+outer lease without allocating another nonce or replaying work. The semantic
+engine still spans one in-process physical attempt through recovery or
+completed evidence behind the public package-manager-facing application
+facade. Installed-state publication remains outside this repository stage.
 
 Authority boundary
 ------------------

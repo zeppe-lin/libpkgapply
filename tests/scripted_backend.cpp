@@ -128,6 +128,7 @@ public:
       application_attempt_nonce nonce,
       application_backend_evidence_identity evidence,
       bool has_incoming_image,
+      std::optional<application_journal_record_identity> resumed_journal,
       std::shared_ptr<scripted_backend_state> state)
       : backend_(std::move(backend)),
         observation_(std::move(observation)),
@@ -137,6 +138,7 @@ public:
         nonce_(std::move(nonce)),
         evidence_(std::move(evidence)),
         has_incoming_image_(has_incoming_image),
+        resumed_journal_(std::move(resumed_journal)),
         state_(std::move(state))
   {
     if (state_->transaction_alive_)
@@ -183,6 +185,12 @@ public:
   const application_attempt_nonce& attempt_nonce() const noexcept override
   {
     return nonce_;
+  }
+
+  std::optional<application_journal_record_identity>
+  resumed_journal() const noexcept override
+  {
+    return resumed_journal_;
   }
 
   backend_observation_batch observe(
@@ -318,6 +326,7 @@ private:
   application_attempt_nonce nonce_;
   application_backend_evidence_identity evidence_;
   bool has_incoming_image_;
+  std::optional<application_journal_record_identity> resumed_journal_;
   std::shared_ptr<scripted_backend_state> state_;
 };
 
@@ -541,11 +550,39 @@ scripted_backend::begin_without_incoming_image(
 }
 
 std::unique_ptr<application_backend_transaction>
+scripted_backend::resume_with_incoming_image(
+    const application_target_context& target,
+    target_mutation_lease& lease,
+    const application_journal_record& journal,
+    const pkgimage::package_image&)
+{
+  return begin(target,
+               lease,
+               true,
+               scripted_backend_boundary::resume_with_incoming_image,
+               journal.identity());
+}
+
+std::unique_ptr<application_backend_transaction>
+scripted_backend::resume_without_incoming_image(
+    const application_target_context& target,
+    target_mutation_lease& lease,
+    const application_journal_record& journal)
+{
+  return begin(target,
+               lease,
+               false,
+               scripted_backend_boundary::resume_without_incoming_image,
+               journal.identity());
+}
+
+std::unique_ptr<application_backend_transaction>
 scripted_backend::begin(
     const application_target_context& target,
     target_mutation_lease& lease,
     bool has_incoming_image,
-    scripted_backend_boundary boundary)
+    scripted_backend_boundary boundary,
+    std::optional<application_journal_record_identity> resumed_journal)
 {
   state_->record(boundary);
   state_->maybe_throw(boundary);
@@ -560,6 +597,7 @@ scripted_backend::begin(
       nonce_,
       evidence_,
       has_incoming_image,
+      std::move(resumed_journal),
       state_);
 }
 

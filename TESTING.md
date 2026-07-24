@@ -199,7 +199,18 @@ Journal tests cover:
 * explicit finalization and abandonment; and
 * garbage collection of finalized attempts.
 
-In-process RAII cleanup and restart recovery are tested separately.
+Restart admission tests separately prove:
+
+* journal-only classification performs no backend operation;
+* preparing and durably completed active prefixes may resume forward;
+* unresolved, failed, or indeterminate active intents require recovery;
+* terminal and externally unresolved journals are not automatically reopened;
+* a new outer lease may reopen only the original durable attempt;
+* the reopened transaction reports the exact journal identity and attempt nonce;
+* restart admission performs no target observation or effect replay; and
+* rejected restart transactions release their backend resources.
+
+In-process RAII cleanup and restart replay are tested separately.
 
 POSIX backend tests
 -------------------

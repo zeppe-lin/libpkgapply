@@ -458,13 +458,16 @@ A crash between intent and completion is not guessed to be either old or new
 state. Restart recovery reobserves the authoritative target under the proper
 lease.
 
-The first release provides journal discovery, validation, authoritative
-reobservation, explicit recovery eligibility, caller-requested rollback where
-provable, finalization, abandonment, garbage collection, and corrupt-record
-quarantine.
+The core classifies validated durable snapshots as forward-resumable,
+recovery-resumable, terminal, or requiring external resolution. A backend may
+reopen the exact durable attempt under a newly acquired outer lease. Restart
+admission verifies the original request, plan, target, execution control,
+backend, attempt nonce, and journal identity before any observation or replay.
 
-It does not automatically resume forward application. Recovery policy remains
-owned by the transaction controller.
+This stage does not discover journal files, deserialize storage records, replay
+forward effects, or execute restart recovery. Those mechanisms remain owned by
+the reference backend and the next engine tranche. A terminal or indeterminate
+journal is never silently reopened as a new attempt.
 
 State integration
 -----------------

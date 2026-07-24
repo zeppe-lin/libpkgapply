@@ -458,6 +458,21 @@ require_admission_error(Function&& function,
   require(rejected, message);
 }
 
+template<class Function>
+void
+require_restart_error(Function&& function,
+                      pkgapply::application_restart_error_code code,
+                      std::string_view message)
+{
+  bool rejected = false;
+  try {
+    function();
+  } catch (const pkgapply::application_restart_error& error) {
+    rejected = error.code() == code;
+  }
+  require(rejected, message);
+}
+
 } // namespace
 
 int
@@ -2176,6 +2191,103 @@ main()
                     backend_state->events().size(),
             "public facade crossed the stale-precondition boundary");
   }
+
+  backend_state->clear_events();
+
+  // Restart admission reopens the exact durable attempt under a new outer
+  // lease. It does not allocate another attempt nonce or observe the target.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  const auto restart_journal = [&] {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    return journaled.journal();
+  }();
+  require(!backend_state->transaction_alive(),
+          "restart fixture retained its original transaction");
+
+  fake_lease restart_lease(
+      application_identity<pkgapply::mutation_lease_instance_identity>(21),
+      context.identity(),
+      context.mutation_exclusion_domain());
+  const auto restart_state = state(
+      restart_lease, install_request.plan().preconditions());
+  backend_state->clear_events();
+  {
+    auto reopened = pkgapply::detail::reopen_application_engine(
+        install_request,
+        restart_state,
+        restart_lease,
+        backend,
+        restart_journal,
+        install_archive);
+    require(reopened.attempt().identity() ==
+                restart_journal.header().attempt().identity() &&
+                reopened.assessment().disposition() ==
+                    pkgapply::application_restart_disposition::resume_forward &&
+                reopened.transaction().resumed_journal().has_value() &&
+                *reopened.transaction().resumed_journal() ==
+                    restart_journal.identity(),
+            "restart admission reopened another durable attempt");
+    require(count_boundary(backend_state->events(),
+                           boundary::resume_with_incoming_image) == 1 &&
+                count_boundary(backend_state->events(), boundary::observe) == 0,
+            "restart admission replayed engine work");
+  }
+  require(!backend_state->transaction_alive() &&
+              backend_state->events().back().boundary ==
+                  boundary::transaction_destroyed,
+          "restarted transaction lifetime escaped its session");
+
+  // Terminal journals are refused before the backend reopen boundary.
+  const auto abandoned_restart = pkgapply::application_journal_record::make(
+      restart_journal.header(),
+      pkgapply::application_journal_state::abandoned,
+      restart_journal.effects(),
+      restart_journal.events());
+  backend_state->clear_events();
+  require_restart_error(
+      [&] {
+        static_cast<void>(pkgapply::detail::reopen_application_engine(
+            install_request,
+            restart_state,
+            restart_lease,
+            backend,
+            abandoned_restart,
+            install_archive));
+      },
+      pkgapply::application_restart_error_code::journal_not_resumable,
+      "terminal journal entered the backend restart boundary");
+  require(backend_state->events().empty(),
+          "terminal restart refusal emitted backend events");
+
+  // A backend cannot substitute another physical attempt while reopening the
+  // requested journal.
+  pkgapply::test::scripted_backend wrong_attempt_backend(
+      context.mutation_backend(),
+      context.observation_backend(),
+      context.capabilities(),
+      attempt_nonce(99),
+      evidence,
+      backend_state);
+  require_restart_error(
+      [&] {
+        static_cast<void>(pkgapply::detail::reopen_application_engine(
+            install_request,
+            restart_state,
+            restart_lease,
+            wrong_attempt_backend,
+            restart_journal,
+            install_archive));
+      },
+      pkgapply::application_restart_error_code::
+          transaction_attempt_nonce_mismatch,
+      "restart accepted another physical attempt nonce");
+  require(!backend_state->transaction_alive(),
+          "rejected restarted transaction remained alive");
 
   return 0;
 }
