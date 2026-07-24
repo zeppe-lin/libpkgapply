@@ -256,7 +256,7 @@ public:
   [[nodiscard]] virtual const application_attempt_nonce&
   attempt_nonce() const noexcept = 0;
 
-  /*! rief Return the durable journal reopened by this transaction, if any. */
+  /*! \brief Return the durable journal reopened by this transaction, if any. */
   [[nodiscard]] virtual std::optional<application_journal_record_identity>
   resumed_journal() const noexcept;
 
@@ -326,7 +326,7 @@ public:
       const application_target_context& target,
       target_mutation_lease& lease) = 0;
 
-  /*! rief Reopen one durable install or upgrade attempt under a new lease. */
+  /*! \brief Reopen one durable install or upgrade attempt under a new lease. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   resume_with_incoming_image(
       const application_target_context& target,
@@ -334,7 +334,7 @@ public:
       const application_journal_record& journal,
       const pkgimage::package_image& incoming_image);
 
-  /*! rief Reopen one durable removal attempt under a new lease. */
+  /*! \brief Reopen one durable removal attempt under a new lease. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   resume_without_incoming_image(
       const application_target_context& target,

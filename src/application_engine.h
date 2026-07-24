@@ -135,6 +135,8 @@ public:
   [[nodiscard]] application_backend_transaction& transaction() noexcept;
   [[nodiscard]] const application_backend_transaction&
   transaction() const noexcept;
+  [[nodiscard]] std::unique_ptr<application_backend_transaction>
+  release_transaction() noexcept;
 
 private:
   application_attempt attempt_;
@@ -175,7 +177,9 @@ public:
       std::optional<incoming_payload_plan> payloads,
       old_object_capture_plan captures,
       application_effect_schedule schedule,
-      application_journal_record journal);
+      application_journal_record journal,
+      lease_bound_state_projection_identity state_projection,
+      mutation_lease_instance_identity lease);
 
   journaled_application(const journaled_application&) = delete;
   journaled_application& operator=(const journaled_application&) = delete;
@@ -189,6 +193,9 @@ public:
   [[nodiscard]] const old_object_capture_plan& captures() const noexcept;
   [[nodiscard]] const application_effect_schedule& schedule() const noexcept;
   [[nodiscard]] const application_journal_record& journal() const noexcept;
+  [[nodiscard]] const lease_bound_state_projection_identity&
+  state_projection() const noexcept;
+  [[nodiscard]] const mutation_lease_instance_identity& lease() const noexcept;
 
   /*! \brief Replace the durable snapshot without changing its effect graph. */
   void advance_journal(application_journal_record journal);
@@ -199,6 +206,8 @@ private:
   old_object_capture_plan captures_;
   application_effect_schedule schedule_;
   application_journal_record journal_;
+  lease_bound_state_projection_identity state_projection_;
+  mutation_lease_instance_identity lease_;
 };
 
 [[nodiscard]] journaled_application journal_application_engine(
@@ -220,7 +229,6 @@ private:
     const removal_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);
-
 
 /*! \brief One transaction whose private preparation domains are durable. */
 class prepared_application final {
@@ -667,6 +675,26 @@ recover_application_engine(
 [[nodiscard]] application_receipt
 recover_application_engine(
     active_interrupted_application interrupted,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+[[nodiscard]] application_receipt replay_application_engine(
+    reopened_application reopened,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive& archive);
+
+[[nodiscard]] application_receipt replay_application_engine(
+    reopened_application reopened,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive& archive);
+
+[[nodiscard]] application_receipt replay_application_engine(
+    reopened_application reopened,
     const removal_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);

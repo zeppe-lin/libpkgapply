@@ -347,6 +347,12 @@ reopened_application::transaction() const noexcept
   return *transaction_;
 }
 
+std::unique_ptr<application_backend_transaction>
+reopened_application::release_transaction() noexcept
+{
+  return std::move(transaction_);
+}
+
 reopened_application
 reopen_application_engine(
     const installation_application_request& request,
@@ -529,7 +535,8 @@ publish_initial_journal(admitted_application admitted,
     throw std::logic_error("backend changed the application journal snapshot");
   return journaled_application(
       std::move(admitted), std::move(payloads), std::move(captures),
-      std::move(schedule), std::move(durable));
+      std::move(schedule), std::move(durable), state.identity(),
+      lease.identity());
 }
 
 template<class Plan>
@@ -560,15 +567,21 @@ journaled_application::journaled_application(
     std::optional<incoming_payload_plan> payloads,
     old_object_capture_plan captures,
     application_effect_schedule schedule,
-    application_journal_record journal)
+    application_journal_record journal,
+    lease_bound_state_projection_identity state_projection,
+    mutation_lease_instance_identity lease)
     : admitted_(std::move(admitted)),
       payloads_(std::move(payloads)),
       captures_(std::move(captures)),
       schedule_(std::move(schedule)),
-      journal_(std::move(journal))
+      journal_(std::move(journal)),
+      state_projection_(std::move(state_projection)),
+      lease_(std::move(lease))
 {
-  if (journal_.state() != application_journal_state::preparing)
-    throw std::invalid_argument("initial engine journal is not preparing");
+  const application_restart_assessment assessment =
+      assess_application_restart(journal_);
+  if (!assessment.resumable())
+    throw std::invalid_argument("engine journal is not resumable");
   if (journal_.header().attempt().identity() != admitted_.attempt().identity())
     throw std::invalid_argument("engine journal names another attempt");
 }
@@ -581,6 +594,12 @@ const old_object_capture_plan&
 journaled_application::captures() const noexcept { return captures_; }
 const application_effect_schedule& journaled_application::schedule() const noexcept { return schedule_; }
 const application_journal_record& journaled_application::journal() const noexcept { return journal_; }
+const lease_bound_state_projection_identity&
+journaled_application::state_projection() const noexcept
+{ return state_projection_; }
+const mutation_lease_instance_identity&
+journaled_application::lease() const noexcept
+{ return lease_; }
 
 void
 journaled_application::advance_journal(application_journal_record journal)
@@ -838,8 +857,8 @@ validate_preparation_binding(
       header.plan() != request.plan().identity() ||
       header.target() != request.target().identity() ||
       header.control() != request.control().identity() ||
-      header.state_projection() != state.identity() ||
-      header.lease() != lease.identity() ||
+      application.state_projection() != state.identity() ||
+      application.lease() != lease.identity() ||
       header.attempt().identity() !=
           application.admitted().attempt().identity())
   {
@@ -1180,8 +1199,18 @@ prepared_application::prepared_application(
       durability_(std::move(durability)),
       backend_evidence_(std::move(backend_evidence))
 {
-  if (journaled_.journal().state() != application_journal_state::prepared)
-    throw std::invalid_argument("prepared application journal is not prepared");
+  const application_journal_state journal_state =
+      journaled_.journal().state();
+  if (journal_state != application_journal_state::prepared &&
+      journal_state != application_journal_state::mutating &&
+      journal_state != application_journal_state::effects_visible &&
+      journal_state != application_journal_state::result_observed &&
+      journal_state != application_journal_state::recovery_pending &&
+      journal_state != application_journal_state::recovering)
+  {
+    throw std::invalid_argument(
+        "prepared application journal precedes or exceeds replay authority");
+  }
   if (captures_.size() != journaled_.captures().requests().size())
     throw std::invalid_argument("prepared application capture closure mismatch");
   if (std::any_of(
@@ -1618,8 +1647,8 @@ validate_rejected_publication_binding(
       header.plan() != request.plan().identity() ||
       header.target() != request.target().identity() ||
       header.control() != request.control().identity() ||
-      header.state_projection() != state.identity() ||
-      header.lease() != lease.identity() ||
+      prepared.journaled().state_projection() != state.identity() ||
+      prepared.journaled().lease() != lease.identity() ||
       header.attempt().identity() !=
           prepared.journaled().admitted().attempt().identity())
   {
@@ -1832,11 +1861,16 @@ rejected_published_application::rejected_published_application(
       durability_(std::move(durability)),
       backend_evidence_(std::move(backend_evidence))
 {
-  if (prepared_.journaled().journal().state() !=
-      application_journal_state::mutating)
+  const application_journal_state journal_state =
+      prepared_.journaled().journal().state();
+  if (journal_state != application_journal_state::mutating &&
+      journal_state != application_journal_state::effects_visible &&
+      journal_state != application_journal_state::result_observed &&
+      journal_state != application_journal_state::recovery_pending &&
+      journal_state != application_journal_state::recovering)
   {
     throw std::invalid_argument(
-        "rejected-published application journal is not mutating");
+        "rejected-published journal lacks replay mutation authority");
   }
 
   std::vector<const application_effect_step*> expected_effects;
@@ -2153,11 +2187,13 @@ active_mutated_application::active_mutated_application(
       durability_(std::move(durability)),
       backend_evidence_(std::move(backend_evidence))
 {
-  if (rejected_.prepared().journaled().journal().state() !=
-      application_journal_state::effects_visible)
+  const application_journal_state journal_state =
+      rejected_.prepared().journaled().journal().state();
+  if (journal_state != application_journal_state::effects_visible &&
+      journal_state != application_journal_state::result_observed)
   {
     throw std::invalid_argument(
-        "active-mutated application journal is not effects-visible");
+        "active-mutated application journal is not forward completable");
   }
   validate_active_effect_prefix(rejected_, active_effects_, true);
   if (!all_active_effects_semantically_complete(active_effects_))
@@ -2244,9 +2280,10 @@ active_interrupted_application::active_interrupted_application(
           active_execution_interruption::durability_indeterminate ||
       interruption_ ==
           active_execution_interruption::result_observation_indeterminate;
-  if ((indeterminate && state != application_journal_state::indeterminate) ||
-      (!indeterminate &&
-       state != application_journal_state::recovery_pending))
+  if (state != application_journal_state::recovering &&
+      ((indeterminate && state != application_journal_state::indeterminate) ||
+       (!indeterminate &&
+        state != application_journal_state::recovery_pending)))
   {
     throw std::invalid_argument(
         "interrupted active application has the wrong journal state");
@@ -2542,8 +2579,8 @@ validate_active_execution_binding(
       header.plan() != request.plan().identity() ||
       header.target() != request.target().identity() ||
       header.control() != request.control().identity() ||
-      header.state_projection() != state.identity() ||
-      header.lease() != lease.identity() ||
+      rejected.prepared().journaled().state_projection() != state.identity() ||
+      rejected.prepared().journaled().lease() != lease.identity() ||
       header.attempt().identity() !=
           rejected.prepared().journaled().admitted().attempt().identity())
   {
@@ -3200,13 +3237,14 @@ validate_completion_binding(
       active.rejected().prepared().journaled();
   const application_journal_record& journal = journaled.journal();
   const application_journal_header& header = journal.header();
-  if (journal.state() != application_journal_state::effects_visible ||
+  if ((journal.state() != application_journal_state::effects_visible &&
+       journal.state() != application_journal_state::result_observed) ||
       header.request() != request.identity() ||
       header.plan() != request.plan().identity() ||
       header.target() != request.target().identity() ||
       header.control() != request.control().identity() ||
-      header.state_projection() != state.identity() ||
-      header.lease() != lease.identity() ||
+      journaled.state_projection() != state.identity() ||
+      journaled.lease() != lease.identity() ||
       header.attempt().identity() != journaled.admitted().attempt().identity())
   {
     throw std::invalid_argument(
@@ -3846,13 +3884,16 @@ validate_recovery_binding(
       ? application_journal_state::indeterminate
       : application_journal_state::recovery_pending;
 
-  if (journal.state() != expected ||
+  if ((journal.state() != expected &&
+       journal.state() != application_journal_state::recovering) ||
       header.request() != request.identity() ||
       header.plan() != request.plan().identity() ||
       header.target() != request.target().identity() ||
       header.control() != request.control().identity() ||
-      header.state_projection() != state.identity() ||
-      header.lease() != lease.identity() ||
+      interrupted.rejected().prepared().journaled().state_projection() !=
+          state.identity() ||
+      interrupted.rejected().prepared().journaled().lease() !=
+          lease.identity() ||
       header.attempt().identity() !=
           interrupted.rejected().prepared().journaled().admitted().
               attempt().identity())
@@ -4165,6 +4206,1743 @@ recover_application_engine(
 {
   return recover_interrupted(
       std::move(interrupted), request, state, lease);
+}
+
+
+namespace {
+
+struct restart_effect_progress final {
+  bool intended = false;
+  std::optional<application_journal_event_kind> terminal;
+  std::vector<application_backend_evidence_identity> evidence;
+};
+
+std::vector<restart_effect_progress>
+restart_progress(const application_journal_record& journal)
+{
+  std::vector<restart_effect_progress> progress(journal.effects().size());
+  for (const auto& event : journal.events()) {
+    const auto effect = std::find_if(
+        journal.effects().begin(), journal.effects().end(),
+        [&event](const auto& candidate) {
+          return candidate.identity() == event.effect();
+        });
+    if (effect == journal.effects().end())
+      throw std::logic_error("validated restart journal lost an effect");
+    auto& item = progress[effect->ordinal()];
+    if (event.kind() == application_journal_event_kind::intent)
+      item.intended = true;
+    else {
+      item.terminal = event.kind();
+      item.evidence = event.backend_evidence();
+    }
+  }
+  return progress;
+}
+
+const restart_effect_progress&
+restart_progress_for(
+    const application_journal_record& journal,
+    const std::vector<restart_effect_progress>& progress,
+    const application_journal_effect& effect)
+{
+  if (effect.ordinal() >= progress.size() ||
+      journal.effects()[effect.ordinal()].identity() != effect.identity())
+  {
+    throw std::logic_error("restart effect ordinal changed");
+  }
+  return progress[effect.ordinal()];
+}
+
+const application_journal_effect*
+find_optional_effect(const application_journal_record& journal,
+                     application_journal_effect_kind kind,
+                     const pkgplan::package_path* path = nullptr) noexcept
+{
+  const application_journal_effect* found = nullptr;
+  for (const auto& effect : journal.effects()) {
+    const bool path_matches = path == nullptr
+        ? !effect.path().has_value()
+        : effect.path().has_value() && *effect.path() == *path;
+    if (effect.kind() != kind || !path_matches)
+      continue;
+    if (found != nullptr)
+      return nullptr;
+    found = &effect;
+  }
+  return found;
+}
+
+void
+resolve_checkpoint_effect(
+    journaled_application& application,
+    const application_journal_effect& effect,
+    application_journal_event_kind terminal,
+    const std::vector<application_backend_evidence_identity>& evidence)
+{
+  const auto progress = restart_progress(application.journal());
+  const auto& state = restart_progress_for(
+      application.journal(), progress, effect);
+  if (!state.intended)
+    throw std::logic_error("restart checkpoint effect lacks journal intent");
+  if (state.terminal) {
+    if (*state.terminal != terminal || state.evidence != evidence)
+      throw std::logic_error(
+          "restart checkpoint contradicts journal effect outcome");
+    return;
+  }
+  publish_event(
+      application, application.journal().state(), effect.identity(), terminal,
+      evidence);
+}
+
+application_journal_event_kind
+restart_capture_terminal(
+    const old_object_capture_request& request,
+    const old_object_capture_result& result,
+    application_recovery_requirement recovery)
+{
+  backend_operation_outcome outcome = result.outcome();
+  if (outcome == backend_operation_outcome::conditional_retained)
+    throw std::logic_error("restart capture has a conditional outcome");
+  if (outcome == backend_operation_outcome::completed &&
+      request.for_recovery() &&
+      recovery == application_recovery_requirement::exact_prior_state &&
+      !result.exact_recovery_possible())
+  {
+    outcome = backend_operation_outcome::failed;
+  }
+  return terminal_event(outcome);
+}
+
+const old_object_capture_request&
+restart_capture_request(const journaled_application& application,
+                        const pkgplan::package_path& path)
+{
+  const auto item = std::find_if(
+      application.captures().requests().begin(),
+      application.captures().requests().end(),
+      [&path](const auto& candidate) {
+        return candidate.path() == path;
+      });
+  if (item == application.captures().requests().end())
+    throw std::logic_error("restart checkpoint cites an unplanned capture");
+  return *item;
+}
+
+application_journal_effect_kind
+restart_synchronization_kind(
+    application_durability_domain domain,
+    const application_journal_record& journal)
+{
+  switch (domain) {
+    case application_durability_domain::journal:
+      return application_journal_effect_kind::synchronize_journal;
+    case application_durability_domain::incoming_staging:
+      return application_journal_effect_kind::synchronize_incoming_staging;
+    case application_durability_domain::recovery_staging:
+      return application_journal_effect_kind::synchronize_recovery_staging;
+    case application_durability_domain::rejected_object_store:
+      return application_journal_effect_kind::synchronize_rejected_store;
+    case application_durability_domain::completed_evidence:
+      return application_journal_effect_kind::synchronize_completed_evidence;
+    case application_durability_domain::active_namespace: {
+      const auto progress = restart_progress(journal);
+      for (const auto kind : {
+               application_journal_effect_kind::synchronize_recovered_namespace,
+               application_journal_effect_kind::synchronize_active_namespace})
+      {
+        const auto* effect = find_optional_effect(journal, kind);
+        if (effect == nullptr)
+          continue;
+        const auto& state = restart_progress_for(journal, progress, *effect);
+        if (state.intended && !state.terminal)
+          return kind;
+      }
+      return application_journal_effect_kind::synchronize_active_namespace;
+    }
+  }
+  throw std::logic_error("invalid restart synchronization domain");
+}
+
+void
+reconcile_restart_checkpoint(
+    journaled_application& application,
+    const application_restart_checkpoint& checkpoint,
+    application_recovery_requirement recovery)
+{
+  if (checkpoint.journal() != application.journal().identity())
+    throw std::logic_error("restart checkpoint belongs to another journal");
+
+  if (checkpoint.incoming_payload()) {
+    bool found = false;
+    for (const auto& effect : application.journal().effects()) {
+      if (effect.kind() !=
+          application_journal_effect_kind::stage_incoming_payload)
+      {
+        continue;
+      }
+      found = true;
+      resolve_checkpoint_effect(
+          application, effect,
+          terminal_event(checkpoint.incoming_payload()->outcome()),
+          checkpoint.incoming_payload()->evidence());
+    }
+    if (!found)
+      throw std::logic_error(
+          "restart checkpoint retained an unplanned payload stage");
+  }
+
+  for (const auto& capture : checkpoint.captures()) {
+    const auto& request = restart_capture_request(application, capture.path());
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::capture_old_object,
+        capture.path());
+    resolve_checkpoint_effect(
+        application, effect,
+        restart_capture_terminal(request, capture.result(), recovery),
+        capture.result().evidence());
+  }
+
+  for (const auto& rejected : checkpoint.rejected_effects()) {
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::publish_rejected_object,
+        rejected.path());
+    resolve_checkpoint_effect(
+        application, effect, terminal_event(rejected.result().outcome()),
+        rejected.result().evidence());
+  }
+
+  for (const auto& active : checkpoint.active_effects()) {
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::publish_active_object,
+        active.path());
+    resolve_checkpoint_effect(
+        application, effect, active_terminal_event(active.result().outcome()),
+        active.result().evidence());
+  }
+
+  for (const auto& recovered : checkpoint.recovery_effects()) {
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::recover_active_object,
+        recovered.path());
+    resolve_checkpoint_effect(
+        application, effect, terminal_event(recovered.result().outcome()),
+        recovered.result().evidence());
+  }
+
+  for (const auto& synchronization : checkpoint.synchronizations()) {
+    const auto kind = restart_synchronization_kind(
+        synchronization.domain(), application.journal());
+    const auto* effect = find_optional_effect(application.journal(), kind);
+    if (effect == nullptr)
+      continue;
+    const auto progress = restart_progress(application.journal());
+    const auto& state = restart_progress_for(
+        application.journal(), progress, *effect);
+    if (!state.intended || state.terminal)
+      continue;
+    resolve_checkpoint_effect(
+        application, *effect,
+        terminal_event(synchronization.result().status()), {});
+  }
+
+  if (checkpoint.completed_evidence()) {
+    const auto& evidence = *checkpoint.completed_evidence();
+    if (evidence.journal() != application.journal().header().identity() ||
+        evidence.attempt() !=
+            application.journal().header().attempt().identity())
+    {
+      throw std::logic_error(
+          "restart completed evidence belongs to another attempt");
+    }
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::publish_completed_evidence);
+    resolve_checkpoint_effect(
+        application, effect, application_journal_event_kind::completed,
+        evidence.backend_evidence());
+  }
+}
+
+template<class Request>
+void
+validate_restart_effect_graph(
+    const Request& request,
+    const journaled_application& application,
+    bool has_recovery,
+    bool has_active,
+    bool has_rejected)
+{
+  const auto expected = journal_effects(
+      application.schedule(),
+      application.payloads().has_value() &&
+          application.payloads()->selection().size() != 0,
+      has_recovery, has_active, has_rejected,
+      request.control().durability() ==
+          application_durability_requirement::all_application_domains);
+  if (expected.size() != application.journal().effects().size())
+    throw std::logic_error("restart journal effect graph size changed");
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    if (expected[index].identity() !=
+        application.journal().effects()[index].identity())
+    {
+      throw std::logic_error("restart journal effect graph changed");
+    }
+  }
+}
+
+struct rebuilt_restart_application final {
+  journaled_application journaled;
+  application_restart_checkpoint checkpoint;
+};
+
+template<class Request>
+rebuilt_restart_application
+rebuild_restart_application(
+    reopened_application reopened,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image* image)
+{
+  application_restart_checkpoint checkpoint = reopened.checkpoint();
+  application_precondition_check admitted_preconditions =
+      application_precondition_check::make(
+          request.plan().preconditions(),
+          checkpoint.admitted_observations());
+  if (!admitted_preconditions.satisfied())
+    throw std::logic_error(
+        "restart checkpoint does not contain admitted preconditions");
+
+  std::optional<incoming_payload_plan> payloads;
+  old_object_capture_plan captures =
+      prepare_old_object_captures(request.plan(), request.control());
+  application_effect_schedule schedule = [&] {
+    if constexpr (std::is_same_v<Request, removal_application_request>) {
+      if (image != nullptr)
+        throw std::logic_error("removal restart gained incoming image");
+      return prepare_application_schedule(request.plan(), captures);
+    }
+    else {
+      if (image == nullptr)
+        throw std::logic_error("incoming restart lacks package image");
+      payloads = prepare_incoming_payloads(request.plan(), *image);
+      return prepare_application_schedule(
+          request.plan(), *image, *payloads, captures);
+    }
+  }();
+
+  admitted_application admitted(
+      reopened.attempt(), std::move(admitted_preconditions),
+      reopened.release_transaction());
+  journaled_application journaled(
+      std::move(admitted), std::move(payloads), std::move(captures),
+      std::move(schedule), reopened.journal(), state.identity(),
+      lease.identity());
+  validate_restart_effect_graph(
+      request, journaled, !journaled.captures().requests().empty(),
+      has_active_effect(request.plan()), has_rejected_effect(request.plan()));
+  reconcile_restart_checkpoint(
+      journaled, checkpoint, request.control().recovery());
+  return rebuilt_restart_application{
+      std::move(journaled), std::move(checkpoint)};
+}
+
+bool
+restart_effect_completed(
+    const application_journal_record& journal,
+    const application_journal_effect& effect)
+{
+  const auto progress = restart_progress(journal);
+  const auto& state = restart_progress_for(journal, progress, effect);
+  return state.terminal == application_journal_event_kind::completed;
+}
+
+void
+restart_publish_intent(journaled_application& application,
+                       application_journal_state state,
+                       const application_journal_effect& effect)
+{
+  const auto progress = restart_progress(application.journal());
+  const auto& current = restart_progress_for(
+      application.journal(), progress, effect);
+  if (!current.intended) {
+    publish_event(
+        application, state, effect.identity(),
+        application_journal_event_kind::intent);
+  }
+}
+
+void
+restart_publish_terminal(
+    journaled_application& application,
+    application_journal_state state,
+    const application_journal_effect& effect,
+    application_journal_event_kind terminal,
+    const std::vector<application_backend_evidence_identity>& evidence = {})
+{
+  const auto progress = restart_progress(application.journal());
+  const auto& current = restart_progress_for(
+      application.journal(), progress, effect);
+  if (!current.terminal) {
+    publish_event(application, state, effect.identity(), terminal, evidence);
+  }
+}
+
+void
+restart_seal_terminal_receipt(
+    journaled_application& application,
+    application_journal_state state,
+    const application_receipt& receipt,
+    const std::optional<completed_application_evidence_identity>& evidence =
+        std::nullopt)
+{
+  const auto& seal = find_effect(
+      application.journal(), application_journal_effect_kind::seal_receipt);
+  auto progress = restart_progress(application.journal());
+  restart_effect_progress current = restart_progress_for(
+      application.journal(), progress, seal);
+
+  if (current.terminal &&
+      *current.terminal != application_journal_event_kind::completed)
+  {
+    throw std::logic_error(
+        "restart receipt seal has a non-completed terminal event");
+  }
+  if (application.journal().receipt() &&
+      *application.journal().receipt() != receipt.identity())
+  {
+    throw std::logic_error("restart journal contains another receipt");
+  }
+  if (application.journal().completed_evidence() != evidence)
+    throw std::logic_error(
+        "restart journal contains another completed-evidence identity");
+  if (application.journal().receipt() && !current.terminal)
+    throw std::logic_error("restart journal receipt lacks a completed seal");
+
+  if (!current.intended) {
+    publish_event(
+        application, application.journal().state(), seal.identity(),
+        application_journal_event_kind::intent);
+    progress = restart_progress(application.journal());
+    current = restart_progress_for(application.journal(), progress, seal);
+  }
+
+  if (current.terminal && application.journal().receipt() &&
+      application.journal().state() == state)
+  {
+    return;
+  }
+
+  std::vector<application_journal_event> events =
+      application.journal().events();
+  if (!current.terminal) {
+    events.emplace_back(
+        static_cast<std::uint64_t>(events.size()),
+        application_journal_event_kind::completed, seal.identity());
+  }
+  publish_snapshot(
+      application, state, std::move(events), receipt.identity(), evidence);
+}
+
+application_durability_status
+restart_domain_status(const application_restart_checkpoint& checkpoint,
+                      application_durability_domain domain,
+                      application_durability_status fallback)
+{
+  const auto* synchronization = checkpoint.find_synchronization(domain);
+  return synchronization == nullptr ? fallback
+                                    : synchronization->result().status();
+}
+
+template<class Request>
+application_engine_preparation
+resume_preparation(
+    rebuilt_restart_application rebuilt,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive* archive)
+{
+  journaled_application application = std::move(rebuilt.journaled);
+  const application_restart_checkpoint& checkpoint = rebuilt.checkpoint;
+  validate_target_mutation_lease(request.target(), state, lease);
+
+  if (application.journal().state() != application_journal_state::preparing) {
+    std::vector<old_object_capture_result> captures;
+    captures.reserve(application.captures().requests().size());
+    for (const auto& capture : application.captures().requests()) {
+      const auto* retained = checkpoint.find_capture(capture.path());
+      if (retained == nullptr ||
+          retained->result().outcome() != backend_operation_outcome::completed)
+      {
+        throw std::logic_error(
+            "resumable prepared journal lacks a completed capture");
+      }
+      captures.push_back(retained->result());
+    }
+    const bool has_payload = application.payloads().has_value() &&
+        application.payloads()->selection().size() != 0;
+    if (has_payload &&
+        (!checkpoint.incoming_payload() ||
+         checkpoint.incoming_payload()->outcome() !=
+             backend_operation_outcome::completed))
+    {
+      throw std::logic_error(
+          "resumable prepared journal lacks completed incoming staging");
+    }
+    const bool has_captures =
+        !application.captures().requests().empty();
+    application_durability_profile durability = preparation_durability(
+        application_durability_status::confirmed,
+        has_payload ? application_durability_status::confirmed
+                    : application_durability_status::not_attempted,
+        has_captures ? application_durability_status::confirmed
+                     : application_durability_status::not_attempted);
+    return application_engine_preparation::prepared(
+        std::move(application), std::move(captures),
+        std::move(durability), checkpoint.backend_evidence());
+  }
+
+  application_precondition_check current =
+      application_precondition_check::make(
+          request.plan().preconditions(),
+          application.admitted().transaction().observe(
+              precondition_paths(request.plan().preconditions())));
+  std::vector<application_backend_evidence_identity> evidence =
+      checkpoint.backend_evidence();
+  append_unique_evidence(evidence, current.observations().evidence());
+  if (!current.satisfied()) {
+    return fail_preparation(
+        std::move(application), request, state,
+        application_durability_status::confirmed,
+        restart_domain_status(
+            checkpoint, application_durability_domain::incoming_staging,
+            application_durability_status::not_attempted),
+        restart_domain_status(
+            checkpoint, application_durability_domain::recovery_staging,
+            application_durability_status::not_attempted),
+        std::move(evidence));
+  }
+
+  std::vector<old_object_capture_result> captures;
+  captures.reserve(application.captures().requests().size());
+  application_durability_status recovery =
+      application.captures().requests().empty()
+          ? application_durability_status::not_attempted
+          : application_durability_status::visible;
+  for (const auto& request_capture : application.captures().requests()) {
+    const auto& effect = find_effect(
+        application.journal(),
+        application_journal_effect_kind::capture_old_object,
+        request_capture.path());
+    const auto capture_progress = restart_progress(application.journal());
+    const auto& capture_state = restart_progress_for(
+        application.journal(), capture_progress, effect);
+    if (capture_state.terminal) {
+      const auto* retained = checkpoint.find_capture(request_capture.path());
+      if (retained == nullptr)
+        throw std::logic_error("terminal restart capture lacks checkpoint fact");
+      append_unique_evidence(evidence, retained->result().evidence());
+      if (*capture_state.terminal !=
+          application_journal_event_kind::completed)
+      {
+        recovery = *capture_state.terminal ==
+                application_journal_event_kind::indeterminate
+            ? application_durability_status::indeterminate
+            : application_durability_status::unconfirmed;
+        return fail_preparation(
+            std::move(application), request, state,
+            application_durability_status::confirmed,
+            application_durability_status::not_attempted, recovery,
+            std::move(evidence));
+      }
+      captures.push_back(retained->result());
+      continue;
+    }
+
+    restart_publish_intent(
+        application, application_journal_state::preparing, effect);
+    old_object_capture_result captured =
+        application.admitted().transaction().capture_old(request_capture);
+    append_unique_evidence(evidence, captured.evidence());
+    const auto terminal = restart_capture_terminal(
+        request_capture, captured, request.control().recovery());
+    restart_publish_terminal(
+        application, application_journal_state::preparing, effect,
+        terminal, captured.evidence());
+    if (terminal != application_journal_event_kind::completed) {
+      recovery = captured.outcome() == backend_operation_outcome::indeterminate
+          ? application_durability_status::indeterminate
+          : application_durability_status::unconfirmed;
+      return fail_preparation(
+          std::move(application), request, state,
+          application_durability_status::confirmed,
+          application_durability_status::not_attempted, recovery,
+          std::move(evidence));
+    }
+    captures.push_back(std::move(captured));
+  }
+
+  application_durability_status incoming =
+      application_durability_status::not_attempted;
+  if (application.payloads() &&
+      application.payloads()->selection().size() != 0)
+  {
+    if (archive == nullptr)
+      throw std::logic_error("incoming restart lost archive authority");
+    validate_preparation_archive(application, request, *archive);
+    std::vector<const application_journal_effect*> payload_effects;
+    for (const auto& effect : application.journal().effects()) {
+      if (effect.kind() ==
+          application_journal_effect_kind::stage_incoming_payload)
+      {
+        payload_effects.push_back(&effect);
+      }
+    }
+    const auto payload_progress = restart_progress(application.journal());
+    const auto failed_payload = std::find_if(
+        payload_effects.begin(), payload_effects.end(),
+        [&application, &payload_progress](const auto* effect) {
+          const auto& current = restart_progress_for(
+              application.journal(), payload_progress, *effect);
+          return current.terminal &&
+              *current.terminal != application_journal_event_kind::completed;
+        });
+    if (failed_payload != payload_effects.end()) {
+      const auto* retained = checkpoint.incoming_payload()
+          ? &*checkpoint.incoming_payload()
+          : nullptr;
+      incoming = retained != nullptr &&
+              retained->outcome() == backend_operation_outcome::indeterminate
+          ? application_durability_status::indeterminate
+          : application_durability_status::unconfirmed;
+      return fail_preparation(
+          std::move(application), request, state,
+          application_durability_status::confirmed, incoming, recovery,
+          std::move(evidence));
+    }
+    const bool already_staged = std::all_of(
+        payload_effects.begin(), payload_effects.end(),
+        [&application](const auto* effect) {
+          return restart_effect_completed(application.journal(), *effect);
+        });
+    if (already_staged) {
+      if (!checkpoint.incoming_payload() ||
+          checkpoint.incoming_payload()->outcome() !=
+              backend_operation_outcome::completed)
+      {
+        throw std::logic_error(
+            "completed restart payload lacks checkpoint fact");
+      }
+      incoming = application_durability_status::visible;
+      append_unique_evidence(
+          evidence, checkpoint.incoming_payload()->evidence());
+    }
+    else {
+      for (const auto* effect : payload_effects) {
+        restart_publish_intent(
+            application, application_journal_state::preparing, *effect);
+      }
+      std::unique_ptr<incoming_payload_stage> stage =
+          application.admitted().transaction().begin_payload_stage(
+              archive->image(), application.payloads()->selection());
+      if (!stage)
+        throw std::logic_error("restart backend returned no payload stage");
+      archive->replay(application.payloads()->selection(), *stage);
+      backend_operation_result sealed = stage->seal();
+      append_unique_evidence(evidence, sealed.evidence());
+      for (const auto* effect : payload_effects) {
+        restart_publish_terminal(
+            application, application_journal_state::preparing, *effect,
+            terminal_event(sealed.outcome()), sealed.evidence());
+      }
+      if (sealed.outcome() != backend_operation_outcome::completed) {
+        stage->abandon();
+        incoming = sealed.outcome() == backend_operation_outcome::indeterminate
+            ? application_durability_status::indeterminate
+            : application_durability_status::unconfirmed;
+        return fail_preparation(
+            std::move(application), request, state,
+            application_durability_status::confirmed, incoming, recovery,
+            std::move(evidence));
+      }
+      incoming = application_durability_status::visible;
+    }
+  }
+
+  const auto synchronize = [&](application_durability_domain domain,
+                               application_journal_effect_kind kind,
+                               application_durability_status& status) {
+    const auto& effect = find_effect(application.journal(), kind);
+    const auto progress = restart_progress(application.journal());
+    const auto& current = restart_progress_for(
+        application.journal(), progress, effect);
+    if (current.terminal) {
+      status = *current.terminal == application_journal_event_kind::completed
+          ? application_durability_status::confirmed
+          : *current.terminal ==
+                    application_journal_event_kind::indeterminate
+              ? application_durability_status::indeterminate
+              : application_durability_status::unconfirmed;
+      return status == application_durability_status::confirmed;
+    }
+    restart_publish_intent(
+        application, application_journal_state::preparing, effect);
+    application_durability_fact fact =
+        application.admitted().transaction().synchronize(domain);
+    if (fact.domain() != domain)
+      throw std::logic_error("restart synchronized another durability domain");
+    status = fact.status();
+    restart_publish_terminal(
+        application, application_journal_state::preparing, effect,
+        terminal_event(status));
+    return status == application_durability_status::confirmed;
+  };
+
+  if (incoming != application_durability_status::not_attempted &&
+      !synchronize(
+          application_durability_domain::incoming_staging,
+          application_journal_effect_kind::synchronize_incoming_staging,
+          incoming))
+  {
+    return fail_preparation(
+        std::move(application), request, state,
+        application_durability_status::confirmed, incoming, recovery,
+        std::move(evidence));
+  }
+  if (recovery != application_durability_status::not_attempted &&
+      !synchronize(
+          application_durability_domain::recovery_staging,
+          application_journal_effect_kind::synchronize_recovery_staging,
+          recovery))
+  {
+    return fail_preparation(
+        std::move(application), request, state,
+        application_durability_status::confirmed, incoming, recovery,
+        std::move(evidence));
+  }
+  application_durability_status journal =
+      application_durability_status::not_attempted;
+  if (!synchronize(
+          application_durability_domain::journal,
+          application_journal_effect_kind::synchronize_journal,
+          journal))
+  {
+    return fail_preparation(
+        std::move(application), request, state, journal, incoming, recovery,
+        std::move(evidence));
+  }
+
+  publish_snapshot(
+      application, application_journal_state::prepared,
+      application.journal().events());
+  return application_engine_preparation::prepared(
+      std::move(application), std::move(captures),
+      preparation_durability(journal, incoming, recovery),
+      std::move(evidence));
+}
+
+template<class Request>
+application_engine_rejected_publication
+resume_rejected_publication(
+    prepared_application prepared,
+    const application_restart_checkpoint& checkpoint,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_target_mutation_lease(request.target(), state, lease);
+  if (prepared.journaled().journal().state() ==
+      application_journal_state::prepared)
+  {
+    publish_snapshot(
+        prepared.journaled(), application_journal_state::mutating,
+        prepared.journaled().journal().events());
+  }
+
+  std::vector<rejected_effect_application_result> effects;
+  std::vector<application_backend_evidence_identity> evidence =
+      checkpoint.backend_evidence();
+  application_durability_status rejected =
+      application_durability_status::not_attempted;
+
+  for (const auto& step : prepared.journaled().schedule().steps()) {
+    if (step.kind() != application_effect_step_kind::publish_rejected_object)
+      continue;
+    const auto& decision = rejected_decision(request.plan(), step.path());
+    backend_rejected_effect_request command =
+        rejected_effect_request(decision, step);
+    validate_rejected_source(prepared, command);
+    const auto& effect = find_effect(
+        prepared.journaled().journal(),
+        application_journal_effect_kind::publish_rejected_object,
+        step.path());
+    const auto progress = restart_progress(prepared.journaled().journal());
+    const auto& current = restart_progress_for(
+        prepared.journaled().journal(), progress, effect);
+    if (current.terminal) {
+      const auto* retained = checkpoint.find_rejected_effect(step.path());
+      if (retained == nullptr)
+        throw std::logic_error(
+            "terminal rejected effect lacks checkpoint result");
+      effects.emplace_back(std::move(command), retained->result());
+      append_unique_evidence(evidence, retained->result().evidence());
+      if (retained->result().outcome() !=
+          backend_operation_outcome::completed)
+      {
+        return fail_rejected_publication(
+            std::move(prepared), request, state, std::move(effects),
+            retained->result().outcome() ==
+                    backend_operation_outcome::indeterminate
+                ? application_attempt_outcome::indeterminate
+                : application_attempt_outcome::failed_before_target_mutation,
+            retained->result().outcome() ==
+                    backend_operation_outcome::indeterminate
+                ? application_recovery_state::requires_authoritative_observation
+                : application_recovery_state::unchanged,
+            retained->result().outcome() ==
+                    backend_operation_outcome::indeterminate
+                ? application_durability_status::indeterminate
+                : rejected,
+            std::move(evidence));
+      }
+      rejected = application_durability_status::visible;
+      continue;
+    }
+    if (current.intended) {
+      effects.emplace_back(
+          std::move(command),
+          rejected_object_publication_result(
+              backend_operation_outcome::indeterminate, std::nullopt));
+      return fail_rejected_publication(
+          std::move(prepared), request, state, std::move(effects),
+          application_attempt_outcome::indeterminate,
+          application_recovery_state::requires_authoritative_observation,
+          application_durability_status::indeterminate,
+          std::move(evidence));
+    }
+
+    restart_publish_intent(
+        prepared.journaled(), application_journal_state::mutating, effect);
+    rejected_object_publication_result result =
+        prepared.journaled().admitted().transaction().execute_rejected(command);
+    append_unique_evidence(evidence, result.evidence());
+    restart_publish_terminal(
+        prepared.journaled(), application_journal_state::mutating, effect,
+        terminal_event(result.outcome()), result.evidence());
+    const auto outcome = result.outcome();
+    effects.emplace_back(std::move(command), std::move(result));
+    if (outcome != backend_operation_outcome::completed) {
+      return fail_rejected_publication(
+          std::move(prepared), request, state, std::move(effects),
+          outcome == backend_operation_outcome::indeterminate
+              ? application_attempt_outcome::indeterminate
+              : application_attempt_outcome::failed_before_target_mutation,
+          outcome == backend_operation_outcome::indeterminate
+              ? application_recovery_state::requires_authoritative_observation
+              : application_recovery_state::unchanged,
+          outcome == backend_operation_outcome::indeterminate
+              ? application_durability_status::indeterminate
+              : rejected,
+          std::move(evidence));
+    }
+    rejected = application_durability_status::visible;
+  }
+
+  if (!effects.empty() &&
+      requires_rejected_store_synchronization(request.control()))
+  {
+    const auto& effect = find_effect(
+        prepared.journaled().journal(),
+        application_journal_effect_kind::synchronize_rejected_store);
+    const auto progress = restart_progress(prepared.journaled().journal());
+    const auto& current = restart_progress_for(
+        prepared.journaled().journal(), progress, effect);
+    if (current.terminal) {
+      rejected = checkpoint.durability().status(
+          application_durability_domain::rejected_object_store);
+    }
+    else {
+      restart_publish_intent(
+          prepared.journaled(), application_journal_state::mutating, effect);
+      const auto fact = prepared.journaled().admitted().transaction().synchronize(
+          application_durability_domain::rejected_object_store);
+      if (fact.domain() !=
+          application_durability_domain::rejected_object_store)
+      {
+        throw std::logic_error(
+            "restart synchronized another rejected-store domain");
+      }
+      rejected = fact.status();
+      restart_publish_terminal(
+          prepared.journaled(), application_journal_state::mutating, effect,
+          terminal_event(rejected));
+    }
+    if (rejected != application_durability_status::confirmed) {
+      return fail_rejected_publication(
+          std::move(prepared), request, state, std::move(effects),
+          rejected == application_durability_status::indeterminate
+              ? application_attempt_outcome::indeterminate
+              : application_attempt_outcome::
+                    effects_visible_durability_unconfirmed,
+          rejected == application_durability_status::indeterminate
+              ? application_recovery_state::requires_authoritative_observation
+              : application_recovery_state::recovery_assets_retained,
+          rejected, std::move(evidence));
+    }
+  }
+
+  application_durability_profile durability =
+      with_rejected_durability(prepared.durability(), rejected);
+  return application_engine_rejected_publication::published(
+      std::move(prepared), std::move(effects), std::move(durability),
+      std::move(evidence));
+}
+
+template<class Request>
+application_engine_active_execution
+resume_active_execution(
+    rejected_published_application rejected,
+    const application_restart_checkpoint& checkpoint,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_target_mutation_lease(request.target(), state, lease);
+  std::vector<active_effect_application_result> effects;
+  std::vector<application_backend_evidence_identity> evidence =
+      checkpoint.backend_evidence();
+  application_durability_status active =
+      application_durability_status::not_attempted;
+
+  for (const auto& step : rejected.prepared().journaled().schedule().steps()) {
+    if (step.kind() != application_effect_step_kind::publish_active_object)
+      continue;
+    const auto& decision = active_decision(request.plan(), step.path());
+    backend_active_effect_request command = active_effect_request(decision, step);
+    validate_active_source(rejected, command);
+    const auto& effect = find_effect(
+        rejected.prepared().journaled().journal(),
+        application_journal_effect_kind::publish_active_object, step.path());
+    const auto progress = restart_progress(
+        rejected.prepared().journaled().journal());
+    const auto& current = restart_progress_for(
+        rejected.prepared().journaled().journal(), progress, effect);
+    if (current.terminal) {
+      const auto* retained = checkpoint.find_active_effect(step.path());
+      if (retained == nullptr)
+        throw std::logic_error("terminal active effect lacks checkpoint result");
+      effects.emplace_back(std::move(command), retained->result());
+      append_unique_evidence(evidence, retained->result().evidence());
+      const auto outcome = retained->result().outcome();
+      if (effects.back().changed_target())
+        active = application_durability_status::visible;
+      if (outcome == backend_operation_outcome::completed ||
+          outcome == backend_operation_outcome::conditional_retained)
+      {
+        continue;
+      }
+      return interrupt_active_execution(
+          std::move(rejected), std::move(effects),
+          outcome == backend_operation_outcome::indeterminate
+              ? active_execution_interruption::effect_indeterminate
+              : active_execution_interruption::effect_failed,
+          outcome == backend_operation_outcome::indeterminate
+              ? application_durability_status::indeterminate
+              : active,
+          std::move(evidence));
+    }
+    if (current.intended) {
+      effects.emplace_back(
+          std::move(command),
+          backend_operation_result(backend_operation_outcome::indeterminate));
+      return interrupt_active_execution(
+          std::move(rejected), std::move(effects),
+          active_execution_interruption::effect_indeterminate,
+          application_durability_status::indeterminate,
+          std::move(evidence));
+    }
+
+    restart_publish_intent(
+        rejected.prepared().journaled(),
+        application_journal_state::mutating, effect);
+    backend_operation_result result =
+        rejected.prepared().journaled().admitted().transaction().execute_active(
+            command);
+    append_unique_evidence(evidence, result.evidence());
+    const auto outcome = result.outcome();
+    restart_publish_terminal(
+        rejected.prepared().journaled(),
+        application_journal_state::mutating, effect,
+        active_terminal_event(outcome), result.evidence());
+    effects.emplace_back(std::move(command), std::move(result));
+    if (effects.back().changed_target())
+      active = application_durability_status::visible;
+    if (outcome == backend_operation_outcome::completed ||
+        outcome == backend_operation_outcome::conditional_retained)
+    {
+      continue;
+    }
+    return interrupt_active_execution(
+        std::move(rejected), std::move(effects),
+        outcome == backend_operation_outcome::indeterminate
+            ? active_execution_interruption::effect_indeterminate
+            : active_execution_interruption::effect_failed,
+        outcome == backend_operation_outcome::indeterminate
+            ? application_durability_status::indeterminate
+            : active,
+        std::move(evidence));
+  }
+
+  if (active == application_durability_status::visible &&
+      requires_active_namespace_synchronization(request.control()))
+  {
+    const auto& effect = find_effect(
+        rejected.prepared().journaled().journal(),
+        application_journal_effect_kind::synchronize_active_namespace);
+    const auto progress = restart_progress(
+        rejected.prepared().journaled().journal());
+    const auto& current = restart_progress_for(
+        rejected.prepared().journaled().journal(), progress, effect);
+    if (current.terminal) {
+      active = checkpoint.durability().status(
+          application_durability_domain::active_namespace);
+    }
+    else {
+      restart_publish_intent(
+          rejected.prepared().journaled(),
+          application_journal_state::mutating, effect);
+      const auto fact = rejected.prepared().journaled().admitted().transaction().
+          synchronize(application_durability_domain::active_namespace);
+      if (fact.domain() != application_durability_domain::active_namespace)
+        throw std::logic_error("restart synchronized another active domain");
+      active = fact.status();
+      restart_publish_terminal(
+          rejected.prepared().journaled(),
+          application_journal_state::mutating, effect,
+          terminal_event(active));
+    }
+    if (active != application_durability_status::confirmed) {
+      return interrupt_active_execution(
+          std::move(rejected), std::move(effects),
+          active == application_durability_status::indeterminate
+              ? active_execution_interruption::durability_indeterminate
+              : active_execution_interruption::durability_unconfirmed,
+          active, std::move(evidence));
+    }
+  }
+
+  if (rejected.prepared().journaled().journal().state() !=
+      application_journal_state::result_observed)
+  {
+    publish_snapshot(
+        rejected.prepared().journaled(),
+        application_journal_state::effects_visible,
+        rejected.prepared().journaled().journal().events());
+  }
+  application_durability_profile durability =
+      with_active_durability(rejected.durability(), active);
+  return application_engine_active_execution::complete(
+      std::move(rejected), std::move(effects), std::move(durability),
+      std::move(evidence));
+}
+
+template<class Request>
+active_interrupted_application
+restart_interruption(
+    rejected_published_application rejected,
+    const application_restart_checkpoint& checkpoint,
+    const Request& request)
+{
+  std::vector<active_effect_application_result> effects;
+  active_execution_interruption interruption =
+      active_execution_interruption::effect_failed;
+  application_durability_status active =
+      checkpoint.durability().status(
+          application_durability_domain::active_namespace);
+  bool found_interruption = false;
+
+  for (const auto& step : rejected.prepared().journaled().schedule().steps()) {
+    if (step.kind() != application_effect_step_kind::publish_active_object)
+      continue;
+    const auto& effect = find_effect(
+        rejected.prepared().journaled().journal(),
+        application_journal_effect_kind::publish_active_object, step.path());
+    const auto progress = restart_progress(
+        rejected.prepared().journaled().journal());
+    const auto& current = restart_progress_for(
+        rejected.prepared().journaled().journal(), progress, effect);
+    if (!current.intended)
+      break;
+    const auto& decision = active_decision(request.plan(), step.path());
+    backend_active_effect_request command = active_effect_request(decision, step);
+    const auto* retained = checkpoint.find_active_effect(step.path());
+    if (!current.terminal) {
+      effects.emplace_back(
+          std::move(command),
+          backend_operation_result(backend_operation_outcome::indeterminate));
+      interruption = active_execution_interruption::effect_indeterminate;
+      active = application_durability_status::indeterminate;
+      found_interruption = true;
+      break;
+    }
+    if (retained == nullptr)
+      throw std::logic_error("terminal restart active effect lacks checkpoint");
+    effects.emplace_back(std::move(command), retained->result());
+    const auto outcome = retained->result().outcome();
+    if (outcome == backend_operation_outcome::failed) {
+      interruption = active_execution_interruption::effect_failed;
+      found_interruption = true;
+      break;
+    }
+    if (outcome == backend_operation_outcome::indeterminate) {
+      interruption = active_execution_interruption::effect_indeterminate;
+      active = application_durability_status::indeterminate;
+      found_interruption = true;
+      break;
+    }
+  }
+
+  if (!found_interruption) {
+    const auto* synchronize = find_optional_effect(
+        rejected.prepared().journaled().journal(),
+        application_journal_effect_kind::synchronize_active_namespace);
+    if (synchronize != nullptr) {
+      const auto progress = restart_progress(
+          rejected.prepared().journaled().journal());
+      const auto& current = restart_progress_for(
+          rejected.prepared().journaled().journal(), progress, *synchronize);
+      if (current.intended &&
+          current.terminal != application_journal_event_kind::completed)
+      {
+        interruption = current.terminal ==
+                application_journal_event_kind::indeterminate ||
+                !current.terminal
+            ? active_execution_interruption::durability_indeterminate
+            : active_execution_interruption::durability_unconfirmed;
+        active = interruption ==
+                active_execution_interruption::durability_indeterminate
+            ? application_durability_status::indeterminate
+            : application_durability_status::unconfirmed;
+        found_interruption = true;
+      }
+    }
+  }
+
+  if (!found_interruption) {
+    for (const auto& effect :
+         rejected.prepared().journaled().journal().effects()) {
+      if (effect.kind() != application_journal_effect_kind::observe_result)
+        continue;
+      const auto progress = restart_progress(
+          rejected.prepared().journaled().journal());
+      const auto& current = restart_progress_for(
+          rejected.prepared().journaled().journal(), progress, effect);
+      if (current.terminal == application_journal_event_kind::failed) {
+        interruption =
+            active_execution_interruption::result_observation_mismatch;
+        found_interruption = true;
+        break;
+      }
+      if (current.terminal == application_journal_event_kind::indeterminate ||
+          (current.intended && !current.terminal))
+      {
+        interruption =
+            active_execution_interruption::result_observation_indeterminate;
+        active = application_durability_status::indeterminate;
+        found_interruption = true;
+        break;
+      }
+    }
+  }
+
+  if (!found_interruption)
+    throw std::logic_error("recovery restart lacks an interrupted effect");
+
+  if (interruption == active_execution_interruption::effect_indeterminate ||
+      interruption ==
+          active_execution_interruption::durability_indeterminate ||
+      interruption ==
+          active_execution_interruption::result_observation_indeterminate)
+  {
+    if (rejected.prepared().journaled().journal().state() !=
+        application_journal_state::recovering)
+    {
+      publish_snapshot(
+          rejected.prepared().journaled(),
+          application_journal_state::indeterminate,
+          rejected.prepared().journaled().journal().events());
+    }
+  }
+  else if (rejected.prepared().journaled().journal().state() !=
+           application_journal_state::recovering)
+  {
+    publish_snapshot(
+        rejected.prepared().journaled(),
+        application_journal_state::recovery_pending,
+        rejected.prepared().journaled().journal().events());
+  }
+
+  application_durability_profile durability =
+      with_active_durability(rejected.durability(), active);
+  return active_interrupted_application(
+      std::move(rejected), std::move(effects), interruption,
+      std::move(durability), checkpoint.backend_evidence());
+}
+
+template<class Request>
+application_receipt
+resume_recovery(
+    active_interrupted_application interrupted,
+    const application_restart_checkpoint& checkpoint,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_recovery_binding(interrupted, request, state, lease);
+  const auto candidates = recovery_candidates(interrupted);
+  std::vector<recovery_effect_result> recoveries;
+  std::vector<application_backend_evidence_identity> evidence =
+      checkpoint.backend_evidence();
+
+  if (!recovery_selected(request.control()) || candidates.empty()) {
+    return recover_interrupted(
+        std::move(interrupted), request, state, lease);
+  }
+  if (interrupted.rejected().prepared().journaled().journal().state() !=
+      application_journal_state::recovering)
+  {
+    publish_snapshot(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering,
+        interrupted.rejected().prepared().journaled().journal().events());
+  }
+
+  bool all_exact = true;
+  bool all_recovered = true;
+  bool indeterminate =
+      interrupted.interruption() ==
+          active_execution_interruption::effect_indeterminate ||
+      interrupted.interruption() ==
+          active_execution_interruption::durability_indeterminate ||
+      interrupted.interruption() ==
+          active_execution_interruption::result_observation_indeterminate;
+
+  for (const auto* candidate : candidates) {
+    const auto& path = candidate->request().path();
+    const bool exact = exact_recovery_possible(interrupted, path);
+    all_exact = all_exact && exact;
+    const auto& effect = find_effect(
+        interrupted.rejected().prepared().journaled().journal(),
+        application_journal_effect_kind::recover_active_object, path);
+    const auto progress = restart_progress(
+        interrupted.rejected().prepared().journaled().journal());
+    const auto& current = restart_progress_for(
+        interrupted.rejected().prepared().journaled().journal(), progress,
+        effect);
+    if (current.terminal) {
+      const auto* retained = checkpoint.find_recovery_effect(path);
+      if (retained == nullptr)
+        throw std::logic_error("terminal recovery lacks checkpoint result");
+      recoveries.push_back({path, retained->result(), exact});
+      append_unique_evidence(evidence, retained->result().evidence());
+      if (retained->result().outcome() !=
+          backend_operation_outcome::completed)
+      {
+        all_recovered = false;
+        indeterminate = indeterminate ||
+            retained->result().outcome() ==
+                backend_operation_outcome::indeterminate;
+        break;
+      }
+      continue;
+    }
+    if (current.intended) {
+      recoveries.push_back({
+          path,
+          backend_operation_result(backend_operation_outcome::indeterminate),
+          exact});
+      all_recovered = false;
+      indeterminate = true;
+      break;
+    }
+
+    restart_publish_intent(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, effect);
+    backend_operation_result result =
+        interrupted.rejected().prepared().journaled().admitted().transaction().
+            recover(path);
+    append_unique_evidence(evidence, result.evidence());
+    const auto outcome = result.outcome();
+    restart_publish_terminal(
+        interrupted.rejected().prepared().journaled(),
+        application_journal_state::recovering, effect,
+        terminal_event(outcome), result.evidence());
+    recoveries.push_back({path, std::move(result), exact});
+    if (outcome != backend_operation_outcome::completed) {
+      all_recovered = false;
+      indeterminate = indeterminate ||
+          outcome == backend_operation_outcome::indeterminate;
+      break;
+    }
+  }
+
+  application_durability_profile durability = interrupted.durability();
+  if (!recoveries.empty())
+    durability = with_active_durability(
+        durability, application_durability_status::visible);
+
+  if (all_recovered &&
+      requires_recovered_namespace_synchronization(request.control()))
+  {
+    const auto& effect = find_effect(
+        interrupted.rejected().prepared().journaled().journal(),
+        application_journal_effect_kind::synchronize_recovered_namespace);
+    const auto progress = restart_progress(
+        interrupted.rejected().prepared().journaled().journal());
+    const auto& current = restart_progress_for(
+        interrupted.rejected().prepared().journaled().journal(), progress,
+        effect);
+    application_durability_status status;
+    if (current.terminal) {
+      status = checkpoint.durability().status(
+          application_durability_domain::active_namespace);
+    }
+    else if (current.intended) {
+      status = application_durability_status::indeterminate;
+      indeterminate = true;
+    }
+    else {
+      restart_publish_intent(
+          interrupted.rejected().prepared().journaled(),
+          application_journal_state::recovering, effect);
+      const auto fact = interrupted.rejected().prepared().journaled().admitted().
+          transaction().synchronize(
+              application_durability_domain::active_namespace);
+      if (fact.domain() != application_durability_domain::active_namespace)
+        throw std::logic_error("restart synchronized another recovery domain");
+      status = fact.status();
+      restart_publish_terminal(
+          interrupted.rejected().prepared().journaled(),
+          application_journal_state::recovering, effect,
+          terminal_event(status));
+    }
+    durability = with_active_durability(durability, status);
+    if (status != application_durability_status::confirmed) {
+      all_recovered = false;
+      indeterminate = indeterminate ||
+          status == application_durability_status::indeterminate;
+    }
+  }
+
+  if (all_recovered && all_exact) {
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::failed_fully_recovered,
+        application_recovery_state::exact_prior_state_restored,
+        std::move(durability), recoveries, std::move(evidence));
+  }
+  if (indeterminate || (all_recovered && !all_exact)) {
+    return seal_recovery_receipt(
+        interrupted, request, state,
+        application_attempt_outcome::indeterminate,
+        application_recovery_state::requires_authoritative_observation,
+        std::move(durability), recoveries, std::move(evidence));
+  }
+  return seal_recovery_receipt(
+      interrupted, request, state,
+      application_attempt_outcome::failed_with_partial_effects,
+      application_recovery_state::known_residual_effects,
+      std::move(durability), recoveries, std::move(evidence));
+}
+
+template<class Request>
+application_engine_completion
+resume_completion(
+    active_mutated_application active,
+    const application_restart_checkpoint& checkpoint,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image* image)
+{
+  validate_completion_binding(active, request, state, lease, image);
+  journaled_application& journaled =
+      active.rejected().prepared().journaled();
+
+  backend_observation_batch observations =
+      journaled.admitted().transaction().observe(result_paths(request.plan()));
+  std::vector<application_backend_evidence_identity> evidence =
+      checkpoint.backend_evidence();
+  append_unique_evidence(evidence, observations.evidence());
+
+  std::vector<application_path_consequence> paths;
+  paths.reserve(request.plan().paths().size());
+  bool mismatch = false;
+  bool indeterminate = false;
+  for (const auto& decision : request.plan().paths()) {
+    const application_path_observation* before =
+        journaled.admitted().preconditions().observations().find(
+            decision.path());
+    const application_path_observation* after =
+        observations.find(decision.path());
+    if (before == nullptr || after == nullptr)
+      throw std::logic_error("restart result observation lacks path closure");
+
+    const result_observation_match match = match_result_observation(
+        active, decision, *before, *after, image);
+    mismatch = mismatch || match == result_observation_match::mismatch;
+    indeterminate = indeterminate ||
+        match == result_observation_match::indeterminate;
+
+    const auto& effect = find_effect(
+        journaled.journal(),
+        application_journal_effect_kind::observe_result,
+        decision.path());
+    const auto progress = restart_progress(journaled.journal());
+    const auto& current = restart_progress_for(
+        journaled.journal(), progress, effect);
+    const application_journal_event_kind terminal =
+        match == result_observation_match::matched
+            ? application_journal_event_kind::completed
+            : match == result_observation_match::mismatch
+                ? application_journal_event_kind::failed
+                : application_journal_event_kind::indeterminate;
+    if (current.terminal && *current.terminal != terminal) {
+      mismatch = true;
+      indeterminate = true;
+    }
+    else {
+      restart_publish_intent(
+          journaled, application_journal_state::effects_visible, effect);
+      restart_publish_terminal(
+          journaled, application_journal_state::effects_visible, effect,
+          terminal, observations.evidence());
+    }
+
+    if (match == result_observation_match::matched) {
+      paths.push_back(completed_path_consequence(
+          active, decision, *before, *after,
+          ownership_publication_status::eligible));
+    }
+  }
+
+  if (mismatch || indeterminate) {
+    publish_snapshot(
+        journaled,
+        indeterminate ? application_journal_state::indeterminate
+                      : application_journal_state::recovery_pending,
+        journaled.journal().events());
+    application_durability_profile durability = active.durability();
+    rejected_published_application rejected = std::move(active.rejected());
+    std::vector<active_effect_application_result> active_effects =
+        std::move(active.active_effects());
+    return application_engine_completion::interrupted(
+        std::move(rejected), std::move(active_effects),
+        indeterminate
+            ? active_execution_interruption::result_observation_indeterminate
+            : active_execution_interruption::result_observation_mismatch,
+        std::move(durability), std::move(evidence));
+  }
+
+  if (journaled.journal().state() !=
+      application_journal_state::result_observed)
+  {
+    publish_snapshot(
+        journaled, application_journal_state::result_observed,
+        journaled.journal().events());
+  }
+
+  application_durability_profile completed_durability =
+      with_completed_evidence_durability(
+          active.durability(), application_durability_status::confirmed);
+  completed_application_evidence completed = make_completed_evidence(
+      request, active, state, paths, completed_durability, evidence);
+  if (checkpoint.completed_evidence()) {
+    const auto& retained = *checkpoint.completed_evidence();
+    if (retained.kind() != request.plan().kind() ||
+        retained.request() != request.identity() ||
+        retained.plan() != request.plan().identity() ||
+        retained.attempt() !=
+            journaled.admitted().attempt().identity() ||
+        retained.target() != request.target().identity() ||
+        retained.control() != request.control().identity() ||
+        retained.journal() != journaled.journal().header().identity())
+    {
+      throw std::logic_error(
+          "restart checkpoint completed evidence has another authority");
+    }
+    completed_application_evidence expected = [&] {
+      if constexpr (std::is_same_v<
+                        Request, installation_application_request>) {
+        return completed_application_evidence::installation(
+            request, retained.attempt(), retained.state_projection(),
+            retained.journal(), paths, retained.durability(),
+            retained.backend_evidence());
+      }
+      else if constexpr (std::is_same_v<
+                             Request, upgrade_application_request>) {
+        return completed_application_evidence::upgrade(
+            request, retained.attempt(), retained.state_projection(),
+            retained.journal(), paths, retained.durability(),
+            retained.backend_evidence());
+      }
+      else {
+        return completed_application_evidence::removal(
+            request, retained.attempt(), retained.state_projection(),
+            retained.journal(), paths, retained.durability(),
+            retained.backend_evidence());
+      }
+    }();
+    if (expected.identity() != retained.identity())
+      throw std::logic_error(
+          "restart checkpoint completed evidence contradicts observations");
+    completed = retained;
+  }
+
+  const auto& publish = find_effect(
+      journaled.journal(),
+      application_journal_effect_kind::publish_completed_evidence);
+  const auto publish_progress = restart_progress(journaled.journal());
+  const auto& publish_state = restart_progress_for(
+      journaled.journal(), publish_progress, publish);
+  if (publish_state.terminal) {
+    if (*publish_state.terminal != application_journal_event_kind::completed ||
+        !checkpoint.completed_evidence() ||
+        checkpoint.completed_evidence()->identity() != completed.identity())
+    {
+      throw std::logic_error(
+          "restart completed-evidence checkpoint contradicts journal");
+    }
+  }
+  else {
+    restart_publish_intent(
+        journaled, application_journal_state::result_observed, publish);
+    completed_evidence_publication_result publication =
+        journaled.admitted().transaction().publish_completed_evidence(
+            completed);
+    append_unique_evidence(evidence, publication.evidence());
+    restart_publish_terminal(
+        journaled, application_journal_state::result_observed, publish,
+        terminal_event(publication.outcome()), publication.evidence());
+    if (publication.outcome() != backend_operation_outcome::completed) {
+      const bool uncertain = publication.outcome() ==
+          backend_operation_outcome::indeterminate;
+      application_durability_profile failed_durability =
+          with_completed_evidence_durability(
+              active.durability(),
+              uncertain ? application_durability_status::indeterminate
+                        : application_durability_status::unconfirmed);
+      application_receipt receipt = completion_failure_receipt(
+          active, request, state,
+          uncertain ? application_attempt_outcome::indeterminate
+                    : application_attempt_outcome::
+                          effects_visible_durability_unconfirmed,
+          uncertain
+              ? application_recovery_state::requires_authoritative_observation
+              : application_recovery_state::recovery_assets_retained,
+          std::move(failed_durability), paths, std::move(evidence));
+      restart_seal_terminal_receipt(
+          journaled,
+          uncertain ? application_journal_state::indeterminate
+                    : application_journal_state::effects_visible,
+          receipt);
+      return application_engine_completion::sealed(std::move(receipt));
+    }
+    if (!publication.record() ||
+        *publication.record() != completed.identity())
+    {
+      throw std::logic_error(
+          "restart backend published another completed-evidence record");
+    }
+  }
+
+  const auto& synchronize = find_effect(
+      journaled.journal(),
+      application_journal_effect_kind::synchronize_completed_evidence);
+  application_durability_status completed_status =
+      application_durability_status::not_attempted;
+  const auto synchronize_progress = restart_progress(journaled.journal());
+  const auto& synchronize_state = restart_progress_for(
+      journaled.journal(), synchronize_progress, synchronize);
+  if (synchronize_state.terminal) {
+    completed_status = checkpoint.durability().status(
+        application_durability_domain::completed_evidence);
+  }
+  else {
+    restart_publish_intent(
+        journaled, application_journal_state::result_observed, synchronize);
+    const application_durability_fact fact =
+        journaled.admitted().transaction().synchronize(
+            application_durability_domain::completed_evidence);
+    if (fact.domain() != application_durability_domain::completed_evidence)
+      throw std::logic_error(
+          "restart synchronized another completed-evidence domain");
+    completed_status = fact.status();
+    restart_publish_terminal(
+        journaled, application_journal_state::result_observed, synchronize,
+        terminal_event(completed_status));
+  }
+
+  if (completed_status != application_durability_status::confirmed) {
+    const bool uncertain = completed_status ==
+        application_durability_status::indeterminate;
+    application_durability_profile failed_durability =
+        with_completed_evidence_durability(
+            active.durability(),
+            uncertain ? application_durability_status::indeterminate
+                      : application_durability_status::unconfirmed);
+    application_receipt receipt = completion_failure_receipt(
+        active, request, state,
+        uncertain ? application_attempt_outcome::indeterminate
+                  : application_attempt_outcome::
+                        effects_visible_durability_unconfirmed,
+        uncertain
+            ? application_recovery_state::requires_authoritative_observation
+            : application_recovery_state::recovery_assets_retained,
+        std::move(failed_durability), paths, std::move(evidence));
+    restart_seal_terminal_receipt(
+        journaled,
+        uncertain ? application_journal_state::indeterminate
+                  : application_journal_state::effects_visible,
+        receipt);
+    return application_engine_completion::sealed(std::move(receipt));
+  }
+
+  const application_recovery_state recovery =
+      active.rejected().prepared().captures().empty()
+          ? application_recovery_state::unchanged
+          : application_recovery_state::recovery_assets_retained;
+  application_receipt receipt = application_receipt::completed(
+      completed, recovery, evidence);
+  restart_seal_terminal_receipt(
+      journaled, application_journal_state::application_completed, receipt,
+      completed.identity());
+  return application_engine_completion::sealed(std::move(receipt));
+}
+
+template<class Request>
+application_receipt
+finish_replay(
+    rebuilt_restart_application rebuilt,
+    const Request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive* archive)
+{
+  const auto disposition = rebuilt.journaled.journal().state() ==
+          application_journal_state::recovery_pending ||
+      rebuilt.journaled.journal().state() ==
+          application_journal_state::recovering ||
+      rebuilt.journaled.journal().state() ==
+          application_journal_state::indeterminate
+      ? application_restart_disposition::resume_recovery
+      : assess_application_restart(
+            rebuilt.journaled.journal()).disposition();
+
+  application_restart_checkpoint checkpoint = rebuilt.checkpoint;
+  application_engine_preparation preparation = resume_preparation(
+      std::move(rebuilt), request, state, lease, archive);
+  if (!preparation.is_prepared()) {
+    const auto* receipt = preparation.failure();
+    if (receipt == nullptr)
+      throw std::logic_error("restart preparation lost failure receipt");
+    return *receipt;
+  }
+  prepared_application prepared = std::move(*preparation.prepared());
+  application_engine_rejected_publication publication =
+      resume_rejected_publication(
+          std::move(prepared), checkpoint, request, state, lease);
+  if (!publication.is_published()) {
+    const auto* receipt = publication.failure();
+    if (receipt == nullptr)
+      throw std::logic_error("restart rejected phase lost failure receipt");
+    return *receipt;
+  }
+  rejected_published_application rejected =
+      std::move(*publication.published());
+
+  if (disposition == application_restart_disposition::resume_recovery) {
+    return resume_recovery(
+        restart_interruption(
+            std::move(rejected), checkpoint, request),
+        checkpoint, request, state, lease);
+  }
+
+  application_engine_active_execution active = resume_active_execution(
+      std::move(rejected), checkpoint, request, state, lease);
+  if (!active.is_complete()) {
+    return resume_recovery(
+        std::move(*active.interruption()), checkpoint, request, state, lease);
+  }
+  active_mutated_application completed = std::move(*active.complete());
+  application_engine_completion completion = [&] {
+    if constexpr (std::is_same_v<Request, removal_application_request>) {
+      return resume_completion(
+          std::move(completed), checkpoint, request, state, lease, nullptr);
+    }
+    else {
+      if (archive == nullptr)
+        throw std::logic_error("incoming restart lost completion image");
+      return resume_completion(
+          std::move(completed), checkpoint, request, state, lease,
+          &archive->image());
+    }
+  }();
+  if (completion.has_receipt())
+    return std::move(*completion.receipt());
+  return resume_recovery(
+      std::move(*completion.interruption()), checkpoint, request, state, lease);
+}
+
+} // namespace
+
+application_receipt
+replay_application_engine(
+    reopened_application reopened,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive& archive)
+{
+  return finish_replay(
+      rebuild_restart_application(
+          std::move(reopened), request, state, lease, &archive.image()),
+      request, state, lease, &archive);
+}
+
+application_receipt
+replay_application_engine(
+    reopened_application reopened,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_archive& archive)
+{
+  return finish_replay(
+      rebuild_restart_application(
+          std::move(reopened), request, state, lease, &archive.image()),
+      request, state, lease, &archive);
+}
+
+application_receipt
+replay_application_engine(
+    reopened_application reopened,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  return finish_replay(
+      rebuild_restart_application(
+          std::move(reopened), request, state, lease, nullptr),
+      request, state, lease, nullptr);
 }
 
 } // namespace pkgapply::detail

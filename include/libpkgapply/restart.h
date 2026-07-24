@@ -102,6 +102,40 @@ private:
   backend_operation_result result_;
 };
 
+/*! \brief Durable recovery-effect result retained across process restart. */
+class application_restart_recovery_effect final {
+public:
+  application_restart_recovery_effect(
+      pkgplan::package_path path,
+      backend_operation_result result);
+
+  [[nodiscard]] const pkgplan::package_path& path() const noexcept;
+  [[nodiscard]] const backend_operation_result& result() const noexcept;
+
+  friend bool operator<(const application_restart_recovery_effect& lhs,
+                        const application_restart_recovery_effect& rhs) noexcept;
+
+private:
+  pkgplan::package_path path_;
+  backend_operation_result result_;
+};
+
+/*! \brief Exact synchronization result retained across process restart. */
+class application_restart_synchronization final {
+public:
+  explicit application_restart_synchronization(
+      application_durability_fact result);
+
+  [[nodiscard]] application_durability_domain domain() const noexcept;
+  [[nodiscard]] const application_durability_fact& result() const noexcept;
+
+  friend bool operator<(const application_restart_synchronization& lhs,
+                        const application_restart_synchronization& rhs) noexcept;
+
+private:
+  application_durability_fact result_;
+};
+
 /*! \brief Exact backend-owned material required to replay one durable attempt. */
 class application_restart_checkpoint final {
 public:
@@ -112,6 +146,8 @@ public:
       std::vector<application_restart_capture> captures,
       std::vector<application_restart_rejected_effect> rejected_effects,
       std::vector<application_restart_active_effect> active_effects,
+      std::vector<application_restart_recovery_effect> recovery_effects,
+      std::vector<application_restart_synchronization> synchronizations,
       application_durability_profile durability,
       std::vector<application_backend_evidence_identity> backend_evidence = {},
       std::optional<completed_application_evidence> completed_evidence =
@@ -129,6 +165,10 @@ public:
   rejected_effects() const noexcept;
   [[nodiscard]] const std::vector<application_restart_active_effect>&
   active_effects() const noexcept;
+  [[nodiscard]] const std::vector<application_restart_recovery_effect>&
+  recovery_effects() const noexcept;
+  [[nodiscard]] const std::vector<application_restart_synchronization>&
+  synchronizations() const noexcept;
   [[nodiscard]] const application_durability_profile&
   durability() const noexcept;
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
@@ -142,6 +182,10 @@ public:
   find_rejected_effect(const pkgplan::package_path& path) const noexcept;
   [[nodiscard]] const application_restart_active_effect*
   find_active_effect(const pkgplan::package_path& path) const noexcept;
+  [[nodiscard]] const application_restart_recovery_effect*
+  find_recovery_effect(const pkgplan::package_path& path) const noexcept;
+  [[nodiscard]] const application_restart_synchronization*
+  find_synchronization(application_durability_domain domain) const noexcept;
 
 private:
   application_restart_checkpoint(
@@ -151,6 +195,8 @@ private:
       std::vector<application_restart_capture> captures,
       std::vector<application_restart_rejected_effect> rejected_effects,
       std::vector<application_restart_active_effect> active_effects,
+      std::vector<application_restart_recovery_effect> recovery_effects,
+      std::vector<application_restart_synchronization> synchronizations,
       application_durability_profile durability,
       std::vector<application_backend_evidence_identity> backend_evidence,
       std::optional<completed_application_evidence> completed_evidence);
@@ -161,6 +207,8 @@ private:
   std::vector<application_restart_capture> captures_;
   std::vector<application_restart_rejected_effect> rejected_effects_;
   std::vector<application_restart_active_effect> active_effects_;
+  std::vector<application_restart_recovery_effect> recovery_effects_;
+  std::vector<application_restart_synchronization> synchronizations_;
   application_durability_profile durability_;
   std::vector<application_backend_evidence_identity> backend_evidence_;
   std::optional<completed_application_evidence> completed_evidence_;
@@ -211,6 +259,35 @@ void validate_application_restart(
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
     const application_backend& backend,
+    const application_journal_record& journal);
+
+/*! \brief Resume one durable installation attempt to a terminal receipt. */
+[[nodiscard]] application_receipt
+resume_application(
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive);
+
+/*! \brief Resume one durable upgrade attempt to a terminal receipt. */
+[[nodiscard]] application_receipt
+resume_application(
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive);
+
+/*! \brief Resume one durable removal attempt to a terminal receipt. */
+[[nodiscard]] application_receipt
+resume_application(
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
     const application_journal_record& journal);
 
 void validate_restarted_backend_transaction(
