@@ -257,6 +257,68 @@ observed_object(const pkgplan::package_path& path,
   }
 }
 
+pkgapply::completed_object_fact
+observed_incoming(const pkgimage::package_entry& entry)
+{
+  const auto path = pkgplan::package_path::parse(entry.path.string());
+  const auto mode =
+      pkgapply::qualified_fact<std::uint32_t>::known(entry.mode);
+  const auto uid =
+      pkgapply::qualified_fact<std::uint64_t>::known(entry.uid);
+  const auto gid =
+      pkgapply::qualified_fact<std::uint64_t>::known(entry.gid);
+  const auto mtime = pkgapply::qualified_fact<
+      pkgapply::completed_object_timestamp>::known(
+      {entry.mtime, entry.mtime_nanoseconds});
+
+  if (entry.type == pkgimage::entry_type::regular) {
+    require(entry.regular_content.has_value(),
+            "regular incoming fixture lacks content identity");
+    return pkgapply::completed_object_fact(
+        path,
+        pkgapply::completed_object_kind::regular,
+        mode,
+        uid,
+        gid,
+        pkgapply::qualified_fact<std::uint64_t>::known(entry.size),
+        mtime,
+        pkgapply::qualified_fact<
+            pkgapply::completed_regular_content_identity>::known(
+            pkgapply::completed_regular_content_identity::parse(
+                entry.regular_content->string())),
+        pkgapply::qualified_fact<std::string>::not_applicable(),
+        pkgapply::qualified_fact<
+            pkgapply::completed_device_number>::not_applicable(),
+        pkgapply::qualified_fact<
+            pkgapply::completed_hardlink_relation>::unknown(),
+        pkgapply::object_fact_provenance::application_observation,
+        pkgapply::object_fact_completeness::complete);
+  }
+
+  if (entry.type == pkgimage::entry_type::directory) {
+    return pkgapply::completed_object_fact(
+        path,
+        pkgapply::completed_object_kind::directory,
+        mode,
+        uid,
+        gid,
+        pkgapply::qualified_fact<std::uint64_t>::not_applicable(),
+        mtime,
+        pkgapply::qualified_fact<
+            pkgapply::completed_regular_content_identity>::not_applicable(),
+        pkgapply::qualified_fact<std::string>::not_applicable(),
+        pkgapply::qualified_fact<
+            pkgapply::completed_device_number>::not_applicable(),
+        pkgapply::qualified_fact<
+            pkgapply::completed_hardlink_relation>::not_applicable(),
+        pkgapply::object_fact_provenance::application_observation,
+        pkgapply::object_fact_completeness::complete);
+  }
+
+  throw std::runtime_error(
+      "engine completion fixture supports regular and directory entries");
+}
+
 std::vector<pkgapply::application_path_observation>
 matching_observations(const pkgplan::operation_preconditions& preconditions)
 {
@@ -323,6 +385,18 @@ first_boundary(
   for (std::size_t index = 0; index < events.size(); ++index) {
     if (events[index].boundary == wanted)
       return index;
+  }
+  return events.size();
+}
+
+std::size_t
+last_boundary(
+    const std::vector<pkgapply::test::scripted_backend_event>& events,
+    pkgapply::test::scripted_backend_boundary wanted)
+{
+  for (std::size_t index = events.size(); index != 0; --index) {
+    if (events[index - 1].boundary == wanted)
+      return index - 1;
   }
   return events.size();
 }
@@ -1399,6 +1473,316 @@ main()
   backend_state->set_durability(
       pkgapply::application_durability_domain::active_namespace,
       pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // Final observation binds the physical target to the accepted plan, then
+  // publishes and confirms completed evidence before sealing a success receipt.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(active.is_complete() && active.complete() != nullptr,
+            "completion fixture did not reach active visibility");
+
+    backend_state->set_observations({
+        pkgapply::application_path_observation::present(
+            observed_incoming(install_archive.image().entries().front())),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(completion.has_receipt() && completion.receipt() != nullptr &&
+                completion.receipt()->outcome() ==
+                    pkgapply::application_attempt_outcome::completed &&
+                completion.receipt()->completed_evidence().has_value(),
+            "verified installation did not produce completed evidence");
+    const auto& receipt = *completion.receipt();
+    require(receipt.paths().size() == 1 &&
+                receipt.paths().front().active_status() ==
+                    pkgapply::application_effect_status::completed &&
+                receipt.paths().front().after().state() ==
+                    pkgapply::fact_state::known &&
+                receipt.paths().front().publication() ==
+                    pkgapply::ownership_publication_status::eligible,
+            "completed installation path is not publication eligible");
+    require(receipt.durability().status(
+                pkgapply::application_durability_domain::completed_evidence) ==
+                pkgapply::application_durability_status::confirmed &&
+                backend_state->published_completed_evidence().has_value() &&
+                backend_state->published_completed_evidence()->identity() ==
+                    receipt.completed_evidence()->identity(),
+            "completed evidence was not exactly published and confirmed");
+    require(count_boundary(backend_state->events(), boundary::observe) == 2 &&
+                first_boundary(backend_state->events(),
+                               boundary::execute_active) <
+                    last_boundary(backend_state->events(), boundary::observe) &&
+                last_boundary(backend_state->events(), boundary::observe) <
+                    first_boundary(
+                        backend_state->events(),
+                        boundary::publish_completed_evidence) &&
+                first_boundary(
+                    backend_state->events(),
+                    boundary::publish_completed_evidence) <
+                    first_synchronization(
+                        backend_state->events(),
+                        pkgapply::application_durability_domain::
+                            completed_evidence),
+            "completion boundaries are not observation-publication-durability");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::
+                        application_completed &&
+                backend_state->published_journal()->receipt() ==
+                    receipt.identity() &&
+                backend_state->published_journal()->completed_evidence() ==
+                    receipt.completed_evidence()->identity(),
+            "terminal completion journal lost receipt or evidence identity");
+  }
+  backend_state->clear_events();
+
+  // A contradictory final observation re-enters the recovery branch.  It does
+  // not publish completed evidence or claim ownership publication eligibility.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    backend_state->set_observations({
+        pkgapply::application_path_observation::absent(install_path),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(!completion.has_receipt() &&
+                completion.interruption() != nullptr &&
+                completion.interruption()->interruption() ==
+                    pkgapply::detail::active_execution_interruption::
+                        result_observation_mismatch &&
+                completion.interruption()->rejected().prepared().journaled().
+                    journal().state() ==
+                    pkgapply::application_journal_state::recovery_pending,
+            "contradictory result observation manufactured completion");
+    const std::size_t evidence_publications = count_boundary(
+        backend_state->events(), boundary::publish_completed_evidence);
+    auto receipt = pkgapply::detail::recover_application_engine(
+        std::move(*completion.interruption()), install_request, install_state,
+        lease);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::failed_fully_recovered &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::
+                        exact_prior_state_restored &&
+                count_boundary(backend_state->events(),
+                               boundary::publish_completed_evidence) ==
+                    evidence_publications,
+            "result mismatch was completed or recovered after evidence publish");
+  }
+  backend_state->clear_events();
+
+  // An unknown final observation cannot be collapsed into a mismatch or a
+  // successful result.  The live transaction remains available for an
+  // authoritative recovery decision, and no completed record is published.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    backend_state->set_observations({
+        pkgapply::application_path_observation::unknown(install_path),
+    });
+    const std::size_t evidence_publications = count_boundary(
+        backend_state->events(), boundary::publish_completed_evidence);
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(!completion.has_receipt() &&
+                completion.interruption() != nullptr &&
+                completion.interruption()->interruption() ==
+                    pkgapply::detail::active_execution_interruption::
+                        result_observation_indeterminate &&
+                completion.interruption()->rejected().prepared().journaled().
+                    journal().state() ==
+                    pkgapply::application_journal_state::indeterminate &&
+                count_boundary(backend_state->events(),
+                               boundary::publish_completed_evidence) ==
+                    evidence_publications,
+            "unknown result observation manufactured completion truth");
+  }
+  backend_state->clear_events();
+
+  // Completed-evidence storage failure leaves the already verified target
+  // visible, but makes every path ineligible for installed-state publication.
+  backend_state->set_outcome(
+      boundary::publish_completed_evidence,
+      pkgapply::backend_operation_outcome::failed);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    backend_state->set_observations({
+        pkgapply::application_path_observation::present(
+            observed_incoming(install_archive.image().entries().front())),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(completion.has_receipt() && completion.receipt() != nullptr &&
+                completion.receipt()->outcome() ==
+                    pkgapply::application_attempt_outcome::
+                        effects_visible_durability_unconfirmed &&
+                !completion.receipt()->completed_evidence().has_value() &&
+                completion.receipt()->paths().size() == 1 &&
+                completion.receipt()->paths().front().publication() ==
+                    pkgapply::ownership_publication_status::ineligible &&
+                completion.receipt()->durability().status(
+                    pkgapply::application_durability_domain::
+                        completed_evidence) ==
+                    pkgapply::application_durability_status::unconfirmed,
+            "failed evidence publication promoted installed-state truth");
+    require(backend_state->published_journal().has_value() &&
+                backend_state->published_journal()->state() ==
+                    pkgapply::application_journal_state::effects_visible &&
+                !backend_state->published_journal()->completed_evidence().
+                    has_value(),
+            "evidence publication failure retained completed journal truth");
+  }
+  backend_state->set_outcome(
+      boundary::publish_completed_evidence,
+      pkgapply::backend_operation_outcome::completed);
+  backend_state->clear_events();
+
+  // A visible completed-evidence record is not durable evidence.  Failed
+  // synchronization keeps the verified active result but denies publication
+  // eligibility and omits completed evidence from the terminal journal.
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::completed_evidence,
+      pkgapply::application_durability_status::unconfirmed);
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    backend_state->set_observations({
+        pkgapply::application_path_observation::present(
+            observed_incoming(install_archive.image().entries().front())),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(completion.has_receipt() && completion.receipt() != nullptr &&
+                completion.receipt()->outcome() ==
+                    pkgapply::application_attempt_outcome::
+                        effects_visible_durability_unconfirmed &&
+                !completion.receipt()->completed_evidence().has_value() &&
+                completion.receipt()->paths().front().publication() ==
+                    pkgapply::ownership_publication_status::ineligible &&
+                completion.receipt()->durability().status(
+                    pkgapply::application_durability_domain::
+                        completed_evidence) ==
+                    pkgapply::application_durability_status::unconfirmed &&
+                backend_state->published_journal().has_value() &&
+                !backend_state->published_journal()->completed_evidence().
+                    has_value(),
+            "visible but unsynchronized evidence became installed-state truth");
+  }
+  backend_state->set_durability(
+      pkgapply::application_durability_domain::completed_evidence,
+      pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // Archive-free removal observes absence and seals the same completed-evidence
+  // contract without inventing incoming image authority.
+  backend_state->set_observations(
+      matching_observations(removal_request.plan().preconditions()));
+  {
+    auto admission = pkgapply::detail::admit_application_engine(
+        removal_request, removal_state, lease, backend);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), removal_request, removal_state,
+        lease);
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), removal_request, removal_state, lease);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), removal_request, removal_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), removal_request, removal_state,
+        lease);
+    backend_state->set_observations({
+        pkgapply::application_path_observation::absent(
+            removal_request.plan().paths().front().path()),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), removal_request, removal_state, lease);
+    require(completion.has_receipt() && completion.receipt() != nullptr &&
+                completion.receipt()->outcome() ==
+                    pkgapply::application_attempt_outcome::completed &&
+                completion.receipt()->paths().front().after().state() ==
+                    pkgapply::fact_state::not_applicable,
+            "archive-free removal did not seal absent result evidence");
+  }
   backend_state->clear_events();
 
   // Recovery reverses the completed active prefix, including dependency order,

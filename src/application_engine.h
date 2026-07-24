@@ -388,6 +388,8 @@ enum class active_execution_interruption : std::uint8_t {
   effect_indeterminate = 2,
   durability_unconfirmed = 3,
   durability_indeterminate = 4,
+  result_observation_mismatch = 5,
+  result_observation_indeterminate = 6,
 };
 
 /*! \brief Transaction after every active effect reached a semantic terminal state. */
@@ -408,10 +410,14 @@ public:
 
   [[nodiscard]] rejected_published_application& rejected() noexcept;
   [[nodiscard]] const rejected_published_application& rejected() const noexcept;
+  [[nodiscard]] std::vector<active_effect_application_result>&
+  active_effects() noexcept;
   [[nodiscard]] const std::vector<active_effect_application_result>&
   active_effects() const noexcept;
   [[nodiscard]] const application_durability_profile&
   durability() const noexcept;
+  [[nodiscard]] std::vector<application_backend_evidence_identity>&
+  backend_evidence() noexcept;
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
 
@@ -518,6 +524,68 @@ execute_active_application_engine(
 [[nodiscard]] application_engine_active_execution
 execute_active_application_engine(
     rejected_published_application rejected,
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease);
+
+/*! \brief Final receipt or an observation interruption awaiting recovery. */
+class application_engine_completion final {
+public:
+  [[nodiscard]] static application_engine_completion
+  sealed(application_receipt receipt);
+
+  [[nodiscard]] static application_engine_completion
+  interrupted(rejected_published_application rejected,
+              std::vector<active_effect_application_result> active_effects,
+              active_execution_interruption interruption,
+              application_durability_profile durability,
+              std::vector<application_backend_evidence_identity>
+                  backend_evidence);
+
+  application_engine_completion(const application_engine_completion&) = delete;
+  application_engine_completion& operator=(
+      const application_engine_completion&) = delete;
+  application_engine_completion(application_engine_completion&&) noexcept =
+      default;
+  application_engine_completion& operator=(
+      application_engine_completion&&) noexcept = default;
+
+  [[nodiscard]] bool has_receipt() const noexcept;
+  [[nodiscard]] application_receipt* receipt() noexcept;
+  [[nodiscard]] const application_receipt* receipt() const noexcept;
+  [[nodiscard]] active_interrupted_application* interruption() noexcept;
+  [[nodiscard]] const active_interrupted_application*
+  interruption() const noexcept;
+
+private:
+  using value_type =
+      std::variant<application_receipt, active_interrupted_application>;
+  explicit application_engine_completion(value_type value);
+  value_type value_;
+};
+
+/*! \brief Observe and seal one successful installation attempt. */
+[[nodiscard]] application_engine_completion
+complete_application_engine(
+    active_mutated_application active,
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image);
+
+/*! \brief Observe and seal one successful upgrade attempt. */
+[[nodiscard]] application_engine_completion
+complete_application_engine(
+    active_mutated_application active,
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease,
+    const pkgimage::package_image& image);
+
+/*! \brief Observe and seal one successful removal attempt. */
+[[nodiscard]] application_engine_completion
+complete_application_engine(
+    active_mutated_application active,
     const removal_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);
