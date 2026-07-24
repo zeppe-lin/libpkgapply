@@ -243,6 +243,25 @@ public:
         {evidence_});
   }
 
+  completed_evidence_publication_result publish_completed_evidence(
+      const completed_application_evidence& evidence) override
+  {
+    state_->record(scripted_backend_boundary::publish_completed_evidence);
+    state_->maybe_throw(
+        scripted_backend_boundary::publish_completed_evidence);
+    const backend_operation_outcome outcome = state_->outcome(
+        scripted_backend_boundary::publish_completed_evidence);
+    if (outcome == backend_operation_outcome::completed)
+      state_->published_completed_evidence_ = evidence;
+    return completed_evidence_publication_result(
+        outcome,
+        outcome == backend_operation_outcome::completed
+            ? std::optional<completed_application_evidence_identity>(
+                  evidence.identity())
+            : std::nullopt,
+        {evidence_});
+  }
+
   backend_operation_result recover(
       const pkgplan::package_path& path) override
   {
@@ -361,6 +380,12 @@ const std::optional<application_journal_record>&
 scripted_backend_state::published_journal() const noexcept
 {
   return published_journal_;
+}
+
+const std::optional<completed_application_evidence>&
+scripted_backend_state::published_completed_evidence() const noexcept
+{
+  return published_completed_evidence_;
 }
 
 bool

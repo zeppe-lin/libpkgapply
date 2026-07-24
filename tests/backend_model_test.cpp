@@ -257,5 +257,35 @@ main()
       },
       "rejected publication accepted a conditional outcome");
 
+  const auto completed_record =
+      identity<pkgapply::completed_application_evidence_identity>(40);
+  const pkgapply::completed_evidence_publication_result evidence_completed(
+      pkgapply::backend_operation_outcome::completed, completed_record,
+      {evidence_a});
+  require(evidence_completed.record() == completed_record,
+          "completed evidence publication lost its exact record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::completed_evidence_publication_result(
+            pkgapply::backend_operation_outcome::completed, std::nullopt));
+      },
+      "completed evidence publication omitted its record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::completed_evidence_publication_result(
+            pkgapply::backend_operation_outcome::failed, completed_record));
+      },
+      "failed evidence publication retained a completed record");
+
+  require_invalid(
+      [&] {
+        static_cast<void>(pkgapply::completed_evidence_publication_result(
+            pkgapply::backend_operation_outcome::conditional_retained,
+            std::nullopt));
+      },
+      "completed evidence publication accepted a conditional outcome");
+
   return 0;
 }

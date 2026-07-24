@@ -70,6 +70,32 @@ private:
   std::vector<application_backend_evidence_identity> evidence_;
 };
 
+/*! \brief Result of publishing one immutable completed-evidence record. */
+class completed_evidence_publication_result final {
+public:
+  /*!
+   * \brief Retain publication outcome, completed record, and mechanism evidence.
+   *
+   * A completed outcome requires the exact completed-evidence identity. Failed
+   * and indeterminate outcomes cannot claim a published evidence record.
+   */
+  completed_evidence_publication_result(
+      backend_operation_outcome outcome,
+      std::optional<completed_application_evidence_identity> record,
+      std::vector<application_backend_evidence_identity> evidence = {});
+
+  [[nodiscard]] backend_operation_outcome outcome() const noexcept;
+  [[nodiscard]] const std::optional<completed_application_evidence_identity>&
+  record() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  evidence() const noexcept;
+
+private:
+  backend_operation_outcome outcome_;
+  std::optional<completed_application_evidence_identity> record_;
+  std::vector<application_backend_evidence_identity> evidence_;
+};
+
 /*! \brief Exact observation closure returned for one requested path set. */
 class backend_observation_batch final {
 public:
@@ -243,6 +269,11 @@ public:
 
   [[nodiscard]] virtual rejected_object_publication_result execute_rejected(
       const backend_rejected_effect_request& request) = 0;
+
+  /*! \brief Publish one exact completed-evidence record before final receipt sealing. */
+  [[nodiscard]] virtual completed_evidence_publication_result
+  publish_completed_evidence(
+      const completed_application_evidence& evidence) = 0;
 
   [[nodiscard]] virtual backend_operation_result recover(
       const pkgplan::package_path& path) = 0;

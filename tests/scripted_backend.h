@@ -27,6 +27,7 @@ enum class scripted_backend_boundary {
   capture_old,
   execute_active,
   execute_rejected,
+  publish_completed_evidence,
   recover,
   synchronize,
   publish_journal,
@@ -59,6 +60,8 @@ public:
   [[nodiscard]] const std::vector<scripted_backend_event>& events() const noexcept;
   [[nodiscard]] const std::optional<application_journal_record>&
   published_journal() const noexcept;
+  [[nodiscard]] const std::optional<completed_application_evidence>&
+  published_completed_evidence() const noexcept;
   [[nodiscard]] bool transaction_alive() const noexcept;
   void clear_events() noexcept;
 
@@ -85,6 +88,7 @@ private:
   std::set<scripted_backend_boundary> throws_;
   std::vector<scripted_backend_event> events_;
   std::optional<application_journal_record> published_journal_;
+  std::optional<completed_application_evidence> published_completed_evidence_;
   bool exact_recovery_possible_ = true;
   std::optional<application_target_context_identity>
       transaction_target_;

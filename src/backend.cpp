@@ -91,6 +91,38 @@ const std::vector<application_backend_evidence_identity>&
 rejected_object_publication_result::evidence() const noexcept
 { return evidence_; }
 
+completed_evidence_publication_result::completed_evidence_publication_result(
+    backend_operation_outcome outcome,
+    std::optional<completed_application_evidence_identity> record,
+    std::vector<application_backend_evidence_identity> evidence)
+    : outcome_(outcome), record_(std::move(record)),
+      evidence_(std::move(evidence))
+{
+  if (!valid_outcome(outcome_) ||
+      outcome_ == backend_operation_outcome::conditional_retained)
+  {
+    throw std::invalid_argument(
+        "invalid completed-evidence publication outcome");
+  }
+  if ((outcome_ == backend_operation_outcome::completed) !=
+      record_.has_value())
+  {
+    throw std::invalid_argument(
+        "completed-evidence publication record applicability mismatch");
+  }
+  normalize_evidence(evidence_);
+}
+
+backend_operation_outcome
+completed_evidence_publication_result::outcome() const noexcept
+{ return outcome_; }
+const std::optional<completed_application_evidence_identity>&
+completed_evidence_publication_result::record() const noexcept
+{ return record_; }
+const std::vector<application_backend_evidence_identity>&
+completed_evidence_publication_result::evidence() const noexcept
+{ return evidence_; }
+
 backend_observation_batch
 backend_observation_batch::make(
     std::vector<pkgplan::package_path> requested,
