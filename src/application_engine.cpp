@@ -4627,9 +4627,12 @@ restart_seal_terminal_receipt(
   {
     throw std::logic_error("restart journal contains another receipt");
   }
-  if (application.journal().completed_evidence() != evidence)
+  if (application.journal().completed_evidence() &&
+      application.journal().completed_evidence() != evidence)
+  {
     throw std::logic_error(
         "restart journal contains another completed-evidence identity");
+  }
   if (application.journal().receipt() && !current.terminal)
     throw std::logic_error("restart journal receipt lacks a completed seal");
 

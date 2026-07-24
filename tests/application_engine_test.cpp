@@ -2307,10 +2307,14 @@ main()
     const auto& durable = backend_state->published_journal();
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
+                !effects_visible_restart.completed_evidence().has_value() &&
+                receipt.completed_evidence().has_value() &&
+                durable.has_value() &&
+                durable->completed_evidence() ==
+                    receipt.completed_evidence()->identity() &&
                 count_boundary(backend_state->events(),
                                boundary::execute_active) == 0 &&
                 count_boundary(backend_state->events(), boundary::observe) == 1 &&
-                durable.has_value() &&
                 count_journal_events(
                     *durable,
                     pkgapply::application_journal_effect_kind::observe_result,
