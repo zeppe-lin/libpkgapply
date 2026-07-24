@@ -414,6 +414,27 @@ count_boundary(
 }
 
 std::size_t
+count_journal_events(
+    const pkgapply::application_journal_record& journal,
+    pkgapply::application_journal_effect_kind effect_kind,
+    pkgapply::application_journal_event_kind event_kind)
+{
+  return static_cast<std::size_t>(std::count_if(
+      journal.events().begin(), journal.events().end(),
+      [&journal, effect_kind, event_kind](const auto& event) {
+        if (event.kind() != event_kind)
+          return false;
+        const auto effect = std::find_if(
+            journal.effects().begin(), journal.effects().end(),
+            [&event](const auto& candidate) {
+              return candidate.identity() == event.effect();
+            });
+        return effect != journal.effects().end() &&
+            effect->kind() == effect_kind;
+      }));
+}
+
+std::size_t
 first_synchronization(
     const std::vector<pkgapply::test::scripted_backend_event>& events,
     pkgapply::application_durability_domain domain)
@@ -2283,12 +2304,30 @@ main()
     const auto receipt = pkgapply::resume_application(
         install_request, restart_state, restart_lease, backend,
         effects_visible_restart, install_archive);
+    const auto& durable = backend_state->published_journal();
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
                 count_boundary(backend_state->events(),
                                boundary::execute_active) == 0 &&
-                count_boundary(backend_state->events(), boundary::observe) == 1,
-            "restart repeated a durably completed active effect");
+                count_boundary(backend_state->events(), boundary::observe) == 1 &&
+                durable.has_value() &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::observe_result,
+                    pkgapply::application_journal_event_kind::intent) == 1 &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::observe_result,
+                    pkgapply::application_journal_event_kind::completed) == 1 &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::seal_receipt,
+                    pkgapply::application_journal_event_kind::intent) == 1 &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::seal_receipt,
+                    pkgapply::application_journal_event_kind::completed) == 1,
+            "restart repeated an active effect or lost terminal journal events");
   }
   backend_state->clear_events();
 

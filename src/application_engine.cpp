@@ -4240,18 +4240,25 @@ restart_progress(const application_journal_record& journal)
   return progress;
 }
 
+/*
+ * Publishing a journal snapshot replaces the current record and invalidates
+ * references and pointers into effects(). Restart replay therefore retains
+ * only immutable effect identities across publication boundaries.
+ */
 const restart_effect_progress&
 restart_progress_for(
     const application_journal_record& journal,
     const std::vector<restart_effect_progress>& progress,
-    const application_journal_effect& effect)
+    const application_journal_effect_identity& effect)
 {
-  if (effect.ordinal() >= progress.size() ||
-      journal.effects()[effect.ordinal()].identity() != effect.identity())
-  {
-    throw std::logic_error("restart effect ordinal changed");
-  }
-  return progress[effect.ordinal()];
+  const auto found = std::find_if(
+      journal.effects().begin(), journal.effects().end(),
+      [&effect](const auto& candidate) {
+        return candidate.identity() == effect;
+      });
+  if (found == journal.effects().end() || found->ordinal() >= progress.size())
+    throw std::logic_error("restart journal lost an effect identity");
+  return progress[found->ordinal()];
 }
 
 const application_journal_effect*
@@ -4276,7 +4283,7 @@ find_optional_effect(const application_journal_record& journal,
 void
 resolve_checkpoint_effect(
     journaled_application& application,
-    const application_journal_effect& effect,
+    application_journal_effect_identity effect,
     application_journal_event_kind terminal,
     const std::vector<application_backend_evidence_identity>& evidence)
 {
@@ -4292,7 +4299,7 @@ resolve_checkpoint_effect(
     return;
   }
   publish_event(
-      application, application.journal().state(), effect.identity(), terminal,
+      application, application.journal().state(), std::move(effect), terminal,
       evidence);
 }
 
@@ -4355,7 +4362,7 @@ restart_synchronization_kind(
         const auto* effect = find_optional_effect(journal, kind);
         if (effect == nullptr)
           continue;
-        const auto& state = restart_progress_for(journal, progress, *effect);
+        const auto& state = restart_progress_for(journal, progress, effect->identity());
         if (state.intended && !state.terminal)
           return kind;
       }
@@ -4375,30 +4382,31 @@ reconcile_restart_checkpoint(
     throw std::logic_error("restart checkpoint belongs to another journal");
 
   if (checkpoint.incoming_payload()) {
-    bool found = false;
+    std::vector<application_journal_effect_identity> effects;
     for (const auto& effect : application.journal().effects()) {
-      if (effect.kind() !=
+      if (effect.kind() ==
           application_journal_effect_kind::stage_incoming_payload)
       {
-        continue;
+        effects.push_back(effect.identity());
       }
-      found = true;
+    }
+    if (effects.empty())
+      throw std::logic_error(
+          "restart checkpoint retained an unplanned payload stage");
+    for (const auto& effect : effects) {
       resolve_checkpoint_effect(
           application, effect,
           terminal_event(checkpoint.incoming_payload()->outcome()),
           checkpoint.incoming_payload()->evidence());
     }
-    if (!found)
-      throw std::logic_error(
-          "restart checkpoint retained an unplanned payload stage");
   }
 
   for (const auto& capture : checkpoint.captures()) {
     const auto& request = restart_capture_request(application, capture.path());
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
         application_journal_effect_kind::capture_old_object,
-        capture.path());
+        capture.path()).identity();
     resolve_checkpoint_effect(
         application, effect,
         restart_capture_terminal(request, capture.result(), recovery),
@@ -4406,30 +4414,30 @@ reconcile_restart_checkpoint(
   }
 
   for (const auto& rejected : checkpoint.rejected_effects()) {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
         application_journal_effect_kind::publish_rejected_object,
-        rejected.path());
+        rejected.path()).identity();
     resolve_checkpoint_effect(
         application, effect, terminal_event(rejected.result().outcome()),
         rejected.result().evidence());
   }
 
   for (const auto& active : checkpoint.active_effects()) {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
         application_journal_effect_kind::publish_active_object,
-        active.path());
+        active.path()).identity();
     resolve_checkpoint_effect(
         application, effect, active_terminal_event(active.result().outcome()),
         active.result().evidence());
   }
 
   for (const auto& recovered : checkpoint.recovery_effects()) {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
         application_journal_effect_kind::recover_active_object,
-        recovered.path());
+        recovered.path()).identity();
     resolve_checkpoint_effect(
         application, effect, terminal_event(recovered.result().outcome()),
         recovered.result().evidence());
@@ -4441,13 +4449,14 @@ reconcile_restart_checkpoint(
     const auto* effect = find_optional_effect(application.journal(), kind);
     if (effect == nullptr)
       continue;
+    const auto effect_identity = effect->identity();
     const auto progress = restart_progress(application.journal());
     const auto& state = restart_progress_for(
-        application.journal(), progress, *effect);
+        application.journal(), progress, effect_identity);
     if (!state.intended || state.terminal)
       continue;
     resolve_checkpoint_effect(
-        application, *effect,
+        application, effect_identity,
         terminal_event(synchronization.result().status()), {});
   }
 
@@ -4460,9 +4469,9 @@ reconcile_restart_checkpoint(
       throw std::logic_error(
           "restart completed evidence belongs to another attempt");
     }
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
-        application_journal_effect_kind::publish_completed_evidence);
+        application_journal_effect_kind::publish_completed_evidence).identity();
     resolve_checkpoint_effect(
         application, effect, application_journal_event_kind::completed,
         evidence.backend_evidence());
@@ -4556,7 +4565,7 @@ rebuild_restart_application(
 bool
 restart_effect_completed(
     const application_journal_record& journal,
-    const application_journal_effect& effect)
+    const application_journal_effect_identity& effect)
 {
   const auto progress = restart_progress(journal);
   const auto& state = restart_progress_for(journal, progress, effect);
@@ -4566,14 +4575,14 @@ restart_effect_completed(
 void
 restart_publish_intent(journaled_application& application,
                        application_journal_state state,
-                       const application_journal_effect& effect)
+                       application_journal_effect_identity effect)
 {
   const auto progress = restart_progress(application.journal());
   const auto& current = restart_progress_for(
       application.journal(), progress, effect);
   if (!current.intended) {
     publish_event(
-        application, state, effect.identity(),
+        application, state, std::move(effect),
         application_journal_event_kind::intent);
   }
 }
@@ -4582,16 +4591,15 @@ void
 restart_publish_terminal(
     journaled_application& application,
     application_journal_state state,
-    const application_journal_effect& effect,
+    application_journal_effect_identity effect,
     application_journal_event_kind terminal,
     const std::vector<application_backend_evidence_identity>& evidence = {})
 {
   const auto progress = restart_progress(application.journal());
   const auto& current = restart_progress_for(
       application.journal(), progress, effect);
-  if (!current.terminal) {
-    publish_event(application, state, effect.identity(), terminal, evidence);
-  }
+  if (!current.terminal)
+    publish_event(application, state, std::move(effect), terminal, evidence);
 }
 
 void
@@ -4602,8 +4610,8 @@ restart_seal_terminal_receipt(
     const std::optional<completed_application_evidence_identity>& evidence =
         std::nullopt)
 {
-  const auto& seal = find_effect(
-      application.journal(), application_journal_effect_kind::seal_receipt);
+  const auto seal = find_effect(
+      application.journal(), application_journal_effect_kind::seal_receipt).identity();
   auto progress = restart_progress(application.journal());
   restart_effect_progress current = restart_progress_for(
       application.journal(), progress, seal);
@@ -4627,7 +4635,7 @@ restart_seal_terminal_receipt(
 
   if (!current.intended) {
     publish_event(
-        application, application.journal().state(), seal.identity(),
+        application, application.journal().state(), seal,
         application_journal_event_kind::intent);
     progress = restart_progress(application.journal());
     current = restart_progress_for(application.journal(), progress, seal);
@@ -4644,7 +4652,7 @@ restart_seal_terminal_receipt(
   if (!current.terminal) {
     events.emplace_back(
         static_cast<std::uint64_t>(events.size()),
-        application_journal_event_kind::completed, seal.identity());
+        application_journal_event_kind::completed, seal);
   }
   publish_snapshot(
       application, state, std::move(events), receipt.identity(), evidence);
@@ -4737,10 +4745,10 @@ resume_preparation(
           ? application_durability_status::not_attempted
           : application_durability_status::visible;
   for (const auto& request_capture : application.captures().requests()) {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         application.journal(),
         application_journal_effect_kind::capture_old_object,
-        request_capture.path());
+        request_capture.path()).identity();
     const auto capture_progress = restart_progress(application.journal());
     const auto& capture_state = restart_progress_for(
         application.journal(), capture_progress, effect);
@@ -4797,20 +4805,20 @@ resume_preparation(
     if (archive == nullptr)
       throw std::logic_error("incoming restart lost archive authority");
     validate_preparation_archive(application, request, *archive);
-    std::vector<const application_journal_effect*> payload_effects;
+    std::vector<application_journal_effect_identity> payload_effects;
     for (const auto& effect : application.journal().effects()) {
       if (effect.kind() ==
           application_journal_effect_kind::stage_incoming_payload)
       {
-        payload_effects.push_back(&effect);
+        payload_effects.push_back(effect.identity());
       }
     }
     const auto payload_progress = restart_progress(application.journal());
     const auto failed_payload = std::find_if(
         payload_effects.begin(), payload_effects.end(),
-        [&application, &payload_progress](const auto* effect) {
+        [&application, &payload_progress](const auto& effect) {
           const auto& current = restart_progress_for(
-              application.journal(), payload_progress, *effect);
+              application.journal(), payload_progress, effect);
           return current.terminal &&
               *current.terminal != application_journal_event_kind::completed;
         });
@@ -4829,8 +4837,8 @@ resume_preparation(
     }
     const bool already_staged = std::all_of(
         payload_effects.begin(), payload_effects.end(),
-        [&application](const auto* effect) {
-          return restart_effect_completed(application.journal(), *effect);
+        [&application](const auto& effect) {
+          return restart_effect_completed(application.journal(), effect);
         });
     if (already_staged) {
       if (!checkpoint.incoming_payload() ||
@@ -4845,9 +4853,9 @@ resume_preparation(
           evidence, checkpoint.incoming_payload()->evidence());
     }
     else {
-      for (const auto* effect : payload_effects) {
+      for (const auto& effect : payload_effects) {
         restart_publish_intent(
-            application, application_journal_state::preparing, *effect);
+            application, application_journal_state::preparing, effect);
       }
       std::unique_ptr<incoming_payload_stage> stage =
           application.admitted().transaction().begin_payload_stage(
@@ -4857,9 +4865,9 @@ resume_preparation(
       archive->replay(application.payloads()->selection(), *stage);
       backend_operation_result sealed = stage->seal();
       append_unique_evidence(evidence, sealed.evidence());
-      for (const auto* effect : payload_effects) {
+      for (const auto& effect : payload_effects) {
         restart_publish_terminal(
-            application, application_journal_state::preparing, *effect,
+            application, application_journal_state::preparing, effect,
             terminal_event(sealed.outcome()), sealed.evidence());
       }
       if (sealed.outcome() != backend_operation_outcome::completed) {
@@ -4879,7 +4887,7 @@ resume_preparation(
   const auto synchronize = [&](application_durability_domain domain,
                                application_journal_effect_kind kind,
                                application_durability_status& status) {
-    const auto& effect = find_effect(application.journal(), kind);
+    const auto effect = find_effect(application.journal(), kind).identity();
     const auto progress = restart_progress(application.journal());
     const auto& current = restart_progress_for(
         application.journal(), progress, effect);
@@ -4979,10 +4987,10 @@ resume_rejected_publication(
     backend_rejected_effect_request command =
         rejected_effect_request(decision, step);
     validate_rejected_source(prepared, command);
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         prepared.journaled().journal(),
         application_journal_effect_kind::publish_rejected_object,
-        step.path());
+        step.path()).identity();
     const auto progress = restart_progress(prepared.journaled().journal());
     const auto& current = restart_progress_for(
         prepared.journaled().journal(), progress, effect);
@@ -5058,9 +5066,9 @@ resume_rejected_publication(
   if (!effects.empty() &&
       requires_rejected_store_synchronization(request.control()))
   {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         prepared.journaled().journal(),
-        application_journal_effect_kind::synchronize_rejected_store);
+        application_journal_effect_kind::synchronize_rejected_store).identity();
     const auto progress = restart_progress(prepared.journaled().journal());
     const auto& current = restart_progress_for(
         prepared.journaled().journal(), progress, effect);
@@ -5127,9 +5135,9 @@ resume_active_execution(
     const auto& decision = active_decision(request.plan(), step.path());
     backend_active_effect_request command = active_effect_request(decision, step);
     validate_active_source(rejected, command);
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         rejected.prepared().journaled().journal(),
-        application_journal_effect_kind::publish_active_object, step.path());
+        application_journal_effect_kind::publish_active_object, step.path()).identity();
     const auto progress = restart_progress(
         rejected.prepared().journaled().journal());
     const auto& current = restart_progress_for(
@@ -5203,9 +5211,9 @@ resume_active_execution(
   if (active == application_durability_status::visible &&
       requires_active_namespace_synchronization(request.control()))
   {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         rejected.prepared().journaled().journal(),
-        application_journal_effect_kind::synchronize_active_namespace);
+        application_journal_effect_kind::synchronize_active_namespace).identity();
     const auto progress = restart_progress(
         rejected.prepared().journaled().journal());
     const auto& current = restart_progress_for(
@@ -5271,9 +5279,9 @@ restart_interruption(
   for (const auto& step : rejected.prepared().journaled().schedule().steps()) {
     if (step.kind() != application_effect_step_kind::publish_active_object)
       continue;
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         rejected.prepared().journaled().journal(),
-        application_journal_effect_kind::publish_active_object, step.path());
+        application_journal_effect_kind::publish_active_object, step.path()).identity();
     const auto progress = restart_progress(
         rejected.prepared().journaled().journal());
     const auto& current = restart_progress_for(
@@ -5317,7 +5325,8 @@ restart_interruption(
       const auto progress = restart_progress(
           rejected.prepared().journaled().journal());
       const auto& current = restart_progress_for(
-          rejected.prepared().journaled().journal(), progress, *synchronize);
+          rejected.prepared().journaled().journal(), progress,
+          synchronize->identity());
       if (current.intended &&
           current.terminal != application_journal_event_kind::completed)
       {
@@ -5343,7 +5352,8 @@ restart_interruption(
       const auto progress = restart_progress(
           rejected.prepared().journaled().journal());
       const auto& current = restart_progress_for(
-          rejected.prepared().journaled().journal(), progress, effect);
+          rejected.prepared().journaled().journal(), progress,
+          effect.identity());
       if (current.terminal == application_journal_event_kind::failed) {
         interruption =
             active_execution_interruption::result_observation_mismatch;
@@ -5438,9 +5448,9 @@ resume_recovery(
     const auto& path = candidate->request().path();
     const bool exact = exact_recovery_possible(interrupted, path);
     all_exact = all_exact && exact;
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         interrupted.rejected().prepared().journaled().journal(),
-        application_journal_effect_kind::recover_active_object, path);
+        application_journal_effect_kind::recover_active_object, path).identity();
     const auto progress = restart_progress(
         interrupted.rejected().prepared().journaled().journal());
     const auto& current = restart_progress_for(
@@ -5502,9 +5512,9 @@ resume_recovery(
   if (all_recovered &&
       requires_recovered_namespace_synchronization(request.control()))
   {
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         interrupted.rejected().prepared().journaled().journal(),
-        application_journal_effect_kind::synchronize_recovered_namespace);
+        application_journal_effect_kind::synchronize_recovered_namespace).identity();
     const auto progress = restart_progress(
         interrupted.rejected().prepared().journaled().journal());
     const auto& current = restart_progress_for(
@@ -5602,10 +5612,10 @@ resume_completion(
     indeterminate = indeterminate ||
         match == result_observation_match::indeterminate;
 
-    const auto& effect = find_effect(
+    const auto effect = find_effect(
         journaled.journal(),
         application_journal_effect_kind::observe_result,
-        decision.path());
+        decision.path()).identity();
     const auto progress = restart_progress(journaled.journal());
     const auto& current = restart_progress_for(
         journaled.journal(), progress, effect);
@@ -5707,9 +5717,9 @@ resume_completion(
     completed = retained;
   }
 
-  const auto& publish = find_effect(
+  const auto publish = find_effect(
       journaled.journal(),
-      application_journal_effect_kind::publish_completed_evidence);
+      application_journal_effect_kind::publish_completed_evidence).identity();
   const auto publish_progress = restart_progress(journaled.journal());
   const auto& publish_state = restart_progress_for(
       journaled.journal(), publish_progress, publish);
@@ -5764,9 +5774,9 @@ resume_completion(
     }
   }
 
-  const auto& synchronize = find_effect(
+  const auto synchronize = find_effect(
       journaled.journal(),
-      application_journal_effect_kind::synchronize_completed_evidence);
+      application_journal_effect_kind::synchronize_completed_evidence).identity();
   application_durability_status completed_status =
       application_durability_status::not_attempted;
   const auto synchronize_progress = restart_progress(journaled.journal());
