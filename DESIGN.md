@@ -545,6 +545,34 @@ This mechanism does not create active objects, rejected objects, recovery
 captures, or journal facts. The complete backend will compose it with the
 semantic engine and retain its full application-attempt binding.
 
+The POSIX old-object capture namespace is a separate attempt-bound authority.
+Its directory name and immutable binding commit to the full application attempt,
+not a package path or backend nonce. One capture record binds the exact logical
+path, rejected/recovery purposes, admitted observation, and whether exact prior-
+state restoration is physically supported.
+
+Regular objects are copied from an `O_NOFOLLOW` descriptor during one stable
+metadata interval. Bytes are streamed into a mode-0600 temporary file while size
+and SHA-256 are checked against admission, then the file is synchronized and
+linked into its immutable stable name. Non-regular captures retain the admitted
+metadata after a before/after no-follow stability check. The immutable capture
+record is synchronized and published only after any regular payload is visible.
+A crash may therefore leave reusable private bytes, but never a record that
+claims missing capture material.
+
+Exact recovery requires known mode, ownership, and timestamp facts. Regular
+objects additionally require known size and content identity. A multiply-linked
+regular object is exact only when its admitted hard-link anchor resolves to the
+same inode; an unknown relation remains usable as rejected bytes but cannot
+claim exact topology restoration. Sockets and unclassified object kinds are not
+captured as completed authority.
+
+Capture reload verifies attempt, path, purpose, admitted observation, record
+checksum, regular file type, size, stable descriptor interval, and content
+identity before granting a read-only payload descriptor. Exact republication is
+idempotent and does not reread a target that may already have changed. Namespace
+synchronization remains a separate backend durability operation.
+
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable
 attempt, then supplies both to `resume_application()`.
@@ -585,8 +613,8 @@ Core and backend split
 
 The reference `libpkgapply-posix` library is built in mechanism-sized
 tranches. It currently contains FD-anchored journal and immutable restart-
-checkpoint stores, target observation, and private incoming-payload staging.
-Its complete boundary will contain:
+checkpoint stores, target observation, private incoming-payload staging, and
+attempt-bound old-object capture storage. Its complete boundary will contain:
 
 * target-root and lease interoperability;
 * FD-anchored observation;

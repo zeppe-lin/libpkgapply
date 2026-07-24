@@ -96,6 +96,14 @@ and a sealed marker becomes restart authority only after all selected files are
 synchronized. Exact replay of an already sealed stage verifies bytes without
 rewriting them.
 
+Admitted old objects can likewise be preserved in an attempt-bound private
+capture namespace before any active-target mutation. Regular bytes are streamed
+from a descriptor-stable source into synchronized immutable payload files;
+metadata-only objects retain the exact admitted observation. A capture record is
+published last, so incomplete bytes never become rejected or recovery authority.
+Hard-link recovery is claimed exact only when the admitted anchor is physically
+proved, or when the source has no additional links.
+
 No concrete filesystem actuator or complete POSIX application backend is
 present yet. The core can classify a validated durable journal, reopen the exact
 backend attempt under a new outer lease, reconcile a stored replay checkpoint

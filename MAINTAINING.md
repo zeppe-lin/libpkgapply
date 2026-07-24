@@ -23,7 +23,8 @@ Schema discipline
 -----------------
 
 Application identities, completed evidence, journal and restart-checkpoint
-byte encodings, and backend storage are protocols. Do not change field order,
+byte encodings, payload and old-object private bindings, and backend storage are
+protocols. Do not change field order,
 integer width, enum tags, domain labels, normalization, checksum framing, or
 digest framing under an existing schema version.
 

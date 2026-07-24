@@ -261,6 +261,20 @@ Private payload-stage tests prove:
 * sealed descriptors remain available after namespace pathname movement; and
 * stored-file corruption is rejected before a read descriptor is granted.
 
+Private old-object capture tests prove:
+
+* the full application-attempt identity owns each capture namespace;
+* path and rejected/recovery purposes are immutable bindings;
+* regular bytes survive subsequent target replacement;
+* a fresh attempt refuses a source that differs from admission;
+* multiply-linked regular objects do not claim exact recovery without a proven
+  anchor;
+* a proven hard-link relation retains exact-recovery authority;
+* symbolic links and FIFOs retain exact admitted object facts;
+* idempotent capture replay does not reread the changed target;
+* foreign attempts cannot alias existing capture material; and
+* storage and target descriptors remain authoritative after pathname movement.
+
 The complete reference backend must additionally qualify:
 
 * no-follow component traversal below the managed target root;
