@@ -3,7 +3,13 @@
 
 libpkgapply_posix = library(
   'pkgapply-posix',
-  ['checkpoint_store.cpp', 'journal_store.cpp', 'payload_stage.cpp', 'target_observer.cpp'],
+  [
+    'capture_store.cpp',
+    'checkpoint_store.cpp',
+    'journal_store.cpp',
+    'payload_stage.cpp',
+    'target_observer.cpp',
+  ],
   include_directories: public_inc,
   dependencies: [libpkgapply_dep, libcrypto_dep],
   install: true,
@@ -21,6 +27,7 @@ meson.override_dependency('libpkgapply-posix', libpkgapply_posix_dep)
 
 install_headers(
   '../include/libpkgapply-posix/libpkgapply-posix.h',
+  '../include/libpkgapply-posix/capture_store.h',
   '../include/libpkgapply-posix/checkpoint_store.h',
   '../include/libpkgapply-posix/journal_store.h',
   '../include/libpkgapply-posix/payload_stage.h',
