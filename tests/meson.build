@@ -356,6 +356,23 @@ if get_option('tests').allowed()
   )
   test('encode durable restart checkpoints', restart_checkpoint_codec_test)
 
+  posix_capture_store_header_test = executable(
+    'posix-capture-store-header-test',
+    'posix_capture_store_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX capture store header independently',
+    posix_capture_store_header_test,
+  )
+
+  posix_capture_store_test = executable(
+    'posix-capture-store-test',
+    'posix_capture_store_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('capture private POSIX old objects', posix_capture_store_test)
+
   posix_checkpoint_store_header_test = executable(
     'posix-checkpoint-store-header-test',
     'posix_checkpoint_store_header_test.cpp',
