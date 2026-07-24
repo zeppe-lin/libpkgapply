@@ -5,6 +5,8 @@
 #include "plan_fixture.h"
 #include "scripted_backend.h"
 
+#include <libpkgapply/apply.h>
+
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -2068,6 +2070,112 @@ main()
   backend_state->set_durability(
       pkgapply::application_durability_domain::journal,
       pkgapply::application_durability_status::confirmed);
+  backend_state->clear_events();
+
+  // The public facade drives one installation through final observation and
+  // returns only after the same transaction seals a terminal receipt.
+  backend_state->set_observation_sequence({
+      matching_observations(install_request.plan().preconditions()),
+      {pkgapply::application_path_observation::present(
+          observed_incoming(install_archive.image().entries().front()))},
+  });
+  {
+    const auto receipt = pkgapply::apply(
+        install_request, install_state, lease, backend, install_archive);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::completed &&
+                receipt.completed_evidence().has_value() &&
+                receipt.paths().size() == 1 &&
+                receipt.paths().front().publication() ==
+                    pkgapply::ownership_publication_status::eligible,
+            "public installation facade did not seal completed truth");
+    require(count_boundary(backend_state->events(), boundary::observe) == 2 &&
+                backend_state->events().back().boundary ==
+                    boundary::transaction_destroyed &&
+                !backend_state->transaction_alive(),
+            "public installation facade did not retain exactly one transaction");
+  }
+  backend_state->clear_events();
+
+  // Upgrade and removal remain separate public overloads with their respective
+  // archive-bearing and archive-free authority shapes.
+  backend_state->set_observation_sequence({
+      matching_observations(upgrade_request.plan().preconditions()),
+      {pkgapply::application_path_observation::present(
+          observed_incoming(upgrade_archive.image().entries().front()))},
+  });
+  {
+    const auto receipt = pkgapply::apply(
+        upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::completed &&
+                receipt.kind() == pkgplan::operation_kind::upgrade,
+            "public upgrade facade did not seal completed truth");
+  }
+  backend_state->clear_events();
+
+  backend_state->set_observation_sequence({
+      matching_observations(removal_request.plan().preconditions()),
+      {pkgapply::application_path_observation::absent(
+          removal_request.plan().paths().front().path())},
+  });
+  {
+    const auto receipt = pkgapply::apply(
+        removal_request, removal_state, lease, backend);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::completed &&
+                receipt.kind() == pkgplan::operation_kind::remove &&
+                first_boundary(backend_state->events(),
+                               boundary::begin_without_incoming_image) <
+                    backend_state->events().size(),
+            "public removal facade invented incoming archive authority");
+  }
+  backend_state->clear_events();
+
+  // A final-observation contradiction is recovered inside the public call.
+  // No internal interrupted session escapes to the package manager.
+  backend_state->set_observation_sequence({
+      matching_observations(install_request.plan().preconditions()),
+      {pkgapply::application_path_observation::absent(install_path)},
+  });
+  {
+    const auto receipt = pkgapply::apply(
+        install_request, install_state, lease, backend, install_archive);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::
+                    failed_fully_recovered &&
+                receipt.recovery() ==
+                    pkgapply::application_recovery_state::
+                        exact_prior_state_restored &&
+                count_boundary(backend_state->events(), boundary::recover) ==
+                    1 &&
+                backend_state->events().back().boundary ==
+                    boundary::transaction_destroyed,
+            "public facade leaked or discarded recovery authority");
+  }
+  backend_state->clear_events();
+
+  // Stale preconditions remain a terminal refusal and never enter journal or
+  // mutation phases through the facade.
+  backend_state->set_observations({
+      pkgapply::application_path_observation::present(
+          observed_object(
+              install_path,
+              pkgapply::test::fixture::regular_object(9))),
+  });
+  {
+    const auto receipt = pkgapply::apply(
+        install_request, install_state, lease, backend, install_archive);
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::precondition_refused &&
+                first_boundary(backend_state->events(),
+                               boundary::publish_journal) ==
+                    backend_state->events().size() &&
+                first_boundary(backend_state->events(),
+                               boundary::execute_active) ==
+                    backend_state->events().size(),
+            "public facade crossed the stale-precondition boundary");
+  }
 
   return 0;
 }

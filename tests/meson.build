@@ -51,6 +51,13 @@ if get_option('tests').allowed()
   )
   test('compile admission header independently', admission_header_test)
 
+  apply_header_test = executable(
+    'apply-header-test',
+    'apply_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile apply header independently', apply_header_test)
+
   application_engine_test = executable(
     'application-engine-test',
     [

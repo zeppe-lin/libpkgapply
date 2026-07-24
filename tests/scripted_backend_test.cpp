@@ -326,6 +326,24 @@ main()
   }
 
   state->clear_events();
+  state->set_observation_sequence({
+      {pkgapply::application_path_observation::present(directory(path))},
+      {pkgapply::application_path_observation::absent(path)},
+  });
+  {
+    auto transaction =
+        backend.begin_without_incoming_image(context, lease);
+    const auto before = transaction->observe({path});
+    const auto after = transaction->observe({path});
+    require(before.find(path) != nullptr &&
+                before.find(path)->state() == pkgapply::fact_state::known &&
+                after.find(path) != nullptr &&
+                after.find(path)->state() ==
+                    pkgapply::fact_state::not_applicable,
+            "scripted observation sequence did not advance per batch");
+  }
+
+  state->clear_events();
   state->throw_at(pkgapply::test::scripted_backend_boundary::observe);
   {
     auto transaction =

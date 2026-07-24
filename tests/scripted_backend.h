@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -46,6 +47,8 @@ class scripted_backend_state final {
 public:
   void set_observations(
       std::vector<application_path_observation> observations);
+  void set_observation_sequence(
+      std::vector<std::vector<application_path_observation>> observations);
   void set_outcome(scripted_backend_boundary boundary,
                    backend_operation_outcome outcome);
   void set_durability(application_durability_domain domain,
@@ -78,10 +81,14 @@ private:
   outcome(scripted_backend_boundary boundary) const noexcept;
   [[nodiscard]] application_durability_status
   durability(application_durability_domain domain) const noexcept;
+  void select_observations_for_next_batch();
   [[nodiscard]] const application_path_observation*
   find_observation(const pkgplan::package_path& path) const noexcept;
 
   std::vector<application_path_observation> observations_;
+  std::vector<std::vector<application_path_observation>>
+      observation_sequence_;
+  std::size_t observation_sequence_index_ = 0;
   std::map<scripted_backend_boundary, backend_operation_outcome> outcomes_;
   std::map<application_durability_domain, application_durability_status>
       durability_;

@@ -13,6 +13,24 @@
 namespace pkgapply::test {
 namespace {
 
+void
+normalize_observations(
+    std::vector<application_path_observation>& observations)
+{
+  std::sort(observations.begin(), observations.end(),
+            [](const auto& lhs, const auto& rhs) {
+              return lhs.path() < rhs.path();
+            });
+  if (std::adjacent_find(
+          observations.begin(), observations.end(),
+          [](const auto& lhs, const auto& rhs) {
+            return lhs.path() == rhs.path();
+          }) != observations.end())
+  {
+    throw std::invalid_argument("duplicate scripted observation path");
+  }
+}
+
 rejected_object_record_identity
 rejected_record_identity(const pkgplan::package_path& path)
 {
@@ -172,6 +190,7 @@ public:
   {
     state_->record(scripted_backend_boundary::observe);
     state_->maybe_throw(scripted_backend_boundary::observe);
+    state_->select_observations_for_next_batch();
     std::vector<application_path_observation> observations;
     observations.reserve(paths.size());
     for (const pkgplan::package_path& path : paths) {
@@ -306,19 +325,21 @@ void
 scripted_backend_state::set_observations(
     std::vector<application_path_observation> observations)
 {
-  std::sort(observations.begin(), observations.end(),
-            [](const auto& lhs, const auto& rhs) {
-              return lhs.path() < rhs.path();
-            });
-  if (std::adjacent_find(
-          observations.begin(), observations.end(),
-          [](const auto& lhs, const auto& rhs) {
-            return lhs.path() == rhs.path();
-          }) != observations.end())
-  {
-    throw std::invalid_argument("duplicate scripted observation path");
-  }
+  normalize_observations(observations);
   observations_ = std::move(observations);
+  observation_sequence_.clear();
+  observation_sequence_index_ = 0;
+}
+
+void
+scripted_backend_state::set_observation_sequence(
+    std::vector<std::vector<application_path_observation>> observations)
+{
+  for (auto& batch : observations)
+    normalize_observations(batch);
+  observation_sequence_ = std::move(observations);
+  observation_sequence_index_ = 0;
+  observations_.clear();
 }
 
 void
@@ -435,6 +456,15 @@ scripted_backend_state::durability(
   return item == durability_.end()
       ? application_durability_status::confirmed
       : item->second;
+}
+
+void
+scripted_backend_state::select_observations_for_next_batch()
+{
+  if (observation_sequence_index_ >= observation_sequence_.size())
+    return;
+  observations_ = observation_sequence_[observation_sequence_index_];
+  ++observation_sequence_index_;
 }
 
 const application_path_observation*
