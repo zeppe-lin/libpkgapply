@@ -20,6 +20,8 @@
 
 namespace pkgapply {
 
+class application_restart_checkpoint;
+
 /*! \brief Mechanism-level completion reported by an application backend. */
 enum class backend_operation_outcome {
   completed,
@@ -257,6 +259,10 @@ public:
   /*! rief Return the durable journal reopened by this transaction, if any. */
   [[nodiscard]] virtual std::optional<application_journal_record_identity>
   resumed_journal() const noexcept;
+
+  /*! \brief Read exact durable replay material for the reopened journal. */
+  [[nodiscard]] virtual application_restart_checkpoint restart_checkpoint(
+      const application_journal_record& journal);
 
   [[nodiscard]] virtual backend_observation_batch observe(
       const std::vector<pkgplan::package_path>& paths) = 0;

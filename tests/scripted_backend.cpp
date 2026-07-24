@@ -94,7 +94,16 @@ public:
     const backend_operation_outcome outcome =
         state_->outcome(scripted_backend_boundary::payload_seal);
     sealed_ = outcome == backend_operation_outcome::completed;
-    return backend_operation_result(outcome, {evidence_});
+    backend_operation_result result(outcome, {evidence_});
+    state_->incoming_payload_ = result;
+    state_->retain_durability(
+        application_durability_domain::incoming_staging,
+        outcome == backend_operation_outcome::completed
+            ? application_durability_status::visible
+            : outcome == backend_operation_outcome::indeterminate
+                ? application_durability_status::indeterminate
+                : application_durability_status::unconfirmed);
+    return result;
   }
 
   void abandon() noexcept override
@@ -193,6 +202,21 @@ public:
     return resumed_journal_;
   }
 
+  application_restart_checkpoint restart_checkpoint(
+      const application_journal_record& journal) override
+  {
+    if (!resumed_journal_ || *resumed_journal_ != journal.identity())
+      throw std::logic_error("scripted checkpoint names another journal");
+    if (!state_->admitted_observations_)
+      throw std::logic_error("scripted checkpoint lacks admitted observations");
+    return application_restart_checkpoint::make(
+        journal.identity(), *state_->admitted_observations_,
+        state_->incoming_payload_, state_->restart_captures_,
+        state_->restart_rejected_effects_, state_->restart_active_effects_,
+        state_->checkpoint_durability(), {evidence_},
+        state_->published_completed_evidence_);
+  }
+
   backend_observation_batch observe(
       const std::vector<pkgplan::package_path>& paths) override
   {
@@ -207,9 +231,11 @@ public:
       if (observation != nullptr)
         observations.push_back(*observation);
     }
-    return backend_observation_batch::make(paths,
-                                           std::move(observations),
-                                           {evidence_});
+    backend_observation_batch batch = backend_observation_batch::make(
+        paths, std::move(observations), {evidence_});
+    if (!resumed_journal_ && !state_->admitted_observations_)
+      state_->admitted_observations_ = batch;
+    return batch;
   }
 
   std::unique_ptr<incoming_payload_stage> begin_payload_stage(
@@ -236,12 +262,21 @@ public:
         : *observation;
     const backend_operation_outcome outcome =
         state_->outcome(scripted_backend_boundary::capture_old);
-    return old_object_capture_result(
+    old_object_capture_result result(
         outcome,
         std::move(captured),
         outcome == backend_operation_outcome::completed &&
             state_->exact_recovery_possible_,
         {evidence_});
+    state_->retain_capture(application_restart_capture(result));
+    state_->retain_durability(
+        application_durability_domain::recovery_staging,
+        outcome == backend_operation_outcome::completed
+            ? application_durability_status::visible
+            : outcome == backend_operation_outcome::indeterminate
+                ? application_durability_status::indeterminate
+                : application_durability_status::unconfirmed);
+    return result;
   }
 
   backend_operation_result execute_active(
@@ -249,9 +284,22 @@ public:
   {
     state_->record(scripted_backend_boundary::execute_active, request.path());
     state_->maybe_throw(scripted_backend_boundary::execute_active);
-    return backend_operation_result(
+    backend_operation_result result(
         state_->outcome(scripted_backend_boundary::execute_active),
         {evidence_});
+    state_->retain_active(
+        application_restart_active_effect(request.path(), result));
+    if (result.outcome() == backend_operation_outcome::completed) {
+      state_->retain_durability(
+          application_durability_domain::active_namespace,
+          application_durability_status::visible);
+    }
+    else if (result.outcome() == backend_operation_outcome::indeterminate) {
+      state_->retain_durability(
+          application_durability_domain::active_namespace,
+          application_durability_status::indeterminate);
+    }
+    return result;
   }
 
   rejected_object_publication_result execute_rejected(
@@ -261,13 +309,23 @@ public:
     state_->maybe_throw(scripted_backend_boundary::execute_rejected);
     const backend_operation_outcome outcome =
         state_->outcome(scripted_backend_boundary::execute_rejected);
-    return rejected_object_publication_result(
+    rejected_object_publication_result result(
         outcome,
         outcome == backend_operation_outcome::completed
             ? std::optional<rejected_object_record_identity>(
                   rejected_record_identity(request.path()))
             : std::nullopt,
         {evidence_});
+    state_->retain_rejected(
+        application_restart_rejected_effect(request.path(), result));
+    state_->retain_durability(
+        application_durability_domain::rejected_object_store,
+        outcome == backend_operation_outcome::completed
+            ? application_durability_status::visible
+            : outcome == backend_operation_outcome::indeterminate
+                ? application_durability_status::indeterminate
+                : application_durability_status::unconfirmed);
+    return result;
   }
 
   completed_evidence_publication_result publish_completed_evidence(
@@ -280,6 +338,13 @@ public:
         scripted_backend_boundary::publish_completed_evidence);
     if (outcome == backend_operation_outcome::completed)
       state_->published_completed_evidence_ = evidence;
+    state_->retain_durability(
+        application_durability_domain::completed_evidence,
+        outcome == backend_operation_outcome::completed
+            ? application_durability_status::visible
+            : outcome == backend_operation_outcome::indeterminate
+                ? application_durability_status::indeterminate
+                : application_durability_status::unconfirmed);
     return completed_evidence_publication_result(
         outcome,
         outcome == backend_operation_outcome::completed
@@ -305,7 +370,9 @@ public:
                    std::nullopt,
                    domain);
     state_->maybe_throw(scripted_backend_boundary::synchronize);
-    return application_durability_fact(domain, state_->durability(domain));
+    const application_durability_status status = state_->durability(domain);
+    state_->retain_durability(domain, status);
+    return application_durability_fact(domain, status);
   }
 
   application_journal_record publish_journal(
@@ -314,6 +381,15 @@ public:
     state_->record(scripted_backend_boundary::publish_journal);
     state_->maybe_throw(scripted_backend_boundary::publish_journal);
     state_->published_journal_ = record;
+    const auto current = state_->established_durability_.find(
+        application_durability_domain::journal);
+    if (current == state_->established_durability_.end() ||
+        current->second == application_durability_status::not_attempted)
+    {
+      state_->retain_durability(
+          application_durability_domain::journal,
+          application_durability_status::visible);
+    }
     return *state_->published_journal_;
   }
 
@@ -329,6 +405,83 @@ private:
   std::optional<application_journal_record_identity> resumed_journal_;
   std::shared_ptr<scripted_backend_state> state_;
 };
+
+void
+scripted_backend_state::reset_attempt_checkpoint()
+{
+  published_journal_.reset();
+  published_completed_evidence_.reset();
+  admitted_observations_.reset();
+  incoming_payload_.reset();
+  restart_captures_.clear();
+  restart_rejected_effects_.clear();
+  restart_active_effects_.clear();
+  established_durability_.clear();
+}
+
+template<class Value>
+void retain_restart_value(std::vector<Value>& values, Value value)
+{
+  const auto item = std::lower_bound(
+      values.begin(), values.end(), value.path(),
+      [](const auto& candidate, const auto& path) {
+        return candidate.path() < path;
+      });
+  if (item != values.end() && item->path() == value.path())
+    *item = std::move(value);
+  else
+    values.insert(item, std::move(value));
+}
+
+void
+scripted_backend_state::retain_capture(application_restart_capture capture)
+{
+  retain_restart_value(restart_captures_, std::move(capture));
+}
+
+void
+scripted_backend_state::retain_rejected(
+    application_restart_rejected_effect effect)
+{
+  retain_restart_value(restart_rejected_effects_, std::move(effect));
+}
+
+void
+scripted_backend_state::retain_active(
+    application_restart_active_effect effect)
+{
+  retain_restart_value(restart_active_effects_, std::move(effect));
+}
+
+void
+scripted_backend_state::retain_durability(
+    application_durability_domain domain,
+    application_durability_status status)
+{
+  established_durability_[domain] = status;
+}
+
+application_durability_profile
+scripted_backend_state::checkpoint_durability() const
+{
+  std::vector<application_durability_fact> facts;
+  facts.reserve(6);
+  for (const application_durability_domain domain : {
+           application_durability_domain::journal,
+           application_durability_domain::incoming_staging,
+           application_durability_domain::recovery_staging,
+           application_durability_domain::active_namespace,
+           application_durability_domain::rejected_object_store,
+           application_durability_domain::completed_evidence})
+  {
+    const auto item = established_durability_.find(domain);
+    facts.emplace_back(
+        domain, item == established_durability_.end()
+            ? application_durability_status::not_attempted
+            : item->second);
+  }
+  return application_durability_profile(std::move(facts));
+}
 
 void
 scripted_backend_state::set_observations(
@@ -584,6 +737,8 @@ scripted_backend::begin(
     scripted_backend_boundary boundary,
     std::optional<application_journal_record_identity> resumed_journal)
 {
+  if (!resumed_journal)
+    state_->reset_attempt_checkpoint();
   state_->record(boundary);
   state_->maybe_throw(boundary);
   return std::make_unique<scripted_backend_transaction>(

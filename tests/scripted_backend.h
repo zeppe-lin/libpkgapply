@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <libpkgapply/backend.h>
+#include <libpkgapply/restart.h>
 
 namespace pkgapply::test {
 
@@ -86,6 +87,14 @@ private:
   void select_observations_for_next_batch();
   [[nodiscard]] const application_path_observation*
   find_observation(const pkgplan::package_path& path) const noexcept;
+  void reset_attempt_checkpoint();
+  void retain_capture(application_restart_capture capture);
+  void retain_rejected(application_restart_rejected_effect effect);
+  void retain_active(application_restart_active_effect effect);
+  void retain_durability(application_durability_domain domain,
+                         application_durability_status status);
+  [[nodiscard]] application_durability_profile
+  checkpoint_durability() const;
 
   std::vector<application_path_observation> observations_;
   std::vector<std::vector<application_path_observation>>
@@ -98,6 +107,13 @@ private:
   std::vector<scripted_backend_event> events_;
   std::optional<application_journal_record> published_journal_;
   std::optional<completed_application_evidence> published_completed_evidence_;
+  std::optional<backend_observation_batch> admitted_observations_;
+  std::optional<backend_operation_result> incoming_payload_;
+  std::vector<application_restart_capture> restart_captures_;
+  std::vector<application_restart_rejected_effect> restart_rejected_effects_;
+  std::vector<application_restart_active_effect> restart_active_effects_;
+  std::map<application_durability_domain, application_durability_status>
+      established_durability_;
   bool exact_recovery_possible_ = true;
   std::optional<application_target_context_identity>
       transaction_target_;

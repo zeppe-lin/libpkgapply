@@ -102,6 +102,27 @@ record(pkgapply::application_journal_state state,
       header(), state, effects(), std::move(events));
 }
 
+
+
+pkgapply::application_durability_profile
+checkpoint_durability()
+{
+  return pkgapply::application_durability_profile({
+      {pkgapply::application_durability_domain::journal,
+       pkgapply::application_durability_status::confirmed},
+      {pkgapply::application_durability_domain::incoming_staging,
+       pkgapply::application_durability_status::visible},
+      {pkgapply::application_durability_domain::recovery_staging,
+       pkgapply::application_durability_status::confirmed},
+      {pkgapply::application_durability_domain::active_namespace,
+       pkgapply::application_durability_status::visible},
+      {pkgapply::application_durability_domain::rejected_object_store,
+       pkgapply::application_durability_status::visible},
+      {pkgapply::application_durability_domain::completed_evidence,
+       pkgapply::application_durability_status::not_attempted},
+  });
+}
+
 } // namespace
 
 int
@@ -151,6 +172,40 @@ main()
 
   require(preparing.journal() != recovery_pending.journal(),
           "restart assessment ignored journal state identity");
+
+
+  const pkgplan::package_path checkpoint_path =
+      pkgplan::package_path::parse("usr/bin/tool");
+  const auto checkpoint_record = record(state::mutating);
+  const auto checkpoint = pkgapply::application_restart_checkpoint::make(
+      checkpoint_record.identity(),
+      pkgapply::backend_observation_batch::make(
+          {checkpoint_path},
+          {pkgapply::application_path_observation::unknown(checkpoint_path)}),
+      pkgapply::backend_operation_result(
+          pkgapply::backend_operation_outcome::completed),
+      {pkgapply::application_restart_capture(
+          pkgapply::old_object_capture_result(
+              pkgapply::backend_operation_outcome::completed,
+              pkgapply::application_path_observation::unknown(checkpoint_path),
+              true))},
+      {pkgapply::application_restart_rejected_effect(
+          checkpoint_path,
+          pkgapply::rejected_object_publication_result(
+              pkgapply::backend_operation_outcome::completed,
+              application_identity<
+                  pkgapply::rejected_object_record_identity>(30)))},
+      {pkgapply::application_restart_active_effect(
+          checkpoint_path,
+          pkgapply::backend_operation_result(
+              pkgapply::backend_operation_outcome::completed))},
+      checkpoint_durability());
+  require(checkpoint.journal() == checkpoint_record.identity() &&
+              checkpoint.find_capture(checkpoint_path) != nullptr &&
+              checkpoint.find_rejected_effect(checkpoint_path) != nullptr &&
+              checkpoint.find_active_effect(checkpoint_path) != nullptr &&
+              checkpoint.incoming_payload().has_value(),
+          "restart checkpoint lost durable attempt material");
 
   return 0;
 }

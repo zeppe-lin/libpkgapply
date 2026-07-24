@@ -2230,7 +2230,13 @@ main()
                     pkgapply::application_restart_disposition::resume_forward &&
                 reopened.transaction().resumed_journal().has_value() &&
                 *reopened.transaction().resumed_journal() ==
-                    restart_journal.identity(),
+                    restart_journal.identity() &&
+                reopened.checkpoint().journal() ==
+                    restart_journal.identity() &&
+                reopened.checkpoint().admitted_observations().requested().size() ==
+                    install_request.plan().preconditions().paths().size() &&
+                reopened.checkpoint().admitted_observations().find(
+                    install_path) != nullptr,
             "restart admission reopened another durable attempt");
     require(count_boundary(backend_state->events(),
                            boundary::resume_with_incoming_image) == 1 &&

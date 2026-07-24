@@ -4,8 +4,10 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <libpkgapply/backend.h>
 #include <libpkgapply/journal.h>
@@ -46,6 +48,122 @@ public:
 
 private:
   application_restart_error_code code_;
+};
+
+/*! \brief Durable capture fact retained by one reopened backend attempt. */
+class application_restart_capture final {
+public:
+  explicit application_restart_capture(old_object_capture_result result);
+
+  [[nodiscard]] const pkgplan::package_path& path() const noexcept;
+  [[nodiscard]] const old_object_capture_result& result() const noexcept;
+
+  friend bool operator<(const application_restart_capture& lhs,
+                        const application_restart_capture& rhs) noexcept;
+
+private:
+  old_object_capture_result result_;
+};
+
+/*! \brief Durable rejected-object result retained across process restart. */
+class application_restart_rejected_effect final {
+public:
+  application_restart_rejected_effect(
+      pkgplan::package_path path,
+      rejected_object_publication_result result);
+
+  [[nodiscard]] const pkgplan::package_path& path() const noexcept;
+  [[nodiscard]] const rejected_object_publication_result&
+  result() const noexcept;
+
+  friend bool operator<(const application_restart_rejected_effect& lhs,
+                        const application_restart_rejected_effect& rhs) noexcept;
+
+private:
+  pkgplan::package_path path_;
+  rejected_object_publication_result result_;
+};
+
+/*! \brief Durable active-effect result retained across process restart. */
+class application_restart_active_effect final {
+public:
+  application_restart_active_effect(
+      pkgplan::package_path path,
+      backend_operation_result result);
+
+  [[nodiscard]] const pkgplan::package_path& path() const noexcept;
+  [[nodiscard]] const backend_operation_result& result() const noexcept;
+
+  friend bool operator<(const application_restart_active_effect& lhs,
+                        const application_restart_active_effect& rhs) noexcept;
+
+private:
+  pkgplan::package_path path_;
+  backend_operation_result result_;
+};
+
+/*! \brief Exact backend-owned material required to replay one durable attempt. */
+class application_restart_checkpoint final {
+public:
+  [[nodiscard]] static application_restart_checkpoint make(
+      application_journal_record_identity journal,
+      backend_observation_batch admitted_observations,
+      std::optional<backend_operation_result> incoming_payload,
+      std::vector<application_restart_capture> captures,
+      std::vector<application_restart_rejected_effect> rejected_effects,
+      std::vector<application_restart_active_effect> active_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence = {},
+      std::optional<completed_application_evidence> completed_evidence =
+          std::nullopt);
+
+  [[nodiscard]] const application_journal_record_identity&
+  journal() const noexcept;
+  [[nodiscard]] const backend_observation_batch&
+  admitted_observations() const noexcept;
+  [[nodiscard]] const std::optional<backend_operation_result>&
+  incoming_payload() const noexcept;
+  [[nodiscard]] const std::vector<application_restart_capture>&
+  captures() const noexcept;
+  [[nodiscard]] const std::vector<application_restart_rejected_effect>&
+  rejected_effects() const noexcept;
+  [[nodiscard]] const std::vector<application_restart_active_effect>&
+  active_effects() const noexcept;
+  [[nodiscard]] const application_durability_profile&
+  durability() const noexcept;
+  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  backend_evidence() const noexcept;
+  [[nodiscard]] const std::optional<completed_application_evidence>&
+  completed_evidence() const noexcept;
+
+  [[nodiscard]] const application_restart_capture*
+  find_capture(const pkgplan::package_path& path) const noexcept;
+  [[nodiscard]] const application_restart_rejected_effect*
+  find_rejected_effect(const pkgplan::package_path& path) const noexcept;
+  [[nodiscard]] const application_restart_active_effect*
+  find_active_effect(const pkgplan::package_path& path) const noexcept;
+
+private:
+  application_restart_checkpoint(
+      application_journal_record_identity journal,
+      backend_observation_batch admitted_observations,
+      std::optional<backend_operation_result> incoming_payload,
+      std::vector<application_restart_capture> captures,
+      std::vector<application_restart_rejected_effect> rejected_effects,
+      std::vector<application_restart_active_effect> active_effects,
+      application_durability_profile durability,
+      std::vector<application_backend_evidence_identity> backend_evidence,
+      std::optional<completed_application_evidence> completed_evidence);
+
+  application_journal_record_identity journal_;
+  backend_observation_batch admitted_observations_;
+  std::optional<backend_operation_result> incoming_payload_;
+  std::vector<application_restart_capture> captures_;
+  std::vector<application_restart_rejected_effect> rejected_effects_;
+  std::vector<application_restart_active_effect> active_effects_;
+  application_durability_profile durability_;
+  std::vector<application_backend_evidence_identity> backend_evidence_;
+  std::optional<completed_application_evidence> completed_evidence_;
 };
 
 /*! \brief Pure assessment of one durable application journal snapshot. */

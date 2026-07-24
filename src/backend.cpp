@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <libpkgapply/backend.h>
+#include <libpkgapply/restart.h>
 
 #include <algorithm>
 #include <stdexcept>
@@ -309,6 +310,14 @@ std::optional<application_journal_record_identity>
 application_backend_transaction::resumed_journal() const noexcept
 {
   return std::nullopt;
+}
+
+application_restart_checkpoint
+application_backend_transaction::restart_checkpoint(
+    const application_journal_record&)
+{
+  throw std::logic_error(
+      "application backend transaction has no restart checkpoint");
 }
 
 std::unique_ptr<application_backend_transaction>

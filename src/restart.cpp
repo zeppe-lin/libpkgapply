@@ -141,6 +141,246 @@ disposition(const application_journal_record& journal)
 
 } // namespace
 
+
+application_restart_capture::application_restart_capture(
+    old_object_capture_result result)
+    : result_(std::move(result))
+{
+}
+
+const pkgplan::package_path&
+application_restart_capture::path() const noexcept
+{
+  return result_.captured().path();
+}
+
+const old_object_capture_result&
+application_restart_capture::result() const noexcept
+{
+  return result_;
+}
+
+bool
+operator<(const application_restart_capture& lhs,
+          const application_restart_capture& rhs) noexcept
+{
+  return lhs.path() < rhs.path();
+}
+
+application_restart_rejected_effect::application_restart_rejected_effect(
+    pkgplan::package_path path,
+    rejected_object_publication_result result)
+    : path_(std::move(path)), result_(std::move(result))
+{
+}
+
+const pkgplan::package_path&
+application_restart_rejected_effect::path() const noexcept
+{
+  return path_;
+}
+
+const rejected_object_publication_result&
+application_restart_rejected_effect::result() const noexcept
+{
+  return result_;
+}
+
+bool
+operator<(const application_restart_rejected_effect& lhs,
+          const application_restart_rejected_effect& rhs) noexcept
+{
+  return lhs.path() < rhs.path();
+}
+
+application_restart_active_effect::application_restart_active_effect(
+    pkgplan::package_path path,
+    backend_operation_result result)
+    : path_(std::move(path)), result_(std::move(result))
+{
+}
+
+const pkgplan::package_path&
+application_restart_active_effect::path() const noexcept
+{
+  return path_;
+}
+
+const backend_operation_result&
+application_restart_active_effect::result() const noexcept
+{
+  return result_;
+}
+
+bool
+operator<(const application_restart_active_effect& lhs,
+          const application_restart_active_effect& rhs) noexcept
+{
+  return lhs.path() < rhs.path();
+}
+
+namespace {
+
+template<class Value>
+void
+normalize_restart_path_values(std::vector<Value>& values,
+                              const char* duplicate_message)
+{
+  std::sort(values.begin(), values.end());
+  const auto duplicate = std::adjacent_find(
+      values.begin(), values.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.path() == rhs.path();
+      });
+  if (duplicate != values.end())
+    throw std::invalid_argument(duplicate_message);
+}
+
+template<class Value>
+const Value*
+find_restart_path_value(const std::vector<Value>& values,
+                        const pkgplan::package_path& path) noexcept
+{
+  const auto item = std::lower_bound(
+      values.begin(), values.end(), path,
+      [](const auto& candidate, const auto& wanted) {
+        return candidate.path() < wanted;
+      });
+  return item != values.end() && item->path() == path ? &*item : nullptr;
+}
+
+} // namespace
+
+application_restart_checkpoint
+application_restart_checkpoint::make(
+    application_journal_record_identity journal,
+    backend_observation_batch admitted_observations,
+    std::optional<backend_operation_result> incoming_payload,
+    std::vector<application_restart_capture> captures,
+    std::vector<application_restart_rejected_effect> rejected_effects,
+    std::vector<application_restart_active_effect> active_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence,
+    std::optional<completed_application_evidence> completed_evidence)
+{
+  normalize_restart_path_values(
+      captures, "duplicate restart capture path");
+  normalize_restart_path_values(
+      rejected_effects, "duplicate restart rejected-effect path");
+  normalize_restart_path_values(
+      active_effects, "duplicate restart active-effect path");
+  std::sort(backend_evidence.begin(), backend_evidence.end());
+  if (std::adjacent_find(
+          backend_evidence.begin(), backend_evidence.end()) !=
+      backend_evidence.end())
+  {
+    throw std::invalid_argument("duplicate restart backend evidence");
+  }
+
+  return application_restart_checkpoint(
+      std::move(journal), std::move(admitted_observations),
+      std::move(incoming_payload), std::move(captures),
+      std::move(rejected_effects), std::move(active_effects),
+      std::move(durability), std::move(backend_evidence),
+      std::move(completed_evidence));
+}
+
+application_restart_checkpoint::application_restart_checkpoint(
+    application_journal_record_identity journal,
+    backend_observation_batch admitted_observations,
+    std::optional<backend_operation_result> incoming_payload,
+    std::vector<application_restart_capture> captures,
+    std::vector<application_restart_rejected_effect> rejected_effects,
+    std::vector<application_restart_active_effect> active_effects,
+    application_durability_profile durability,
+    std::vector<application_backend_evidence_identity> backend_evidence,
+    std::optional<completed_application_evidence> completed_evidence)
+    : journal_(std::move(journal)),
+      admitted_observations_(std::move(admitted_observations)),
+      incoming_payload_(std::move(incoming_payload)),
+      captures_(std::move(captures)),
+      rejected_effects_(std::move(rejected_effects)),
+      active_effects_(std::move(active_effects)),
+      durability_(std::move(durability)),
+      backend_evidence_(std::move(backend_evidence)),
+      completed_evidence_(std::move(completed_evidence))
+{
+}
+
+const application_journal_record_identity&
+application_restart_checkpoint::journal() const noexcept
+{
+  return journal_;
+}
+
+const backend_observation_batch&
+application_restart_checkpoint::admitted_observations() const noexcept
+{
+  return admitted_observations_;
+}
+
+const std::optional<backend_operation_result>&
+application_restart_checkpoint::incoming_payload() const noexcept
+{
+  return incoming_payload_;
+}
+
+const std::vector<application_restart_capture>&
+application_restart_checkpoint::captures() const noexcept
+{
+  return captures_;
+}
+
+const std::vector<application_restart_rejected_effect>&
+application_restart_checkpoint::rejected_effects() const noexcept
+{
+  return rejected_effects_;
+}
+
+const std::vector<application_restart_active_effect>&
+application_restart_checkpoint::active_effects() const noexcept
+{
+  return active_effects_;
+}
+
+const application_durability_profile&
+application_restart_checkpoint::durability() const noexcept
+{
+  return durability_;
+}
+
+const std::vector<application_backend_evidence_identity>&
+application_restart_checkpoint::backend_evidence() const noexcept
+{
+  return backend_evidence_;
+}
+
+const std::optional<completed_application_evidence>&
+application_restart_checkpoint::completed_evidence() const noexcept
+{
+  return completed_evidence_;
+}
+
+const application_restart_capture*
+application_restart_checkpoint::find_capture(
+    const pkgplan::package_path& path) const noexcept
+{
+  return find_restart_path_value(captures_, path);
+}
+
+const application_restart_rejected_effect*
+application_restart_checkpoint::find_rejected_effect(
+    const pkgplan::package_path& path) const noexcept
+{
+  return find_restart_path_value(rejected_effects_, path);
+}
+
+const application_restart_active_effect*
+application_restart_checkpoint::find_active_effect(
+    const pkgplan::package_path& path) const noexcept
+{
+  return find_restart_path_value(active_effects_, path);
+}
+
 application_restart_assessment::application_restart_assessment(
     application_journal_record_identity journal,
     application_journal_state state,

@@ -88,10 +88,16 @@ finish_restart(const Request& request,
         "restarted transaction did not reproduce the durable attempt");
   }
 
+  application_restart_checkpoint checkpoint =
+      transaction->restart_checkpoint(journal);
+  if (checkpoint.journal() != journal.identity())
+    throw std::logic_error("backend restart checkpoint names another journal");
+
   return reopened_application(
       std::move(attempt),
       assess_application_restart(journal),
       journal,
+      std::move(checkpoint),
       std::move(transaction));
 }
 
@@ -285,10 +291,12 @@ reopened_application::reopened_application(
     application_attempt attempt,
     application_restart_assessment assessment,
     application_journal_record journal,
+    application_restart_checkpoint checkpoint,
     std::unique_ptr<application_backend_transaction> transaction)
     : attempt_(std::move(attempt)),
       assessment_(std::move(assessment)),
       journal_(std::move(journal)),
+      checkpoint_(std::move(checkpoint)),
       transaction_(std::move(transaction))
 {
   if (!transaction_)
@@ -299,6 +307,8 @@ reopened_application::reopened_application(
     throw std::invalid_argument("restart assessment names another journal");
   if (attempt_.identity() != journal_.header().attempt().identity())
     throw std::invalid_argument("reopened application names another attempt");
+  if (checkpoint_.journal() != journal_.identity())
+    throw std::invalid_argument("reopened checkpoint names another journal");
 }
 
 const application_attempt&
@@ -317,6 +327,12 @@ const application_journal_record&
 reopened_application::journal() const noexcept
 {
   return journal_;
+}
+
+const application_restart_checkpoint&
+reopened_application::checkpoint() const noexcept
+{
+  return checkpoint_;
 }
 
 application_backend_transaction&

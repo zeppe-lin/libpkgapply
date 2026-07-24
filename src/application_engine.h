@@ -118,6 +118,7 @@ public:
       application_attempt attempt,
       application_restart_assessment assessment,
       application_journal_record journal,
+      application_restart_checkpoint checkpoint,
       std::unique_ptr<application_backend_transaction> transaction);
 
   reopened_application(const reopened_application&) = delete;
@@ -129,6 +130,8 @@ public:
   [[nodiscard]] const application_restart_assessment&
   assessment() const noexcept;
   [[nodiscard]] const application_journal_record& journal() const noexcept;
+  [[nodiscard]] const application_restart_checkpoint&
+  checkpoint() const noexcept;
   [[nodiscard]] application_backend_transaction& transaction() noexcept;
   [[nodiscard]] const application_backend_transaction&
   transaction() const noexcept;
@@ -137,6 +140,7 @@ private:
   application_attempt attempt_;
   application_restart_assessment assessment_;
   application_journal_record journal_;
+  application_restart_checkpoint checkpoint_;
   std::unique_ptr<application_backend_transaction> transaction_;
 };
 
