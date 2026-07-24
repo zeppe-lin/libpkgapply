@@ -404,6 +404,23 @@ if get_option('tests').allowed()
   )
   test('stage private POSIX incoming payloads', posix_payload_stage_test)
 
+  posix_rejected_store_header_test = executable(
+    'posix-rejected-store-header-test',
+    'posix_rejected_store_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX rejected store header independently',
+    posix_rejected_store_header_test,
+  )
+
+  posix_rejected_store_test = executable(
+    'posix-rejected-store-test',
+    'posix_rejected_store_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('publish immutable POSIX rejected objects', posix_rejected_store_test)
+
   posix_target_observer_header_test = executable(
     'posix-target-observer-header-test',
     'posix_target_observer_header_test.cpp',
