@@ -232,6 +232,46 @@ if get_option('tests').allowed()
   )
   test('validate caller-held target mutation leases', mutation_lease_test)
 
+
+  journal_codec_header_test = executable(
+    'journal-codec-header-test',
+    'journal_codec_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('compile journal codec header independently', journal_codec_header_test)
+
+  journal_codec_test = executable(
+    'journal-codec-test',
+    'journal_codec_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('round-trip durable journal encodings', journal_codec_test)
+
+
+  posix_public_header_test = executable(
+    'posix-public-header-test',
+    'posix_public_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('compile POSIX public umbrella header', posix_public_header_test)
+
+  posix_journal_store_header_test = executable(
+    'posix-journal-store-header-test',
+    'posix_journal_store_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX journal store header independently',
+    posix_journal_store_header_test,
+  )
+
+  posix_journal_store_test = executable(
+    'posix-journal-store-test',
+    'posix_journal_store_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('persist POSIX journal snapshots atomically', posix_journal_store_test)
+
   journal_header_test = executable(
     'journal-header-test',
     'journal_header_test.cpp',
