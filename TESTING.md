@@ -227,15 +227,26 @@ In-process RAII cleanup and restart replay are tested separately.
 POSIX backend tests
 -------------------
 
-Ordinary reference-backend tests run in unprivileged temporary roots and
-cover:
+The current journal-store tranche runs in an unprivileged temporary directory
+and proves:
 
-* stable root handles;
-* no-follow component traversal;
+* stable directory-descriptor anchoring across pathname rename;
+* refusal to open a final directory symlink;
+* mode-0600 snapshot creation;
+* exact encode, publish, load, and identity preservation;
+* atomic monotonic replacement and exact idempotent republication;
+* stale snapshot rejection;
+* corrupt byte-stream rejection; and
+* absence of leftover temporary files after successful publication.
+
+The complete reference backend must additionally qualify:
+
+* no-follow component traversal below the managed target root;
 * symlink escape attempts;
 * path replacement races where controllable;
 * outer-lock interoperability with another process;
 * private staging and same-filesystem publication;
+* restart-checkpoint persistence;
 * rejected-store collision prevention;
 * regular, directory, symlink, hard-link, and FIFO effects;
 * zero-length files;

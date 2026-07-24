@@ -479,9 +479,29 @@ under the same attempt because they do not repeat a managed-target actuator
 command and remain backend-idempotent by attempt identity. Terminal journals
 are never silently reopened as new attempts.
 
-The core does not discover journal files or deserialize backend storage. Those
-mechanisms belong to the concrete backend, which supplies the validated journal
-record and durable replay checkpoint to `resume_application()`.
+The core owns the versioned journal wire format because journal field order,
+enum tags, digest domains, and identity verification are semantic protocol.
+Decoding is bounded, rejects trailing or malformed data, reconstructs every
+derived identity through the public model constructors, and requires the
+encoded record identity to match the reconstructed snapshot. A replacement
+snapshot must retain the same journal header and effect graph, preserve the
+entire prior event prefix, retain any resolution identities, follow an allowed
+execution-state transition, and leave receipt-bearing terminal snapshots
+immutable.
+
+The POSIX storage layer remains deliberately byte-oriented. It derives one
+safe filename from the stable journal identity, opens the store as a retained
+directory descriptor, writes a mode-0600 temporary regular file, synchronizes
+the file, atomically renames it over the prior snapshot, and synchronizes the
+directory. Failure after rename is reported separately as a visible replacement
+whose directory durability is unconfirmed. Loads use `openat()` without
+following the final symlink, require a bounded regular file, decode the complete
+stream, and verify that filename and journal content name the same journal.
+
+The core does not discover application attempts or deserialize backend restart
+checkpoints. Those mechanisms still belong to the complete backend, which
+supplies the validated journal record and durable replay checkpoint to
+`resume_application()`.
 
 State integration
 -----------------
@@ -517,12 +537,14 @@ Core and backend split
 * non-virtual application sequencing; and
 * constrained backend interfaces.
 
-The reference `libpkgapply-posix` library contains:
+The reference `libpkgapply-posix` library is built in mechanism-sized
+tranches. It currently contains the FD-anchored atomic journal snapshot store.
+Its complete boundary will contain:
 
 * target-root and lease interoperability;
 * FD-anchored observation;
 * private staging;
-* journal storage;
+* journal and restart-checkpoint storage;
 * active namespace mutation;
 * rejected-object storage;
 * durability synchronization; and

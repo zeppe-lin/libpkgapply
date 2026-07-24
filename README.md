@@ -70,15 +70,22 @@ foundation required before target mutation is admitted:
   active effects, final observation, and automatic typed recovery before
   returning a terminal receipt.
 
-No concrete filesystem actuator, durable journal-store implementation, or
-POSIX backend is present yet. The core can classify a validated durable
-journal, reopen the exact backend attempt under a new outer lease, reconcile a
-backend-owned replay checkpoint with the append-only journal, skip completed
-forward work, divert unresolved active or recovery intents away from repeated
-actuation, and resume to a terminal receipt. Private staging and durability
-synchronization may be retried under the same durable attempt because they do
-not reinterpret or repeat a managed-target actuator command. Installed-state
-publication remains outside this repository stage.
+The core now owns a strict versioned byte encoding for validated journal
+snapshots, including identity revalidation, bounded decoding, and monotonic
+successor checks. The first `libpkgapply-posix` mechanism stores those bytes in
+an FD-anchored directory using private temporary files, file synchronization,
+atomic rename, and directory synchronization. Exact republication is
+idempotent; stale, rewritten, foreign, corrupt, symlinked, or non-regular
+snapshots are rejected.
+
+No concrete filesystem actuator or complete POSIX application backend is
+present yet. Durable restart checkpoints still require their own backend-owned
+encoding and storage. The core can classify a validated durable journal,
+reopen the exact backend attempt under a new outer lease, reconcile a replay
+checkpoint with the append-only journal, skip completed forward work, divert
+unresolved actuator intents away from repeated actuation, and resume to a
+terminal receipt. Installed-state publication remains outside this repository
+stage.
 
 Authority boundary
 ------------------

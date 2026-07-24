@@ -11,7 +11,7 @@ A release requires:
 * optimized `NDEBUG` qualification;
 * address and undefined-behavior sanitizers;
 * public-header isolation;
-* installed pkg-config consumers;
+* installed `libpkgapply` and `libpkgapply-posix` pkg-config consumers;
 * journal and recovery failure injection;
 * state-seam qualification without a core `libpkgstate` dependency;
 * generated and linted manuals;
@@ -22,8 +22,8 @@ A release requires:
 Schema discipline
 -----------------
 
-Application identities, completed evidence, journals, and backend storage are
-protocols. Do not change field order, integer width, enum tags, domain labels,
+Application identities, completed evidence, journal byte encodings, and
+backend storage are protocols. Do not change field order, integer width, enum tags, domain labels,
 normalization, or digest framing under an existing schema version.
 
 Patch releases must preserve public API and ABI, identity schemas, journal
