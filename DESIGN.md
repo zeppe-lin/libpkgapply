@@ -82,6 +82,27 @@ not assumed to be payload replay order or safe filesystem execution order.
 The application core derives the effect dependency graph and uses canonical
 path order only as a deterministic tie-breaker.
 
+Public application facade
+-------------------------
+
+The package-manager-facing API exposes three operation-specific `apply()`
+overloads. Installation and upgrade retain a caller-owned `package_archive`;
+removal has no incoming archive parameter. Every overload also requires the
+exact lease-bound state projection, the caller-held outer mutation lease, and
+one selected backend.
+
+One call owns one backend transaction from fresh admission through terminal
+resolution. Typed active-effect and final-observation interruptions do not
+escape as private engine sessions. The facade applies the request's recovery
+control while the same transaction, journal, captures, and staged authorities
+remain live, then returns one immutable terminal receipt.
+
+Static authority errors, invalid canonical records, backend-contract
+violations, allocation failure, and early mechanism exceptions remain
+exceptions. The facade does not fabricate a receipt when physical truth cannot
+be established. It also does not publish installed state; a successful receipt
+and completed evidence remain inputs to `libpkgstate`.
+
 Target application context
 --------------------------
 

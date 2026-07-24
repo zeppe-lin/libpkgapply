@@ -142,6 +142,26 @@ unknown-result recovery seams, publication-ineligible evidence failures, exact
 completed-record identity return, completed-evidence durability, terminal
 receipt binding, and archive-free removal completion.
 
+Public facade tests
+-------------------
+
+The package-manager-facing `apply()` overloads must prove:
+
+* installation and upgrade retain archive-bearing authority for the whole call;
+* removal opens only the archive-free transaction form;
+* one backend transaction spans admission, effects, final observation, and
+  terminal journal sealing;
+* stale preconditions return before journal creation or mutation;
+* successful calls return completed evidence and publication-eligible paths;
+* active and final-observation interruptions are recovered before return;
+* no internal engine session type appears in the installed public headers; and
+* transaction destruction occurs only after the terminal receipt has been
+  materialized.
+
+The scripted backend supplies ordered observation snapshots so a facade test
+can represent planning-time truth followed by post-effect truth without
+reaching between private engine phases.
+
 Operation tests
 ---------------
 

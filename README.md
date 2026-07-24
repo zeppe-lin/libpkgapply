@@ -64,13 +64,17 @@ foundation required before target mutation is admitted:
   prefix, with exact, partial, disabled, and indeterminate recovery truth; and
 * final result observation, publication-eligibility checks, durable completed-
   evidence publication, terminal journal resolution, and immutable success or
-  failure receipts.
+  failure receipts; and
+* public installation, upgrade, and removal `apply()` overloads that drive one
+  admitted backend transaction through preparation, rejected publication,
+  active effects, final observation, and automatic typed recovery before
+  returning a terminal receipt.
 
 No concrete filesystem actuator, durable journal-store implementation, restart
-recovery implementation, or POSIX backend is present yet. The internal semantic
-engine now spans one in-process physical attempt through recovery or completed
-evidence. Installed-state publication and the public package-manager-facing
-orchestration facade remain outside this repository stage.
+recovery implementation, or POSIX backend is present yet. The semantic engine
+now spans one in-process physical attempt through recovery or completed
+evidence behind the public package-manager-facing application facade.
+Installed-state publication remains outside this repository stage.
 
 Authority boundary
 ------------------
