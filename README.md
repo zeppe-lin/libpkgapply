@@ -88,6 +88,14 @@ root directory. It refuses symbolic-link parents, inspects leaf links without
 following them, hashes regular bytes from stable descriptors, and verifies only
 explicitly requested hard-link relations.
 
+Private incoming regular payloads can now be staged beneath a retained
+namespace descriptor. One application-attempt identity owns one private stage;
+an immutable binding fixes the exact package image and selected regular entries
+before replay. Each payload is size- and SHA-256-verified before publication,
+and a sealed marker becomes restart authority only after all selected files are
+synchronized. Exact replay of an already sealed stage verifies bytes without
+rewriting them.
+
 No concrete filesystem actuator or complete POSIX application backend is
 present yet. The core can classify a validated durable journal, reopen the exact
 backend attempt under a new outer lease, reconcile a stored replay checkpoint

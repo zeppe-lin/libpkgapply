@@ -249,6 +249,18 @@ Checkpoint codec and store tests prove:
 * mode-0600 regular files and descriptor anchoring across directory rename; and
 * corrupt stored-byte rejection before replay.
 
+Private payload-stage tests prove:
+
+* one full application-attempt identity owns one stage directory;
+* image and exact regular-entry selection are fixed before replay;
+* zero-length and non-empty regular payloads are accepted;
+* size and SHA-256 content mismatches are rejected before sealing;
+* sealed replay verifies bytes without rewriting the stage;
+* another selection cannot reuse the same application attempt;
+* abandoned or incomplete stages are not restart authority;
+* sealed descriptors remain available after namespace pathname movement; and
+* stored-file corruption is rejected before a read descriptor is granted.
+
 The complete reference backend must additionally qualify:
 
 * no-follow component traversal below the managed target root;

@@ -362,22 +362,22 @@ The non-virtual semantic engine owns this sequence:
 9. Replay required regular payloads into private incoming staging.
 10. Synchronize required private staging domains and publish the `prepared`
     journal state.
-11. Publish the `mutating` journal state before the first rejected-store or
+12. Publish the `mutating` journal state before the first rejected-store or
     active-namespace effect.
-12. Publish each rejected object from its exact sealed incoming entry or exact
+13. Publish each rejected object from its exact sealed incoming entry or exact
     pre-mutation old-object capture, retaining the immutable rejected-record
     identity returned by the backend.
-13. Synchronize the rejected-object store to the guarantee selected by the
+14. Synchronize the rejected-object store to the guarantee selected by the
     application execution control.
-14. Execute the remaining core-derived active effect graph and synchronize the
+15. Execute the remaining core-derived active effect graph and synchronize the
     managed target when the selected durability contract requires it.
-15. Observe the complete resulting active-path universe and compare it with the
+16. Observe the complete resulting active-path universe and compare it with the
     frozen plan consequences.
-16. On contradiction or unknown result truth, retain the live transaction and
+17. On contradiction or unknown result truth, retain the live transaction and
     enter the recovery branch without publishing completed evidence.
-17. Construct completed evidence only after every path is observed and eligible.
-18. Publish and synchronize the exact completed-evidence record.
-19. Seal the terminal receipt and journal with the exact receipt and completed-
+18. Construct completed evidence only after every path is observed and eligible.
+19. Publish and synchronize the exact completed-evidence record.
+20. Seal the terminal receipt and journal with the exact receipt and completed-
     evidence identities.
 
 The target-mutation boundary refers to the managed active-object namespace.
@@ -518,6 +518,33 @@ is accepted only when the existing bytes are identical; conflicting bytes under
 the same journal-record identity are rejected. Loads verify the stored checksum,
 exact journal binding, and typed request binding before returning replay facts.
 
+The POSIX private payload namespace is also descriptor-anchored. A stage
+directory is named by the full application-attempt identity rather than by a
+package path, archive pathname, or nonce alone. Its immutable binding record
+commits to the request-bound attempt, target, backend, nonce, package-image
+identity, selected entry identifiers, canonical paths, declared sizes, and
+regular-content identities.
+
+Archive replay writes only selected regular entries. Pending files are private
+mode-0600 records. `end()` verifies the exact declared size and SHA-256 content
+identity, synchronizes the file, publishes its stable entry name, and
+synchronizes the stage directory. A seal record is published only after every
+selected entry completed. The seal record is identical to the binding record,
+so restart lookup cannot reinterpret one stage under another image or
+selection.
+
+A retry under the same application attempt behaves according to physical
+truth. An unsealed stage may be rewritten because it is private and has not
+become replay authority. A sealed stage is never rewritten: archive replay is
+compared byte-for-byte with the stored payloads and `seal()` returns the same
+completed staging evidence. Loading a sealed stage rechecks the binding, file
+type, size, stable descriptor interval, and content digest before granting a
+read-only descriptor. Incomplete stages are not returned as restart authority.
+
+This mechanism does not create active objects, rejected objects, recovery
+captures, or journal facts. The complete backend will compose it with the
+semantic engine and retain its full application-attempt binding.
+
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable
 attempt, then supplies both to `resume_application()`.
@@ -558,7 +585,8 @@ Core and backend split
 
 The reference `libpkgapply-posix` library is built in mechanism-sized
 tranches. It currently contains FD-anchored journal and immutable restart-
-checkpoint stores. Its complete boundary will contain:
+checkpoint stores, target observation, and private incoming-payload staging.
+Its complete boundary will contain:
 
 * target-root and lease interoperability;
 * FD-anchored observation;
@@ -605,20 +633,22 @@ Hard invariants
 7. Installation and upgrade replay only from the exact retained archive
    authority cited by the plan.
 8. Archive pathname and filename are never replay or package authority.
-9. Replay occurs into private staging before target mutation.
-10. Old-object evidence is captured before destructive effects.
-11. The semantic core derives effect order; backends do not choose policy.
-12. Every destructive effect has a durable write-ahead record.
-13. A receipt records actual outcome, recovery, and durability boundaries.
-14. Completed evidence exists only after complete application success.
-15. Planned ownership, completed object evidence, durable installed ownership,
+9. Replay occurs into an attempt-bound private stage before target mutation.
+10. A sealed payload stage is never reinterpreted under another attempt, image,
+    or regular-entry selection.
+11. Old-object evidence is captured before destructive effects.
+12. The semantic core derives effect order; backends do not choose policy.
+13. Every destructive effect has a durable write-ahead record.
+14. A receipt records actual outcome, recovery, and durability boundaries.
+15. Completed evidence exists only after complete application success.
+16. Planned ownership, completed object evidence, durable installed ownership,
     and current filesystem observation remain distinct.
-16. Removal requires no current candidate, source, provider, artifact, or
+17. Removal requires no current candidate, source, provider, artifact, or
     archive.
-17. Version 0.1.0 executes no unbound lifecycle declaration.
-18. `libpkgapply` does not publish installed state.
-19. `libpkgstate` is absent from the core dependency graph.
-20. No receipt or journal record invents global filesystem/state atomicity.
+18. Version 0.1.0 executes no unbound lifecycle declaration.
+19. `libpkgapply` does not publish installed state.
+20. `libpkgstate` is absent from the core dependency graph.
+21. No receipt or journal record invents global filesystem/state atomicity.
 
 ## FD-anchored target observation
 
