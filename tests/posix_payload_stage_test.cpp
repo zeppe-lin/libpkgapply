@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include <libpkgapply-posix/payload_stage.h>
+#include <libpkgimage/package_archive.h>
 
 #include <array>
 #include <cerrno>
