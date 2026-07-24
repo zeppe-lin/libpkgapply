@@ -304,4 +304,30 @@ const std::optional<pkgimage::entry_id>&
 backend_rejected_effect_request::incoming_entry() const noexcept
 { return incoming_entry_; }
 
+
+std::optional<application_journal_record_identity>
+application_backend_transaction::resumed_journal() const noexcept
+{
+  return std::nullopt;
+}
+
+std::unique_ptr<application_backend_transaction>
+application_backend::resume_with_incoming_image(
+    const application_target_context&,
+    target_mutation_lease&,
+    const application_journal_record&,
+    const pkgimage::package_image&)
+{
+  throw std::logic_error("application backend does not support restart");
+}
+
+std::unique_ptr<application_backend_transaction>
+application_backend::resume_without_incoming_image(
+    const application_target_context&,
+    target_mutation_lease&,
+    const application_journal_record&)
+{
+  throw std::logic_error("application backend does not support restart");
+}
+
 } // namespace pkgapply

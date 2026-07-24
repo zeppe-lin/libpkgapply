@@ -13,6 +13,7 @@
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/precondition.h>
 #include <libpkgapply/result.h>
+#include <libpkgapply/restart.h>
 #include <libpkgapply/schedule.h>
 #include <libpkgapply/journal.h>
 #include <libpkgimage/package_archive.h>
@@ -109,6 +110,58 @@ admit_application_engine(
 } // namespace pkgapply::detail
 
 namespace pkgapply::detail {
+
+/*! \brief One exact durable attempt reopened under a new outer lease. */
+class reopened_application final {
+public:
+  reopened_application(
+      application_attempt attempt,
+      application_restart_assessment assessment,
+      application_journal_record journal,
+      std::unique_ptr<application_backend_transaction> transaction);
+
+  reopened_application(const reopened_application&) = delete;
+  reopened_application& operator=(const reopened_application&) = delete;
+  reopened_application(reopened_application&&) noexcept = default;
+  reopened_application& operator=(reopened_application&&) noexcept = default;
+
+  [[nodiscard]] const application_attempt& attempt() const noexcept;
+  [[nodiscard]] const application_restart_assessment&
+  assessment() const noexcept;
+  [[nodiscard]] const application_journal_record& journal() const noexcept;
+  [[nodiscard]] application_backend_transaction& transaction() noexcept;
+  [[nodiscard]] const application_backend_transaction&
+  transaction() const noexcept;
+
+private:
+  application_attempt attempt_;
+  application_restart_assessment assessment_;
+  application_journal_record journal_;
+  std::unique_ptr<application_backend_transaction> transaction_;
+};
+
+[[nodiscard]] reopened_application reopen_application_engine(
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive);
+
+[[nodiscard]] reopened_application reopen_application_engine(
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive);
+
+[[nodiscard]] reopened_application reopen_application_engine(
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal);
 
 /*! \brief One admitted transaction with its complete durable effect graph. */
 class journaled_application final {

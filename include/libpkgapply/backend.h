@@ -254,6 +254,10 @@ public:
   [[nodiscard]] virtual const application_attempt_nonce&
   attempt_nonce() const noexcept = 0;
 
+  /*! rief Return the durable journal reopened by this transaction, if any. */
+  [[nodiscard]] virtual std::optional<application_journal_record_identity>
+  resumed_journal() const noexcept;
+
   [[nodiscard]] virtual backend_observation_batch observe(
       const std::vector<pkgplan::package_path>& paths) = 0;
 
@@ -315,6 +319,21 @@ public:
   begin_without_incoming_image(
       const application_target_context& target,
       target_mutation_lease& lease) = 0;
+
+  /*! rief Reopen one durable install or upgrade attempt under a new lease. */
+  [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
+  resume_with_incoming_image(
+      const application_target_context& target,
+      target_mutation_lease& lease,
+      const application_journal_record& journal,
+      const pkgimage::package_image& incoming_image);
+
+  /*! rief Reopen one durable removal attempt under a new lease. */
+  [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
+  resume_without_incoming_image(
+      const application_target_context& target,
+      target_mutation_lease& lease,
+      const application_journal_record& journal);
 };
 
 } // namespace pkgapply

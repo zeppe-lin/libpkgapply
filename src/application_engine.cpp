@@ -63,6 +63,39 @@ precondition_refusal(const Request& request,
 }
 
 template<class Request>
+[[nodiscard]] reopened_application
+finish_restart(const Request& request,
+               const lease_bound_state_projection& state,
+               target_mutation_lease& lease,
+               application_backend& backend,
+               const application_journal_record& journal,
+               std::unique_ptr<application_backend_transaction> transaction)
+{
+  if (!transaction)
+    throw std::logic_error("application backend returned no reopened transaction");
+
+  validate_restarted_backend_transaction(
+      request.target(), lease, backend, journal, *transaction);
+  validate_target_mutation_lease(request.target(), state, lease);
+
+  application_attempt attempt = application_attempt::make(
+      request.identity(),
+      request.target().identity(),
+      backend.identity(),
+      transaction->attempt_nonce());
+  if (attempt.identity() != journal.header().attempt().identity()) {
+    throw std::logic_error(
+        "restarted transaction did not reproduce the durable attempt");
+  }
+
+  return reopened_application(
+      std::move(attempt),
+      assess_application_restart(journal),
+      journal,
+      std::move(transaction));
+}
+
+template<class Request>
 [[nodiscard]] application_engine_admission
 finish_admission(const Request& request,
                  const lease_bound_state_projection& state,
@@ -246,6 +279,117 @@ admit_application_engine(
       lease,
       backend,
       backend.begin_without_incoming_image(request.target(), lease));
+}
+
+reopened_application::reopened_application(
+    application_attempt attempt,
+    application_restart_assessment assessment,
+    application_journal_record journal,
+    std::unique_ptr<application_backend_transaction> transaction)
+    : attempt_(std::move(attempt)),
+      assessment_(std::move(assessment)),
+      journal_(std::move(journal)),
+      transaction_(std::move(transaction))
+{
+  if (!transaction_)
+    throw std::invalid_argument("reopened application requires a transaction");
+  if (!assessment_.resumable())
+    throw std::invalid_argument("reopened application journal is not resumable");
+  if (assessment_.journal() != journal_.identity())
+    throw std::invalid_argument("restart assessment names another journal");
+  if (attempt_.identity() != journal_.header().attempt().identity())
+    throw std::invalid_argument("reopened application names another attempt");
+}
+
+const application_attempt&
+reopened_application::attempt() const noexcept
+{
+  return attempt_;
+}
+
+const application_restart_assessment&
+reopened_application::assessment() const noexcept
+{
+  return assessment_;
+}
+
+const application_journal_record&
+reopened_application::journal() const noexcept
+{
+  return journal_;
+}
+
+application_backend_transaction&
+reopened_application::transaction() noexcept
+{
+  return *transaction_;
+}
+
+const application_backend_transaction&
+reopened_application::transaction() const noexcept
+{
+  return *transaction_;
+}
+
+reopened_application
+reopen_application_engine(
+    const installation_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive)
+{
+  validate_application_restart(
+      request, state, lease, backend, journal, archive);
+  return finish_restart(
+      request,
+      state,
+      lease,
+      backend,
+      journal,
+      backend.resume_with_incoming_image(
+          request.target(), lease, journal, archive.image()));
+}
+
+reopened_application
+reopen_application_engine(
+    const upgrade_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal,
+    const pkgimage::package_archive& archive)
+{
+  validate_application_restart(
+      request, state, lease, backend, journal, archive);
+  return finish_restart(
+      request,
+      state,
+      lease,
+      backend,
+      journal,
+      backend.resume_with_incoming_image(
+          request.target(), lease, journal, archive.image()));
+}
+
+reopened_application
+reopen_application_engine(
+    const removal_application_request& request,
+    const lease_bound_state_projection& state,
+    target_mutation_lease& lease,
+    application_backend& backend,
+    const application_journal_record& journal)
+{
+  validate_application_restart(request, state, lease, backend, journal);
+  return finish_restart(
+      request,
+      state,
+      lease,
+      backend,
+      journal,
+      backend.resume_without_incoming_image(
+          request.target(), lease, journal));
 }
 
 } // namespace pkgapply::detail
