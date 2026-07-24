@@ -489,19 +489,37 @@ entire prior event prefix, retain any resolution identities, follow an allowed
 execution-state transition, and leave receipt-bearing terminal snapshots
 immutable.
 
-The POSIX storage layer remains deliberately byte-oriented. It derives one
-safe filename from the stable journal identity, opens the store as a retained
-directory descriptor, writes a mode-0600 temporary regular file, synchronizes
-the file, atomically renames it over the prior snapshot, and synchronizes the
-directory. Failure after rename is reported separately as a visible replacement
-whose directory durability is unconfirmed. Loads use `openat()` without
-following the final symlink, require a bounded regular file, decode the complete
-stream, and verify that filename and journal content name the same journal.
+The checkpoint wire format is also core-owned semantic protocol. It records
+the exact journal-record identity, admitted observations, private staging and
+capture outcomes, rejected and active effects, recovery effects,
+synchronization facts, six-domain durability truth, aggregate backend evidence,
+and completed evidence when present. A SHA-256 body checksum detects same-length
+corruption before semantic reconstruction. Decoding is bounded and requires the
+exact journal snapshot plus immutable application request; plan-derived path
+roles, ownership transitions, and intended outcomes are reconstructed from that
+request rather than accepted as a second controller input.
 
-The core does not discover application attempts or deserialize backend restart
-checkpoints. Those mechanisms still belong to the complete backend, which
-supplies the validated journal record and durable replay checkpoint to
-`resume_application()`.
+The POSIX storage layer remains deliberately byte-oriented. Journal storage
+derives one safe filename from the stable journal identity, opens the store as a
+retained directory descriptor, writes a mode-0600 temporary regular file,
+synchronizes the file, atomically renames it over the prior snapshot, and
+synchronizes the directory. Failure after rename is reported separately as a
+visible replacement whose directory durability is unconfirmed. Loads use
+`openat()` without following the final symlink, require a bounded regular file,
+decode the complete stream, and verify that filename and journal content name
+the same journal.
+
+Checkpoint storage derives a separate safe filename from the exact journal-
+record identity. Each snapshot is immutable: publication writes and synchronizes
+a mode-0600 temporary file, links it into the directory without replacement,
+removes the temporary name, and synchronizes the directory. Exact republication
+is accepted only when the existing bytes are identical; conflicting bytes under
+the same journal-record identity are rejected. Loads verify the stored checksum,
+exact journal binding, and typed request binding before returning replay facts.
+
+The core does not discover application attempts. The complete backend still
+selects which validated journal snapshot and checkpoint belong to a durable
+attempt, then supplies both to `resume_application()`.
 
 State integration
 -----------------
@@ -538,8 +556,8 @@ Core and backend split
 * constrained backend interfaces.
 
 The reference `libpkgapply-posix` library is built in mechanism-sized
-tranches. It currently contains the FD-anchored atomic journal snapshot store.
-Its complete boundary will contain:
+tranches. It currently contains FD-anchored journal and immutable restart-
+checkpoint stores. Its complete boundary will contain:
 
 * target-root and lease interoperability;
 * FD-anchored observation;

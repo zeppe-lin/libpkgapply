@@ -70,22 +70,25 @@ foundation required before target mutation is admitted:
   active effects, final observation, and automatic typed recovery before
   returning a terminal receipt.
 
-The core now owns a strict versioned byte encoding for validated journal
-snapshots, including identity revalidation, bounded decoding, and monotonic
-successor checks. The first `libpkgapply-posix` mechanism stores those bytes in
-an FD-anchored directory using private temporary files, file synchronization,
-atomic rename, and directory synchronization. Exact republication is
-idempotent; stale, rewritten, foreign, corrupt, symlinked, or non-regular
-snapshots are rejected.
+The core now owns strict versioned byte encodings for validated journal
+snapshots and durable restart checkpoints. Journal decoding revalidates
+identities, bounds all input, and enforces monotonic successors. Checkpoint
+decoding verifies a body checksum and binds every reconstructed replay fact to
+the exact journal snapshot and immutable application request.
+
+`libpkgapply-posix` stores both protocols in FD-anchored directories. Journal
+snapshots use private temporary files, file synchronization, atomic replacement,
+and directory synchronization. Checkpoints are immutable per journal-record
+identity and use link-without-replace publication. Exact republication is
+idempotent; stale, rewritten, foreign, conflicting, corrupt, symlinked, or
+non-regular material is rejected.
 
 No concrete filesystem actuator or complete POSIX application backend is
-present yet. Durable restart checkpoints still require their own backend-owned
-encoding and storage. The core can classify a validated durable journal,
-reopen the exact backend attempt under a new outer lease, reconcile a replay
-checkpoint with the append-only journal, skip completed forward work, divert
-unresolved actuator intents away from repeated actuation, and resume to a
-terminal receipt. Installed-state publication remains outside this repository
-stage.
+present yet. The core can classify a validated durable journal, reopen the exact
+backend attempt under a new outer lease, reconcile a stored replay checkpoint
+with the append-only journal, skip completed forward work, divert unresolved
+actuator intents away from repeated actuation, and resume to a terminal receipt.
+Installed-state publication remains outside this repository stage.
 
 Authority boundary
 ------------------

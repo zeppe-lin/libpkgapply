@@ -227,8 +227,8 @@ In-process RAII cleanup and restart replay are tested separately.
 POSIX backend tests
 -------------------
 
-The current journal-store tranche runs in an unprivileged temporary directory
-and proves:
+The current journal and checkpoint stores run in unprivileged temporary
+directories. Journal-store tests prove:
 
 * stable directory-descriptor anchoring across pathname rename;
 * refusal to open a final directory symlink;
@@ -239,6 +239,16 @@ and proves:
 * corrupt byte-stream rejection; and
 * absence of leftover temporary files after successful publication.
 
+Checkpoint codec and store tests prove:
+
+* exact binding to one journal-record identity and immutable typed request;
+* byte-stable round trips including completed application evidence;
+* rejection of truncation, same-length checksum corruption, and foreign plans;
+* immutable link-without-replace publication and exact republication;
+* conflict rejection for different checkpoint bytes under one journal record;
+* mode-0600 regular files and descriptor anchoring across directory rename; and
+* corrupt stored-byte rejection before replay.
+
 The complete reference backend must additionally qualify:
 
 * no-follow component traversal below the managed target root;
@@ -246,7 +256,6 @@ The complete reference backend must additionally qualify:
 * path replacement races where controllable;
 * outer-lock interoperability with another process;
 * private staging and same-filesystem publication;
-* restart-checkpoint persistence;
 * rejected-store collision prevention;
 * regular, directory, symlink, hard-link, and FIFO effects;
 * zero-length files;

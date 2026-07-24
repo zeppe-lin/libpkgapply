@@ -22,9 +22,10 @@ A release requires:
 Schema discipline
 -----------------
 
-Application identities, completed evidence, journal byte encodings, and
-backend storage are protocols. Do not change field order, integer width, enum tags, domain labels,
-normalization, or digest framing under an existing schema version.
+Application identities, completed evidence, journal and restart-checkpoint
+byte encodings, and backend storage are protocols. Do not change field order,
+integer width, enum tags, domain labels, normalization, checksum framing, or
+digest framing under an existing schema version.
 
 Patch releases must preserve public API and ABI, identity schemas, journal
 readability, outcome meanings, and completed-evidence eligibility. An
