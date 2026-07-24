@@ -62,6 +62,19 @@ int main()
 
   rejected = false;
   try {
+    auto trailing = encoding;
+    trailing.push_back(0);
+    static_cast<void>(
+        pkgapply::decode_application_restart_checkpoint(trailing, journal, request));
+  }
+  catch (const pkgapply::application_restart_checkpoint_codec_error& error) {
+    rejected = error.code() ==
+        pkgapply::application_restart_checkpoint_codec_error_code::trailing_data;
+  }
+  require(rejected, "checkpoint codec accepted trailing bytes");
+
+  rejected = false;
+  try {
     auto corrupted = encoding;
     corrupted.back() ^= 0x01U;
     static_cast<void>(

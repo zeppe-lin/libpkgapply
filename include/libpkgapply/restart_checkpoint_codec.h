@@ -13,7 +13,7 @@
 
 namespace pkgapply {
 
-inline constexpr std::uint16_t application_restart_checkpoint_encoding_version = 1;
+inline constexpr std::uint16_t application_restart_checkpoint_encoding_version = 2;
 inline constexpr std::size_t maximum_application_restart_checkpoint_encoding_size =
     256U * 1024U * 1024U;
 

@@ -493,8 +493,9 @@ The checkpoint wire format is also core-owned semantic protocol. It records
 the exact journal-record identity, admitted observations, private staging and
 capture outcomes, rejected and active effects, recovery effects,
 synchronization facts, six-domain durability truth, aggregate backend evidence,
-and completed evidence when present. A SHA-256 body checksum detects same-length
-corruption before semantic reconstruction. Decoding is bounded and requires the
+and completed evidence when present. A length-qualified envelope distinguishes
+truncation and trailing data before a SHA-256 body checksum detects same-length
+corruption. Decoding is bounded and requires the
 exact journal snapshot plus immutable application request; plan-derived path
 roles, ownership transitions, and intended outcomes are reconstructed from that
 request rather than accepted as a second controller input.

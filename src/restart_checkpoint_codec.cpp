@@ -709,13 +709,28 @@ application_restart_checkpoint decode_checkpoint(
       throw application_restart_checkpoint_codec_error(
           application_restart_checkpoint_codec_error_code::unsupported_version,
           "application restart checkpoint encoding version is unsupported");
+    const auto declared_body_size = input.read_u64();
+    if (declared_body_size > maximum_application_restart_checkpoint_encoding_size)
+      throw application_restart_checkpoint_codec_error(
+          application_restart_checkpoint_codec_error_code::limit_exceeded,
+          "application restart checkpoint body exceeds the size limit");
     std::array<std::uint8_t, 32> expected_checksum{};
     for (auto& byte : expected_checksum)
       byte = input.read_u8();
-    constexpr std::size_t envelope_size = checkpoint_magic.size() + 2U + 32U;
+    constexpr std::size_t envelope_size =
+        checkpoint_magic.size() + 2U + 8U + 32U;
+    const auto available_body_size = size - envelope_size;
+    if (declared_body_size > available_body_size)
+      throw application_restart_checkpoint_codec_error(
+          application_restart_checkpoint_codec_error_code::truncated,
+          "application restart checkpoint body is truncated");
+    if (declared_body_size < available_body_size)
+      throw application_restart_checkpoint_codec_error(
+          application_restart_checkpoint_codec_error_code::trailing_data,
+          "application restart checkpoint encoding contains trailing data");
     const auto actual_checksum = detail::sha256(
         reinterpret_cast<const std::byte*>(data + envelope_size),
-        size - envelope_size);
+        available_body_size);
     if (actual_checksum != expected_checksum)
       throw application_restart_checkpoint_codec_error(
           application_restart_checkpoint_codec_error_code::identity_mismatch,
@@ -854,6 +869,7 @@ encode_application_restart_checkpoint(
   for (const auto byte : checkpoint_magic)
     output.append_u8(byte);
   output.append_u16(application_restart_checkpoint_encoding_version);
+  output.append_u64(static_cast<std::uint64_t>(body_bytes.size()));
   output.append_bytes(checksum.data(), checksum.size());
   output.append_bytes(body_bytes.data(), body_bytes.size());
   return output.finish();
