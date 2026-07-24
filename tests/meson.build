@@ -370,4 +370,18 @@ if get_option('tests').allowed()
   )
   test('persist durable restart checkpoints', posix_checkpoint_store_test)
 
+  posix_target_observer_header_test = executable(
+    'posix-target-observer-header-test',
+    'posix_target_observer_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('compile POSIX target observer header independently', posix_target_observer_header_test)
+
+  posix_target_observer_test = executable(
+    'posix-target-observer-test',
+    'posix_target_observer_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('observe FD-anchored POSIX target objects', posix_target_observer_test)
+
 endif
