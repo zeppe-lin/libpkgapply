@@ -58,4 +58,5 @@ libcrypto_dep = dependency(
 )
 
 subdir('src')
+subdir('posix')
 subdir('tests')
