@@ -8,6 +8,7 @@ libpkgapply_posix = library(
     'checkpoint_store.cpp',
     'journal_store.cpp',
     'payload_stage.cpp',
+    'rejected_store.cpp',
     'target_observer.cpp',
   ],
   include_directories: public_inc,
@@ -31,6 +32,7 @@ install_headers(
   '../include/libpkgapply-posix/checkpoint_store.h',
   '../include/libpkgapply-posix/journal_store.h',
   '../include/libpkgapply-posix/payload_stage.h',
+  '../include/libpkgapply-posix/rejected_store.h',
   '../include/libpkgapply-posix/target_observer.h',
   subdir: 'libpkgapply-posix',
 )
