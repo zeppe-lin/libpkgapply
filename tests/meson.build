@@ -370,6 +370,23 @@ if get_option('tests').allowed()
   )
   test('persist durable restart checkpoints', posix_checkpoint_store_test)
 
+  posix_payload_stage_header_test = executable(
+    'posix-payload-stage-header-test',
+    'posix_payload_stage_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX payload stage header independently',
+    posix_payload_stage_header_test,
+  )
+
+  posix_payload_stage_test = executable(
+    'posix-payload-stage-test',
+    'posix_payload_stage_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('stage private POSIX incoming payloads', posix_payload_stage_test)
+
   posix_target_observer_header_test = executable(
     'posix-target-observer-header-test',
     'posix_target_observer_header_test.cpp',
