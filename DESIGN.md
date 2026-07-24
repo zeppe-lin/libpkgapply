@@ -455,19 +455,33 @@ Before each destructive effect:
 4. an effect-completed record is appended and synchronized.
 
 A crash between intent and completion is not guessed to be either old or new
-state. Restart recovery reobserves the authoritative target under the proper
-lease.
+state. Restart handling reopens the original durable attempt under a newly
+acquired outer lease and requires the backend to provide an exact replay
+checkpoint bound to the durable journal snapshot.
 
 The core classifies validated durable snapshots as forward-resumable,
-recovery-resumable, terminal, or requiring external resolution. A backend may
-reopen the exact durable attempt under a newly acquired outer lease. Restart
+recovery-resumable, terminal, or requiring external resolution. Restart
 admission verifies the original request, plan, target, execution control,
 backend, attempt nonce, and journal identity before any observation or replay.
+The replay checkpoint retains admitted observations, private payload staging,
+old-object captures, rejected records, active and recovery outcomes,
+synchronization facts, backend evidence, and completed evidence when present.
+Checkpoint facts are reconciled with journal intents and terminal events; a
+contradiction is a backend contract violation, not a reason to guess.
 
-This stage does not discover journal files, deserialize storage records, replay
-forward effects, or execute restart recovery. Those mechanisms remain owned by
-the reference backend and the next engine tranche. A terminal or indeterminate
-journal is never silently reopened as a new attempt.
+Completed forward effects are reconstructed and skipped. An active or recovery
+intent without a terminal event is never issued again: replay treats its
+physical result as indeterminate and enters recovery or external-resolution
+semantics. Unstarted forward effects may continue in frozen schedule order.
+Final observation may be repeated because it is read-only. Private incoming
+staging, old-object capture, and durability synchronization may be retried
+under the same attempt because they do not repeat a managed-target actuator
+command and remain backend-idempotent by attempt identity. Terminal journals
+are never silently reopened as new attempts.
+
+The core does not discover journal files or deserialize backend storage. Those
+mechanisms belong to the concrete backend, which supplies the validated journal
+record and durable replay checkpoint to `resume_application()`.
 
 State integration
 -----------------

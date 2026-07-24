@@ -70,13 +70,15 @@ foundation required before target mutation is admitted:
   active effects, final observation, and automatic typed recovery before
   returning a terminal receipt.
 
-No concrete filesystem actuator, durable journal-store implementation, restart
-replay implementation, or POSIX backend is present yet. The core can classify
-a validated durable journal and reopen the exact backend attempt under a new
-outer lease without allocating another nonce or replaying work. The semantic
-engine still spans one in-process physical attempt through recovery or
-completed evidence behind the public package-manager-facing application
-facade. Installed-state publication remains outside this repository stage.
+No concrete filesystem actuator, durable journal-store implementation, or
+POSIX backend is present yet. The core can classify a validated durable
+journal, reopen the exact backend attempt under a new outer lease, reconcile a
+backend-owned replay checkpoint with the append-only journal, skip completed
+forward work, divert unresolved active or recovery intents away from repeated
+actuation, and resume to a terminal receipt. Private staging and durability
+synchronization may be retried under the same durable attempt because they do
+not reinterpret or repeat a managed-target actuator command. Installed-state
+publication remains outside this repository stage.
 
 Authority boundary
 ------------------

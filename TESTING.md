@@ -199,7 +199,7 @@ Journal tests cover:
 * explicit finalization and abandonment; and
 * garbage collection of finalized attempts.
 
-Restart admission tests separately prove:
+Restart admission and replay tests separately prove:
 
 * journal-only classification performs no backend operation;
 * preparing and durably completed active prefixes may resume forward;
@@ -207,8 +207,20 @@ Restart admission tests separately prove:
 * terminal and externally unresolved journals are not automatically reopened;
 * a new outer lease may reopen only the original durable attempt;
 * the reopened transaction reports the exact journal identity and attempt nonce;
-* restart admission performs no target observation or effect replay; and
-* rejected restart transactions release their backend resources.
+* restart admission performs no target observation or effect replay;
+* rejected restart transactions release their backend resources;
+* checkpoint facts must agree with journal intents, terminal outcomes, evidence,
+  and six-domain durability truth;
+* a durably completed forward prefix is reconstructed without repeated active
+  or rejected publication;
+* an unresolved active or recovery intent is never issued a second time;
+* unstarted forward and reverse effects continue in frozen schedule order;
+* private staging and synchronization retries remain within the same attempt;
+* final observation may be repeated and must still match the accepted plan;
+* completed evidence and receipt sealing resume without inventing another
+  attempt or duplicate seal intent; and
+* receipt-bearing journals are terminal even when their physical state remains
+  visible or indeterminate.
 
 In-process RAII cleanup and restart replay are tested separately.
 
