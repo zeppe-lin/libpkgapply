@@ -342,6 +342,16 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_dep,
   )
   test('validate canonical application records', canonical_record_test)
+
+  completed_evidence_codec_header_test = executable(
+    'completed-evidence-codec-header-test',
+    'completed_evidence_codec_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test(
+    'compile completed evidence codec header independently',
+    completed_evidence_codec_header_test,
+  )
   restart_checkpoint_codec_header_test = executable(
     'restart-checkpoint-codec-header-test',
     'restart_checkpoint_codec_header_test.cpp',
@@ -372,6 +382,27 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_posix_dep,
   )
   test('capture private POSIX old objects', posix_capture_store_test)
+
+
+  posix_completed_evidence_store_header_test = executable(
+    'posix-completed-evidence-store-header-test',
+    'posix_completed_evidence_store_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX completed evidence store header independently',
+    posix_completed_evidence_store_header_test,
+  )
+
+  posix_completed_evidence_store_test = executable(
+    'posix-completed-evidence-store-test',
+    'posix_completed_evidence_store_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'publish immutable POSIX completed evidence',
+    posix_completed_evidence_store_test,
+  )
 
   posix_checkpoint_store_header_test = executable(
     'posix-checkpoint-store-header-test',
