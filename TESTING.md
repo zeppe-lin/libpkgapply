@@ -340,6 +340,24 @@ namespace synchronization. These are mechanism tests. Restart reconstruction
 and full transaction sequencing remain separate complete-backend
 qualifications.
 
+Completed-evidence store tests must prove:
+
+* only a validated `completed_application_evidence` value is accepted;
+* installation, upgrade, and removal evidence round-trip against their exact
+  immutable request;
+* the stored body retains every identity, path consequence, durability fact,
+  and backend-evidence identity;
+* publication uses a mode-0600 regular file and exposes no partial record;
+* an exact republication returns the same completed-evidence identity;
+* a different record cannot replace an existing identity-keyed record;
+* truncated, same-length corrupted, checksum-invalid, foreign-request, and
+  identity-inconsistent records are rejected before publication is claimed;
+* record visibility and completed-evidence synchronization remain separate;
+* descriptor anchoring survives store pathname movement;
+* restart verifies an already-published record before skipping publication; and
+* checkpoint, journal, rejected-store, active-namespace, and installed-state
+  durability are not implied by completed-evidence synchronization.
+
 The complete reference backend must additionally qualify:
 
 * path replacement races where controllable;

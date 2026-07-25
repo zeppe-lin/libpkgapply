@@ -22,9 +22,10 @@ A release requires:
 Schema discipline
 -----------------
 
-Application identities, completed evidence, journal and restart-checkpoint
-byte encodings, payload-stage, old-object-capture, rejected-object-store, and
-active-workspace bindings, and backend storage are protocols. Active workspace
+Application identities, completed evidence, journal, restart-checkpoint,
+and completed-evidence-record byte encodings, payload-stage, old-object-capture,
+rejected-object-store, active-workspace bindings, and backend storage are
+protocols. Active workspace
 names and physical-state classifications are restart contracts, even though
 they do not enter canonical evidence. One rejected attempt namespace admits
 exactly one accepted operation-plan identity. Do not change field order,

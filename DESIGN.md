@@ -694,6 +694,53 @@ the validated journal and checkpoint before calling it. The mechanism alone
 does not discover attempts, select journals, or classify terminal application
 success.
 
+POSIX completed-evidence storage
+--------------------------------
+
+Completed application evidence is a terminal application record, not a restart
+checkpoint and not installed-state truth. The semantic engine constructs it only
+after every selected effect, required synchronization, and final observation has
+completed. The POSIX backend may publish only that exact validated value; it does
+not rebuild evidence from journal progress, infer missing facts, or weaken the
+completed-evidence eligibility rules.
+
+The immutable record binds the completed-evidence identity and the full evidence
+body: operation kind, request, plan, attempt, target, execution control, lease-
+bound state projection, journal, normalized path consequences, six-domain
+durability profile, and backend evidence. Its storage encoding is versioned,
+bounded, checksummed, and independently revalidated against the immutable
+application request before a reopened record is accepted. A journal identity or
+checkpoint reference alone is never substituted for the evidence body.
+
+Publication uses a private mode-0600 temporary regular file, synchronizes the
+complete record before exposure, and installs an identity-keyed immutable name
+without replacement. Exact republication is idempotent only when the existing
+bytes decode to the same completed evidence. Conflicting, truncated, corrupt,
+foreign-request, or identity-inconsistent records are typed failures and are
+never treated as completed publication.
+
+Visibility and durability remain separate. `publish_completed_evidence()` may
+report `completed` after the immutable record is visible and returns exactly the
+recorded completed-evidence identity. The later
+`synchronize(completed_evidence)` operation flushes the record and namespace
+metadata and reports only the durability it established. It does not upgrade
+journal, checkpoint, active-namespace, rejected-store, or installed-state
+durability.
+
+The completed-evidence store is independent of the restart-checkpoint store.
+Checkpoints retain resumable mechanism progress and may contain a copy of
+completed evidence needed to continue terminal sealing. The completed-evidence
+store publishes the terminal proof consumed by the caller and future state-side
+adapter. Neither store acquires `libpkgstate` authority, and neither may publish
+installed state.
+
+On restart, a checkpoint that says evidence publication completed is accepted
+only after the complete backend verifies the same immutable record. An unresolved
+publication intent is not blindly repeated; the backend first distinguishes no
+record, exact visible record, and contradictory storage state. Terminal cleanup
+must not remove completed evidence while a receipt or durable journal still
+references it.
+
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable
 attempt, then supplies both to `resume_application()`.
