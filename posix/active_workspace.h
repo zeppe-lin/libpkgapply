@@ -108,6 +108,7 @@ public:
   ~application_active_workspace();
 
   [[nodiscard]] const application_attempt& attempt() const noexcept;
+  [[nodiscard]] int target_root_descriptor() const noexcept;
   [[nodiscard]] active_path_workspace open(
       const pkgplan::package_path& path) const;
 

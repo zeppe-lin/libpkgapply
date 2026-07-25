@@ -389,6 +389,11 @@ application_active_workspace::attempt() const noexcept
   return attempt_;
 }
 
+int application_active_workspace::target_root_descriptor() const noexcept
+{
+  return target_root_fd_;
+}
+
 active_path_workspace application_active_workspace::open(
     const pkgplan::package_path& path) const
 {
