@@ -56,6 +56,10 @@ public:
   [[nodiscard]] backend_operation_result discard_recovery(
       const pkgplan::package_path& path);
 
+  /*! \brief Validate and retain one durable active result during restart. */
+  void retain_completed_effect(const backend_active_effect_request& request,
+                               const backend_operation_result& result);
+
   /*! \brief Synchronize all active objects and parents changed so far. */
   [[nodiscard]] application_durability_fact synchronize();
 

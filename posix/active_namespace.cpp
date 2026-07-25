@@ -1154,6 +1154,58 @@ void application_active_namespace::retain_effect(
   effects_.push_back(attempted_effect{path, incoming});
 }
 
+void application_active_namespace::retain_completed_effect(
+    const backend_active_effect_request& request,
+    const backend_operation_result& result)
+{
+  const auto* before = admitted(request.path());
+  if (before == nullptr)
+    throw std::invalid_argument(
+        "retained active effect lacks admitted observation");
+
+  const bool incoming = request.outcome() ==
+      pkgplan::planned_active_outcome::activate_incoming;
+  const bool removal = request.outcome() ==
+          pkgplan::planned_active_outcome::remove_observed ||
+      request.outcome() ==
+          pkgplan::planned_active_outcome::remove_directory_if_empty;
+  if (!incoming && !removal)
+    return;
+  if (result.outcome() == backend_operation_outcome::failed ||
+      result.outcome() == backend_operation_outcome::conditional_retained)
+    return;
+  if (result.outcome() == backend_operation_outcome::indeterminate) {
+    retain_effect(request.path(), incoming);
+    return;
+  }
+
+  active_path_workspace workspace = workspace_.open(request.path());
+  const active_workspace_snapshot snapshot = workspace.inspect();
+  if (snapshot.state() == active_workspace_state::contradictory)
+    throw std::invalid_argument(
+        "completed active effect has contradictory workspace authority");
+
+  bool established = false;
+  if (incoming) {
+    if (incoming_image_ == nullptr || !request.incoming_entry())
+      throw std::invalid_argument(
+          "completed incoming effect lacks image authority");
+    const auto* entry = incoming_image_->entry(*request.incoming_entry());
+    established = entry != nullptr &&
+        entry->path.string() == request.path().string() &&
+        matches_incoming(
+            workspace_.target_root_descriptor(), request.path(), *entry);
+  }
+  else {
+    established = !stat_leaf(
+        workspace.parent_descriptor(), workspace.leaf()).has_value();
+  }
+  if (!established)
+    throw std::invalid_argument(
+        "completed active effect is not visible in the selected target");
+  retain_effect(request.path(), incoming);
+}
+
 void application_active_namespace::retain_dirty_descriptor(int descriptor)
 {
   if (descriptor < 0)

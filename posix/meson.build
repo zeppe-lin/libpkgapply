@@ -4,6 +4,7 @@
 libpkgapply_posix = library(
   'pkgapply-posix',
   [
+    'backend.cpp',
     'active_namespace.cpp',
     'active_workspace.cpp',
     'capture_store.cpp',
@@ -30,6 +31,7 @@ libpkgapply_posix_dep = declare_dependency(
 meson.override_dependency('libpkgapply-posix', libpkgapply_posix_dep)
 
 install_headers(
+  '../include/libpkgapply-posix/backend.h',
   '../include/libpkgapply-posix/libpkgapply-posix.h',
   '../include/libpkgapply-posix/capture_store.h',
   '../include/libpkgapply-posix/completed_evidence_store.h',

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <libpkgapply-posix/backend.h>
 #include <libpkgapply-posix/capture_store.h>
 #include <libpkgapply-posix/completed_evidence_store.h>
 #include <libpkgapply-posix/checkpoint_store.h>
