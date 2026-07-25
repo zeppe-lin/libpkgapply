@@ -460,4 +460,12 @@ if get_option('tests').allowed()
   )
   test('remove POSIX active objects', posix_active_removal_test)
 
+  posix_active_recovery_test = executable(
+    'posix-active-recovery-test',
+    'posix_active_recovery_test.cpp',
+    include_directories: include_directories('../posix'),
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('restore POSIX active objects', posix_active_recovery_test)
+
 endif
