@@ -366,6 +366,28 @@ if get_option('tests').allowed()
   )
   test('encode durable restart checkpoints', restart_checkpoint_codec_test)
 
+  posix_backend_header_test = executable(
+    'posix-backend-header-test',
+    'posix_backend_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('compile POSIX backend header independently', posix_backend_header_test)
+
+  posix_backend_test = executable(
+    'posix-backend-test',
+    'posix_backend_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('compose the complete POSIX application backend', posix_backend_test)
+
+
+  posix_backend_routes_test = executable(
+    'posix-backend-routes-test',
+    'posix_backend_routes_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('exercise POSIX backend authority routes', posix_backend_routes_test)
+
   posix_capture_store_header_test = executable(
     'posix-capture-store-header-test',
     'posix_capture_store_header_test.cpp',
