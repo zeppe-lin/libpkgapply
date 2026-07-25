@@ -7,6 +7,7 @@ libpkgapply_posix = library(
     'active_namespace.cpp',
     'active_workspace.cpp',
     'capture_store.cpp',
+    'completed_evidence_store.cpp',
     'checkpoint_store.cpp',
     'journal_store.cpp',
     'payload_stage.cpp',
@@ -31,6 +32,7 @@ meson.override_dependency('libpkgapply-posix', libpkgapply_posix_dep)
 install_headers(
   '../include/libpkgapply-posix/libpkgapply-posix.h',
   '../include/libpkgapply-posix/capture_store.h',
+  '../include/libpkgapply-posix/completed_evidence_store.h',
   '../include/libpkgapply-posix/checkpoint_store.h',
   '../include/libpkgapply-posix/journal_store.h',
   '../include/libpkgapply-posix/payload_stage.h',

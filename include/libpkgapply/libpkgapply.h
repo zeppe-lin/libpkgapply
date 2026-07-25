@@ -9,6 +9,7 @@
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/backend.h>
 #include <libpkgapply/capture.h>
+#include <libpkgapply/completed_evidence_codec.h>
 #include <libpkgapply/execution_control.h>
 #include <libpkgapply/journal.h>
 #include <libpkgapply/journal_codec.h>
