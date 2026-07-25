@@ -452,4 +452,12 @@ if get_option('tests').allowed()
   )
   test('publish incoming POSIX active objects', posix_active_incoming_test)
 
+  posix_active_removal_test = executable(
+    'posix-active-removal-test',
+    'posix_active_removal_test.cpp',
+    include_directories: include_directories('../posix'),
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('remove POSIX active objects', posix_active_removal_test)
+
 endif
