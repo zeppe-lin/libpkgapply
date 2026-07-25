@@ -329,6 +329,8 @@ active_workspace_snapshot active_path_workspace::inspect() const
     state = active_workspace_state::prepared;
   } else if (prepared_present && displaced_present && !final_present) {
     state = active_workspace_state::displaced;
+  } else if (!prepared_present && displaced_present && !final_present) {
+    state = active_workspace_state::removed_with_displaced_old;
   } else if (!prepared_present && displaced_present && final_present) {
     state = active_workspace_state::published_with_displaced_old;
   }

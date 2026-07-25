@@ -40,6 +40,7 @@ enum class active_workspace_state : std::uint8_t {
   clear,
   prepared,
   displaced,
+  removed_with_displaced_old,
   published_with_displaced_old,
   contradictory,
 };

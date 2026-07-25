@@ -269,6 +269,40 @@ normalize_admitted(std::vector<application_path_observation>& admitted)
     throw std::invalid_argument("duplicate admitted active observation");
 }
 
+void
+validate_captures(
+    const application_active_workspace& workspace,
+    const std::vector<application_path_observation>& admitted,
+    const std::vector<captured_old_object>& captures)
+{
+  std::vector<pkgplan::package_path> paths;
+  paths.reserve(captures.size());
+  for (const auto& captured : captures) {
+    if (captured.attempt().identity() != workspace.attempt().identity() ||
+        !captured.request().for_recovery())
+    {
+      throw std::invalid_argument("active recovery capture binding mismatch");
+    }
+    const auto found = std::lower_bound(
+        admitted.begin(), admitted.end(), captured.request().path(),
+        [](const auto& observation, const auto& path) {
+          return observation.path() < path;
+        });
+    if (found == admitted.end() ||
+        found->path() != captured.request().path() ||
+        !same_observation(*found, captured.observation()))
+    {
+      throw std::invalid_argument(
+          "active recovery capture changed observation");
+    }
+    paths.push_back(captured.request().path());
+  }
+  std::sort(paths.begin(), paths.end());
+  if (std::adjacent_find(paths.begin(), paths.end()) != paths.end())
+    throw std::invalid_argument("duplicate active recovery capture");
+}
+
+
 [[nodiscard]] const pkgimage::package_entry&
 resolve_entry(const pkgimage::package_image& image,
               const backend_active_effect_request& request)
@@ -513,6 +547,29 @@ directory_empty(int parent, const std::string& name)
 }
 
 [[nodiscard]] bool
+prepare_hardlink_from(int source_parent,
+                      const std::string& source_name,
+                      const active_path_workspace& workspace)
+{
+  if (::linkat(source_parent, source_name.c_str(),
+               workspace.parent_descriptor(),
+               workspace.prepared_name().c_str(), 0) != 0)
+    return false;
+  const auto anchor_status = stat_leaf(source_parent, source_name);
+  const auto prepared_status = stat_leaf(
+      workspace.parent_descriptor(), workspace.prepared_name());
+  if (!anchor_status || !prepared_status ||
+      !S_ISREG(anchor_status->st_mode) ||
+      anchor_status->st_dev != prepared_status->st_dev ||
+      anchor_status->st_ino != prepared_status->st_ino)
+  {
+    remove_prepared(workspace, pkgimage::entry_type::hardlink);
+    return false;
+  }
+  return true;
+}
+
+[[nodiscard]] bool
 prepare_hardlink(const application_active_workspace& roots,
                  const active_path_workspace& workspace,
                  const pkgimage::package_entry& entry)
@@ -521,23 +578,8 @@ prepare_hardlink(const application_active_workspace& roots,
     return false;
   active_path_workspace anchor = roots.open(
       pkgplan::package_path::parse(entry.hardlink_target->string()));
-  if (::linkat(anchor.parent_descriptor(), anchor.leaf().c_str(),
-               workspace.parent_descriptor(),
-               workspace.prepared_name().c_str(), 0) != 0)
-    return false;
-  const auto anchor_status = stat_leaf(
-      anchor.parent_descriptor(), anchor.leaf());
-  const auto prepared_status = stat_leaf(
-      workspace.parent_descriptor(), workspace.prepared_name());
-  if (!anchor_status || !prepared_status ||
-      !S_ISREG(anchor_status->st_mode) ||
-      anchor_status->st_dev != prepared_status->st_dev ||
-      anchor_status->st_ino != prepared_status->st_ino)
-  {
-    remove_prepared(workspace, entry.type);
-    return false;
-  }
-  return true;
+  return prepare_hardlink_from(
+      anchor.parent_descriptor(), anchor.leaf(), workspace);
 }
 
 struct prepared_publication final {
@@ -549,15 +591,23 @@ struct prepared_publication final {
 [[nodiscard]] prepared_publication
 publish_prepared(active_path_workspace& workspace,
                  const pkgimage::package_entry& entry,
-                 unique_fd prepared_descriptor)
+                 unique_fd prepared_descriptor,
+                 bool preserve_old)
 {
   const auto final_status = stat_leaf(
       workspace.parent_descriptor(), workspace.leaf());
   const bool final_directory =
       final_status && S_ISDIR(final_status->st_mode);
 
-  if (final_directory && entry.type != pkgimage::entry_type::directory) {
-    if (!directory_empty(workspace.parent_descriptor(), workspace.leaf())) {
+  const bool incoming_directory =
+      entry.type == pkgimage::entry_type::directory;
+  const bool displace = final_status &&
+      (final_directory != incoming_directory ||
+       (preserve_old && !final_directory));
+  if (displace) {
+    if (final_directory &&
+        !directory_empty(workspace.parent_descriptor(), workspace.leaf()))
+    {
       remove_prepared(workspace, entry.type);
       return {operation(backend_operation_outcome::failed), -1, -1};
     }
@@ -568,7 +618,8 @@ publish_prepared(active_path_workspace& workspace,
       remove_prepared(workspace, entry.type);
       return {operation(backend_operation_outcome::failed), -1, -1};
     }
-    if (!directory_empty(
+    if (final_directory &&
+        !directory_empty(
             workspace.parent_descriptor(), workspace.displaced_name()))
     {
       const bool restored = ::renameat(
@@ -578,16 +629,6 @@ publish_prepared(active_path_workspace& workspace,
       return {operation(restored ? backend_operation_outcome::failed
                                  : backend_operation_outcome::indeterminate),
               -1, -1};
-    }
-  } else if (entry.type == pkgimage::entry_type::directory && final_status &&
-             !final_directory)
-  {
-    if (::renameat(workspace.parent_descriptor(), workspace.leaf().c_str(),
-                   workspace.parent_descriptor(),
-                   workspace.displaced_name().c_str()) != 0)
-    {
-      remove_prepared(workspace, entry.type);
-      return {operation(backend_operation_outcome::failed), -1, -1};
     }
   }
 
@@ -654,7 +695,7 @@ update_existing_directory(application_active_namespace& target,
   }
   if (!time_matches) {
     const struct timespec times[2] = {
-        {entry.mtime, static_cast<long>(entry.mtime_nanoseconds)},
+        {0, UTIME_OMIT},
         {entry.mtime, static_cast<long>(entry.mtime_nanoseconds)},
     };
     if (::futimens(directory.get(), times) != 0)
@@ -667,6 +708,324 @@ update_existing_directory(application_active_namespace& target,
   return operation(backend_operation_outcome::completed);
 }
 
+
+template<class Value>
+[[nodiscard]] const Value&
+known_value(const qualified_fact<Value>& fact, const char* message)
+{
+  if (fact.state() != fact_state::known || !fact.value())
+    throw std::logic_error(message);
+  return *fact.value();
+}
+
+[[nodiscard]] bool
+apply_captured_descriptor_metadata(
+    int descriptor,
+    const completed_object_fact& object)
+{
+  const auto mode = known_value(object.mode(), "capture lacks exact mode");
+  const auto uid = known_value(object.uid(), "capture lacks exact uid");
+  const auto gid = known_value(object.gid(), "capture lacks exact gid");
+  const auto time = known_value(object.mtime(), "capture lacks exact mtime");
+  if (::fchown(descriptor, static_cast<uid_t>(uid),
+               static_cast<gid_t>(gid)) != 0)
+    return false;
+  if (::fchmod(descriptor, static_cast<mode_t>(mode & 07777U)) != 0)
+    return false;
+  const struct timespec times[2] = {
+      {0, UTIME_OMIT},
+      {time.seconds, static_cast<long>(time.nanoseconds)},
+  };
+  return ::futimens(descriptor, times) == 0;
+}
+
+[[nodiscard]] pkgimage::package_entry
+captured_entry(const completed_object_fact& object)
+{
+  pkgimage::entry_type type = pkgimage::entry_type::directory;
+  switch (object.kind()) {
+    case completed_object_kind::directory:
+      type = pkgimage::entry_type::directory;
+      break;
+    case completed_object_kind::symlink:
+      type = pkgimage::entry_type::symlink;
+      break;
+    case completed_object_kind::fifo:
+      type = pkgimage::entry_type::fifo;
+      break;
+    case completed_object_kind::character_device:
+      type = pkgimage::entry_type::character_device;
+      break;
+    case completed_object_kind::block_device:
+      type = pkgimage::entry_type::block_device;
+      break;
+    case completed_object_kind::regular:
+    case completed_object_kind::socket:
+    case completed_object_kind::other:
+      throw std::logic_error("captured object has no metadata-only entry");
+  }
+
+  pkgimage::package_entry entry(
+      pkgimage::package_path::parse(object.path().string()), type);
+  entry.mode = known_value(object.mode(), "capture lacks exact mode");
+  entry.uid = known_value(object.uid(), "capture lacks exact uid");
+  entry.gid = known_value(object.gid(), "capture lacks exact gid");
+  const auto time = known_value(object.mtime(), "capture lacks exact mtime");
+  entry.mtime = time.seconds;
+  entry.mtime_nanoseconds = time.nanoseconds;
+  if (type == pkgimage::entry_type::symlink) {
+    entry.symlink_target = known_value(
+        object.symlink_target(), "capture lacks exact symlink target");
+  }
+  if (type == pkgimage::entry_type::character_device ||
+      type == pkgimage::entry_type::block_device)
+  {
+    const auto device = known_value(
+        object.device(), "capture lacks exact device number");
+    entry.device = pkgimage::device_number{device.major, device.minor};
+  }
+  return entry;
+}
+
+[[nodiscard]] unique_fd
+prepare_captured_regular(
+    const active_path_workspace& workspace,
+    const captured_old_object& captured,
+    const completed_object_fact& object)
+{
+  captured_regular_object source = captured.open_regular();
+  unique_fd file(::openat(
+      workspace.parent_descriptor(), workspace.prepared_name().c_str(),
+      O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW, 0600));
+  if (file.get() < 0)
+    return unique_fd();
+  try {
+    const auto size = known_value(
+        object.size(), "regular capture lacks exact size");
+    const auto digest = copy_regular_payload(
+        source.descriptor(), file.get(), size);
+    const auto& expected = known_value(
+        object.regular_content(),
+        "regular capture lacks exact content identity");
+    if (source.size() != size || digest != expected.bytes() ||
+        !apply_captured_descriptor_metadata(file.get(), object))
+    {
+      static_cast<void>(::unlinkat(
+          workspace.parent_descriptor(), workspace.prepared_name().c_str(), 0));
+      return unique_fd();
+    }
+  } catch (...) {
+    static_cast<void>(::unlinkat(
+        workspace.parent_descriptor(), workspace.prepared_name().c_str(), 0));
+    throw;
+  }
+  return file;
+}
+
+enum class leaf_removal : std::uint8_t {
+  absent,
+  removed,
+  refused,
+};
+
+[[nodiscard]] leaf_removal
+remove_leaf(int parent, const std::string& name)
+{
+  const auto status = stat_leaf(parent, name);
+  if (!status)
+    return leaf_removal::absent;
+  if (S_ISDIR(status->st_mode) && !directory_empty(parent, name))
+    return leaf_removal::refused;
+  const int flags = S_ISDIR(status->st_mode) ? AT_REMOVEDIR : 0;
+  if (::unlinkat(parent, name.c_str(), flags) == 0)
+    return leaf_removal::removed;
+  return errno == ENOENT ? leaf_removal::absent : leaf_removal::refused;
+}
+
+[[nodiscard]] completed_object_kind
+incoming_kind(pkgimage::entry_type type)
+{
+  switch (type) {
+    case pkgimage::entry_type::regular:
+    case pkgimage::entry_type::hardlink:
+      return completed_object_kind::regular;
+    case pkgimage::entry_type::directory:
+      return completed_object_kind::directory;
+    case pkgimage::entry_type::symlink:
+      return completed_object_kind::symlink;
+    case pkgimage::entry_type::fifo:
+      return completed_object_kind::fifo;
+    case pkgimage::entry_type::character_device:
+      return completed_object_kind::character_device;
+    case pkgimage::entry_type::block_device:
+      return completed_object_kind::block_device;
+  }
+  throw std::logic_error("invalid incoming object kind");
+}
+
+template<class Value>
+[[nodiscard]] bool
+matches_known(const qualified_fact<Value>& fact, const Value& expected)
+{
+  return fact.state() == fact_state::known && fact.value() &&
+      *fact.value() == expected;
+}
+
+[[nodiscard]] bool
+matches_incoming(
+    int root_fd,
+    const pkgplan::package_path& path,
+    const pkgimage::package_entry& entry)
+{
+  application_target_observer observer =
+      application_target_observer::from_directory_fd(root_fd);
+  std::vector<pkgplan::package_path> paths {path};
+  std::vector<target_hardlink_expectation> hardlinks;
+  if (entry.type == pkgimage::entry_type::hardlink && entry.hardlink_target) {
+    auto anchor =
+        pkgplan::package_path::parse(entry.hardlink_target->string());
+    paths.push_back(anchor);
+    hardlinks.emplace_back(path, std::move(anchor));
+  }
+  backend_observation_batch batch = observer.observe(
+      std::move(paths), std::move(hardlinks));
+  const auto* observation = batch.find(path);
+  if (observation == nullptr || observation->state() != fact_state::known ||
+      !observation->object())
+    return false;
+  const auto& object = *observation->object();
+  if (object.kind() != incoming_kind(entry.type) ||
+      !matches_known(object.mode(), entry.mode) ||
+      !matches_known(object.uid(), entry.uid) ||
+      !matches_known(object.gid(), entry.gid) ||
+      !matches_known(
+          object.mtime(),
+          completed_object_timestamp{
+              entry.mtime, entry.mtime_nanoseconds}))
+  {
+    return false;
+  }
+  switch (entry.type) {
+    case pkgimage::entry_type::regular:
+      return entry.regular_content &&
+          matches_known(object.size(), entry.size) &&
+          object.regular_content().state() == fact_state::known &&
+          object.regular_content().value() &&
+          equal_digest_bytes(
+              object.regular_content().value()->bytes(),
+              entry.regular_content->bytes());
+    case pkgimage::entry_type::directory:
+    case pkgimage::entry_type::fifo:
+      return true;
+    case pkgimage::entry_type::symlink:
+      return entry.symlink_target &&
+          matches_known(object.symlink_target(), *entry.symlink_target);
+    case pkgimage::entry_type::hardlink:
+      return entry.hardlink_target &&
+          object.hardlink().state() == fact_state::known &&
+          object.hardlink().value() &&
+          object.hardlink().value()->anchor().string() ==
+              entry.hardlink_target->string();
+    case pkgimage::entry_type::character_device:
+    case pkgimage::entry_type::block_device:
+      return entry.device &&
+          matches_known(
+              object.device(),
+              completed_device_number{
+                  entry.device->major, entry.device->minor});
+  }
+  return false;
+}
+
+struct recovery_preparation final {
+  pkgimage::entry_type type;
+  unique_fd descriptor;
+  bool prepared_without_descriptor;
+};
+
+[[nodiscard]] recovery_preparation
+prepare_capture(
+    const application_active_workspace& roots,
+    const active_path_workspace& workspace,
+    const captured_old_object& captured)
+{
+  if (!captured.exact_recovery_possible() ||
+      captured.observation().state() != fact_state::known ||
+      !captured.observation().object())
+  {
+    throw std::invalid_argument(
+        "old-object capture is not exact recovery authority");
+  }
+  const auto& object = *captured.observation().object();
+  if (object.kind() == completed_object_kind::regular) {
+    if (object.hardlink().state() == fact_state::known &&
+        object.hardlink().value())
+    {
+      pkgimage::package_entry entry(
+          pkgimage::package_path::parse(object.path().string()),
+          pkgimage::entry_type::hardlink);
+      entry.hardlink_target = pkgimage::package_path::parse(
+          object.hardlink().value()->anchor().string());
+      return {pkgimage::entry_type::hardlink, unique_fd(),
+              prepare_hardlink(roots, workspace, entry)};
+    }
+    unique_fd regular = prepare_captured_regular(workspace, captured, object);
+    return {pkgimage::entry_type::regular, std::move(regular), false};
+  }
+
+  pkgimage::package_entry entry = captured_entry(object);
+  switch (entry.type) {
+    case pkgimage::entry_type::directory: {
+      unique_fd directory = prepare_directory(workspace, entry);
+      return {entry.type, std::move(directory), false};
+    }
+    case pkgimage::entry_type::symlink:
+      return {entry.type, unique_fd(), prepare_symlink(workspace, entry)};
+    case pkgimage::entry_type::fifo:
+    case pkgimage::entry_type::character_device:
+    case pkgimage::entry_type::block_device:
+      return {entry.type, unique_fd(), prepare_special(workspace, entry)};
+    case pkgimage::entry_type::regular:
+    case pkgimage::entry_type::hardlink:
+      break;
+  }
+  throw std::logic_error("invalid captured recovery object kind");
+}
+
+[[nodiscard]] prepared_publication
+publish_recovery(
+    active_path_workspace& workspace,
+    recovery_preparation prepared)
+{
+  if (prepared.descriptor.get() < 0 &&
+      !prepared.prepared_without_descriptor)
+  {
+    return {operation(backend_operation_outcome::indeterminate), -1, -1};
+  }
+
+  const auto final = stat_leaf(
+      workspace.parent_descriptor(), workspace.leaf());
+  if (final && S_ISDIR(final->st_mode)) {
+    if (!directory_empty(workspace.parent_descriptor(), workspace.leaf()) ||
+        ::unlinkat(workspace.parent_descriptor(), workspace.leaf().c_str(),
+                   AT_REMOVEDIR) != 0)
+    {
+      remove_prepared(workspace, prepared.type);
+      return {operation(backend_operation_outcome::indeterminate), -1, -1};
+    }
+  }
+  if (::renameat(workspace.parent_descriptor(),
+                 workspace.prepared_name().c_str(),
+                 workspace.parent_descriptor(), workspace.leaf().c_str()) != 0)
+  {
+    remove_prepared(workspace, prepared.type);
+    return {operation(backend_operation_outcome::indeterminate), -1, -1};
+  }
+  return {operation(backend_operation_outcome::completed),
+          prepared.descriptor.release(),
+          duplicate_fd(workspace.parent_descriptor())};
+}
+
 } // namespace
 
 application_active_namespace application_active_namespace::bind(
@@ -674,7 +1033,8 @@ application_active_namespace application_active_namespace::bind(
     application_attempt attempt,
     const pkgimage::package_image& incoming_image,
     const sealed_application_payloads* payloads,
-    std::vector<application_path_observation> admitted)
+    std::vector<application_path_observation> admitted,
+    std::vector<captured_old_object> captures)
 {
   application_active_workspace workspace =
       application_active_workspace::from_directory_fd(
@@ -682,31 +1042,38 @@ application_active_namespace application_active_namespace::bind(
   validate_binding(workspace, incoming_image, payloads);
   validate_hard_links(incoming_image);
   normalize_admitted(admitted);
+  validate_captures(workspace, admitted, captures);
   return application_active_namespace(
-      std::move(workspace), &incoming_image, payloads, std::move(admitted));
+      std::move(workspace), &incoming_image, payloads, std::move(admitted),
+      std::move(captures));
 }
 
 application_active_namespace
 application_active_namespace::bind_without_incoming(
     int target_root_fd,
     application_attempt attempt,
-    std::vector<application_path_observation> admitted)
+    std::vector<application_path_observation> admitted,
+    std::vector<captured_old_object> captures)
 {
   application_active_workspace workspace =
       application_active_workspace::from_directory_fd(
           target_root_fd, std::move(attempt));
   normalize_admitted(admitted);
+  validate_captures(workspace, admitted, captures);
   return application_active_namespace(
-      std::move(workspace), nullptr, nullptr, std::move(admitted));
+      std::move(workspace), nullptr, nullptr, std::move(admitted),
+      std::move(captures));
 }
 
 application_active_namespace::application_active_namespace(
     application_active_workspace workspace,
     const pkgimage::package_image* incoming_image,
     const sealed_application_payloads* payloads,
-    std::vector<application_path_observation> admitted)
+    std::vector<application_path_observation> admitted,
+    std::vector<captured_old_object> captures)
     : workspace_(std::move(workspace)), incoming_image_(incoming_image),
-      payloads_(payloads), admitted_(std::move(admitted))
+      payloads_(payloads), admitted_(std::move(admitted)),
+      captures_(std::move(captures))
 {
 }
 
@@ -715,6 +1082,8 @@ application_active_namespace::application_active_namespace(
     : workspace_(std::move(other.workspace_)),
       incoming_image_(other.incoming_image_), payloads_(other.payloads_),
       admitted_(std::move(other.admitted_)),
+      captures_(std::move(other.captures_)),
+      effects_(std::move(other.effects_)),
       dirty_descriptors_(std::move(other.dirty_descriptors_))
 {
   other.incoming_image_ = nullptr;
@@ -732,6 +1101,8 @@ application_active_namespace& application_active_namespace::operator=(
     incoming_image_ = other.incoming_image_;
     payloads_ = other.payloads_;
     admitted_ = std::move(other.admitted_);
+    captures_ = std::move(other.captures_);
+    effects_ = std::move(other.effects_);
     dirty_descriptors_ = std::move(other.dirty_descriptors_);
     other.incoming_image_ = nullptr;
     other.payloads_ = nullptr;
@@ -757,6 +1128,32 @@ const application_path_observation* application_active_namespace::admitted(
   return found != admitted_.end() && found->path() == path ? &*found : nullptr;
 }
 
+const captured_old_object* application_active_namespace::capture(
+    const pkgplan::package_path& path) const noexcept
+{
+  const auto found = std::find_if(
+      captures_.begin(), captures_.end(),
+      [&path](const auto& value) {
+        return value.request().path() == path;
+      });
+  return found == captures_.end() ? nullptr : &*found;
+}
+
+void application_active_namespace::retain_effect(
+    const pkgplan::package_path& path,
+    bool incoming)
+{
+  const auto found = std::find_if(
+      effects_.begin(), effects_.end(),
+      [&path](const auto& value) { return value.path == path; });
+  if (found != effects_.end()) {
+    if (found->incoming != incoming)
+      throw std::logic_error("active path received contradictory effects");
+    return;
+  }
+  effects_.push_back(attempted_effect{path, incoming});
+}
+
 void application_active_namespace::retain_dirty_descriptor(int descriptor)
 {
   if (descriptor < 0)
@@ -779,6 +1176,7 @@ backend_operation_result application_active_namespace::publish_incoming(
     return operation(backend_operation_outcome::failed);
   if (!still_admitted(workspace_, *before))
     return operation(backend_operation_outcome::indeterminate);
+  retain_effect(request.path(), true);
 
   const auto current = stat_leaf(
       workspace.parent_descriptor(), workspace.leaf());
@@ -817,7 +1215,9 @@ backend_operation_result application_active_namespace::publish_incoming(
   if (prepared.get() < 0 && !prepared_without_descriptor)
     return operation(backend_operation_outcome::failed);
   prepared_publication published =
-      publish_prepared(workspace, entry, std::move(prepared));
+      publish_prepared(
+          workspace, entry, std::move(prepared),
+          capture(request.path()) != nullptr);
   if (published.object_descriptor >= 0)
     retain_dirty_descriptor(published.object_descriptor);
   if (published.parent_descriptor >= 0)
@@ -858,11 +1258,24 @@ backend_operation_result application_active_namespace::remove(
     return operation(backend_operation_outcome::indeterminate);
   if (!still_admitted(workspace_, *before))
     return operation(backend_operation_outcome::indeterminate);
+  retain_effect(request.path(), false);
 
-  const int flags = directory ? AT_REMOVEDIR : 0;
-  if (::unlinkat(workspace.parent_descriptor(), workspace.leaf().c_str(),
-                 flags) == 0)
-  {
+  int result = -1;
+  if (capture(request.path()) != nullptr) {
+    if (directory &&
+        !directory_empty(workspace.parent_descriptor(), workspace.leaf()))
+    {
+      return operation(backend_operation_outcome::conditional_retained);
+    }
+    result = ::renameat(
+        workspace.parent_descriptor(), workspace.leaf().c_str(),
+        workspace.parent_descriptor(), workspace.displaced_name().c_str());
+  } else {
+    const int flags = directory ? AT_REMOVEDIR : 0;
+    result = ::unlinkat(
+        workspace.parent_descriptor(), workspace.leaf().c_str(), flags);
+  }
+  if (result == 0) {
     const int parent = duplicate_fd(workspace.parent_descriptor());
     if (parent >= 0)
       retain_dirty_descriptor(parent);
@@ -876,6 +1289,200 @@ backend_operation_result application_active_namespace::remove(
   if (directory && (failure == ENOTEMPTY || failure == EEXIST))
     return operation(backend_operation_outcome::conditional_retained);
   return operation(backend_operation_outcome::failed);
+}
+
+backend_operation_result application_active_namespace::recover(
+    const pkgplan::package_path& path)
+{
+  const auto* before = admitted(path);
+  if (before == nullptr)
+    throw std::invalid_argument("active recovery lacks admitted observation");
+
+  active_path_workspace workspace = workspace_.open(path);
+  const active_workspace_snapshot snapshot = workspace.inspect();
+  if (snapshot.state() == active_workspace_state::contradictory)
+    return operation(backend_operation_outcome::indeterminate);
+
+  if (snapshot.state() == active_workspace_state::prepared) {
+    if (remove_leaf(
+            workspace.parent_descriptor(), workspace.prepared_name()) ==
+        leaf_removal::refused)
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    return operation(
+        still_admitted(workspace_, *before)
+            ? backend_operation_outcome::completed
+            : backend_operation_outcome::indeterminate);
+  }
+
+  if (snapshot.state() == active_workspace_state::displaced ||
+      snapshot.state() ==
+          active_workspace_state::removed_with_displaced_old ||
+      snapshot.state() ==
+          active_workspace_state::published_with_displaced_old)
+  {
+    if (remove_leaf(
+            workspace.parent_descriptor(), workspace.prepared_name()) ==
+        leaf_removal::refused)
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    if (snapshot.final_present() &&
+        remove_leaf(workspace.parent_descriptor(), workspace.leaf()) ==
+            leaf_removal::refused)
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    if (::renameat(
+            workspace.parent_descriptor(),
+            workspace.displaced_name().c_str(),
+            workspace.parent_descriptor(), workspace.leaf().c_str()) != 0)
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    const int parent = duplicate_fd(workspace.parent_descriptor());
+    if (parent >= 0)
+      retain_dirty_descriptor(parent);
+    return operation(
+        still_admitted(workspace_, *before)
+            ? backend_operation_outcome::completed
+            : backend_operation_outcome::indeterminate);
+  }
+
+  if (still_admitted(workspace_, *before))
+    return operation(backend_operation_outcome::completed);
+
+  const auto effect = std::find_if(
+      effects_.begin(), effects_.end(),
+      [&path](const auto& value) { return value.path == path; });
+  if (effect == effects_.end())
+    return operation(backend_operation_outcome::indeterminate);
+
+  if (before->state() == fact_state::not_applicable) {
+    if (!effect->incoming || incoming_image_ == nullptr)
+      return operation(backend_operation_outcome::indeterminate);
+    const auto* entry = incoming_image_->find(
+        pkgimage::package_path::parse(path.string()));
+    if (entry == nullptr ||
+        !matches_incoming(
+            workspace_.target_root_descriptor(), path, *entry))
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    if (remove_leaf(workspace.parent_descriptor(), workspace.leaf()) ==
+        leaf_removal::refused)
+    {
+      return operation(backend_operation_outcome::indeterminate);
+    }
+    const int parent = duplicate_fd(workspace.parent_descriptor());
+    if (parent >= 0)
+      retain_dirty_descriptor(parent);
+    return operation(
+        still_admitted(workspace_, *before)
+            ? backend_operation_outcome::completed
+            : backend_operation_outcome::indeterminate);
+  }
+
+  if (before->state() != fact_state::known || !before->object())
+    return operation(backend_operation_outcome::indeterminate);
+  const auto* captured = capture(path);
+  if (captured == nullptr || !captured->exact_recovery_possible())
+    return operation(backend_operation_outcome::indeterminate);
+
+  const auto current = stat_leaf(
+      workspace.parent_descriptor(), workspace.leaf());
+  if (before->object()->kind() == completed_object_kind::directory &&
+      current && S_ISDIR(current->st_mode))
+  {
+    pkgimage::package_entry directory = captured_entry(*before->object());
+    backend_operation_result result = update_existing_directory(
+        *this, workspace, directory);
+    if (result.outcome() != backend_operation_outcome::completed)
+      return result;
+    return operation(
+        still_admitted(workspace_, *before)
+            ? backend_operation_outcome::completed
+            : backend_operation_outcome::indeterminate);
+  }
+
+  recovery_preparation prepared = [&]() {
+    if (before->object()->kind() != completed_object_kind::regular ||
+        before->object()->hardlink().state() != fact_state::known ||
+        !before->object()->hardlink().value())
+    {
+      return prepare_capture(workspace_, workspace, *captured);
+    }
+
+    const auto& anchor = before->object()->hardlink().value()->anchor();
+    const auto* anchor_before = admitted(anchor);
+    if (anchor_before == nullptr)
+      return recovery_preparation{
+          pkgimage::entry_type::hardlink, unique_fd(), false};
+    if (still_admitted(workspace_, *anchor_before))
+      return prepare_capture(workspace_, workspace, *captured);
+
+    active_path_workspace anchor_workspace = workspace_.open(anchor);
+    const active_workspace_snapshot anchor_snapshot =
+        anchor_workspace.inspect();
+    if (!anchor_snapshot.displaced_present() ||
+        (anchor_snapshot.state() != active_workspace_state::displaced &&
+         anchor_snapshot.state() !=
+             active_workspace_state::published_with_displaced_old))
+    {
+      return recovery_preparation{
+          pkgimage::entry_type::hardlink, unique_fd(), false};
+    }
+    return recovery_preparation{
+        pkgimage::entry_type::hardlink, unique_fd(),
+        prepare_hardlink_from(
+            anchor_workspace.parent_descriptor(),
+            anchor_workspace.displaced_name(), workspace)};
+  }();
+  prepared_publication published = publish_recovery(
+      workspace, std::move(prepared));
+  if (published.object_descriptor >= 0)
+    retain_dirty_descriptor(published.object_descriptor);
+  if (published.parent_descriptor >= 0)
+    retain_dirty_descriptor(published.parent_descriptor);
+  if (published.result.outcome() != backend_operation_outcome::completed)
+    return published.result;
+  return operation(
+      still_admitted(workspace_, *before)
+          ? backend_operation_outcome::completed
+          : backend_operation_outcome::indeterminate);
+}
+
+backend_operation_result application_active_namespace::discard_recovery(
+    const pkgplan::package_path& path)
+{
+  active_path_workspace workspace = workspace_.open(path);
+  const active_workspace_snapshot before = workspace.inspect();
+  if (before.state() == active_workspace_state::clear)
+    return operation(backend_operation_outcome::completed);
+  if (before.state() !=
+          active_workspace_state::removed_with_displaced_old &&
+      before.state() !=
+          active_workspace_state::published_with_displaced_old)
+  {
+    return operation(backend_operation_outcome::indeterminate);
+  }
+  if (remove_leaf(
+          workspace.parent_descriptor(), workspace.displaced_name()) !=
+      leaf_removal::removed)
+  {
+    return operation(backend_operation_outcome::indeterminate);
+  }
+  const active_workspace_snapshot after = workspace.inspect();
+  if (after.state() != active_workspace_state::clear ||
+      after.final_present() != before.final_present())
+  {
+    return operation(backend_operation_outcome::indeterminate);
+  }
+  const int parent = duplicate_fd(workspace.parent_descriptor());
+  if (parent >= 0)
+    retain_dirty_descriptor(parent);
+  return operation(backend_operation_outcome::completed);
 }
 
 application_durability_fact application_active_namespace::synchronize()
