@@ -22,7 +22,24 @@ namespace pkgapply {
 
 class application_restart_checkpoint;
 
-/*! \brief Mechanism-level completion reported by an application backend. */
+/*!
+ * \brief Mechanism-level completion reported by an application backend.
+ *
+ * These values report physical mechanism truth, not application success.
+ * For an active-object command they have the following strict meaning:
+ *
+ * * completed: the requested visible effect was established;
+ * * conditional_retained: only a conditional directory cleanup proved the
+ *   directory non-empty and left it unchanged;
+ * * failed: the requested effect was not established and the logical target
+ *   is proven unchanged; and
+ * * indeterminate: the logical target may have changed, or the backend cannot
+ *   prove which state became visible.
+ *
+ * A backend must return indeterminate, rather than failed, after any operation
+ * that may have changed the managed active namespace.  The semantic engine
+ * owns recovery selection and application-level outcome classification.
+ */
 enum class backend_operation_outcome {
   completed,
   conditional_retained,
@@ -274,6 +291,15 @@ public:
   [[nodiscard]] virtual old_object_capture_result capture_old(
       const old_object_capture_request& request) = 0;
 
+  /*!
+   * \brief Execute one exact core-derived active-namespace command.
+   *
+   * The transaction is already bound to the attempt, target, lease, optional
+   * image, prepared payloads, and recovery authority.  Implementations must
+   * not request replacement authority from the caller or reinterpret the
+   * accepted plan.  A failed result proves the logical target unchanged; any
+   * uncertainty after a potentially visible mutation is indeterminate.
+   */
   [[nodiscard]] virtual backend_operation_result execute_active(
       const backend_active_effect_request& request) = 0;
 
@@ -285,6 +311,14 @@ public:
   publish_completed_evidence(
       const completed_application_evidence& evidence) = 0;
 
+  /*!
+   * \brief Restore one core-selected active path from transaction authority.
+   *
+   * Recovery reports completed only when the admitted prior state was
+   * restored.  It reports failed only when the recovery attempt itself proved
+   * the current target unchanged; ambiguous or partially restored state is
+   * indeterminate.  The core selects paths and reverse order.
+   */
   [[nodiscard]] virtual backend_operation_result recover(
       const pkgplan::package_path& path) = 0;
 
