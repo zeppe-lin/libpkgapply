@@ -90,6 +90,24 @@ int main()
   const auto removal = pkgapply::removal_application_request::make(
       removal_plan, target, execution);
 
+  const pkgapply::package_application_request install_envelope(install);
+  const pkgapply::package_application_request upgrade_envelope(upgrade);
+  const pkgapply::package_application_request removal_envelope(removal);
+  require(install_envelope.kind() == pkgplan::operation_kind::install &&
+              install_envelope.identity() == install.identity() &&
+              install_envelope.plan() == install.plan().identity() &&
+              install_envelope.target().identity() == target.identity() &&
+              install_envelope.control() == execution &&
+              install_envelope.installation() != nullptr &&
+              install_envelope.upgrade() == nullptr &&
+              install_envelope.removal() == nullptr,
+          "installation request envelope lost operation-specific authority");
+  require(upgrade_envelope.kind() == pkgplan::operation_kind::upgrade &&
+              upgrade_envelope.upgrade() != nullptr &&
+              removal_envelope.kind() == pkgplan::operation_kind::remove &&
+              removal_envelope.removal() != nullptr,
+          "application request envelope collapsed operation kinds");
+
   require(install.identity() != upgrade.identity(),
           "operation kind must participate in request identity");
   require(upgrade.identity() != removal.identity(),

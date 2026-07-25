@@ -717,11 +717,11 @@ scripted_backend::capabilities() const noexcept
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::begin_with_incoming_image(
-    const application_target_context& target,
+    const package_application_request& request,
     target_mutation_lease& lease,
     const pkgimage::package_image&)
 {
-  return begin(target,
+  return begin(request,
                lease,
                true,
                scripted_backend_boundary::begin_with_incoming_image);
@@ -729,10 +729,10 @@ scripted_backend::begin_with_incoming_image(
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::begin_without_incoming_image(
-    const application_target_context& target,
+    const package_application_request& request,
     target_mutation_lease& lease)
 {
-  return begin(target,
+  return begin(request,
                lease,
                false,
                scripted_backend_boundary::begin_without_incoming_image);
@@ -740,12 +740,12 @@ scripted_backend::begin_without_incoming_image(
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::resume_with_incoming_image(
-    const application_target_context& target,
+    const package_application_request& request,
     target_mutation_lease& lease,
     const application_journal_record& journal,
     const pkgimage::package_image&)
 {
-  return begin(target,
+  return begin(request,
                lease,
                true,
                scripted_backend_boundary::resume_with_incoming_image,
@@ -754,11 +754,11 @@ scripted_backend::resume_with_incoming_image(
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::resume_without_incoming_image(
-    const application_target_context& target,
+    const package_application_request& request,
     target_mutation_lease& lease,
     const application_journal_record& journal)
 {
-  return begin(target,
+  return begin(request,
                lease,
                false,
                scripted_backend_boundary::resume_without_incoming_image,
@@ -767,7 +767,7 @@ scripted_backend::resume_without_incoming_image(
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::begin(
-    const application_target_context& target,
+    const package_application_request& request,
     target_mutation_lease& lease,
     bool has_incoming_image,
     scripted_backend_boundary boundary,
@@ -783,7 +783,7 @@ scripted_backend::begin(
       capabilities_,
       state_->transaction_target_
           ? *state_->transaction_target_
-          : target.identity(),
+          : request.target().identity(),
       lease.identity(),
       nonce_,
       evidence_,

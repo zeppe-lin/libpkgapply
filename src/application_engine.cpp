@@ -250,7 +250,7 @@ admit_application_engine(
       lease,
       backend,
       backend.begin_with_incoming_image(
-          request.target(), lease, archive.image()));
+          package_application_request(request), lease, archive.image()));
 }
 
 application_engine_admission
@@ -268,7 +268,7 @@ admit_application_engine(
       lease,
       backend,
       backend.begin_with_incoming_image(
-          request.target(), lease, archive.image()));
+          package_application_request(request), lease, archive.image()));
 }
 
 application_engine_admission
@@ -284,7 +284,8 @@ admit_application_engine(
       state,
       lease,
       backend,
-      backend.begin_without_incoming_image(request.target(), lease));
+      backend.begin_without_incoming_image(
+          package_application_request(request), lease));
 }
 
 reopened_application::reopened_application(
@@ -371,7 +372,8 @@ reopen_application_engine(
       backend,
       journal,
       backend.resume_with_incoming_image(
-          request.target(), lease, journal, archive.image()));
+          package_application_request(request), lease, journal,
+          archive.image()));
 }
 
 reopened_application
@@ -392,7 +394,8 @@ reopen_application_engine(
       backend,
       journal,
       backend.resume_with_incoming_image(
-          request.target(), lease, journal, archive.image()));
+          package_application_request(request), lease, journal,
+          archive.image()));
 }
 
 reopened_application
@@ -411,7 +414,7 @@ reopen_application_engine(
       backend,
       journal,
       backend.resume_without_incoming_image(
-          request.target(), lease, journal));
+          package_application_request(request), lease, journal));
 }
 
 } // namespace pkgapply::detail

@@ -211,4 +211,107 @@ removal_application_request::control() const noexcept
   return control_;
 }
 
+
+namespace {
+
+template<typename Result, typename Visitor>
+const Result&
+visit_request_result(const package_application_request_body& body,
+                     Visitor visitor)
+{
+  return std::visit(
+      [&visitor](const auto& request) -> const Result& {
+        return visitor(request);
+      },
+      body);
+}
+
+} // namespace
+
+package_application_request::package_application_request(
+    installation_application_request request)
+    : body_(std::move(request))
+{
+}
+
+package_application_request::package_application_request(
+    upgrade_application_request request)
+    : body_(std::move(request))
+{
+}
+
+package_application_request::package_application_request(
+    removal_application_request request)
+    : body_(std::move(request))
+{
+}
+
+pkgplan::operation_kind
+package_application_request::kind() const noexcept
+{
+  return std::visit(
+      [](const auto& request) { return request.plan().kind(); }, body_);
+}
+
+const application_request_identity&
+package_application_request::identity() const noexcept
+{
+  return visit_request_result<application_request_identity>(
+      body_, [](const auto& request) -> const application_request_identity& {
+        return request.identity();
+      });
+}
+
+const pkgplan::operation_plan_identity&
+package_application_request::plan() const noexcept
+{
+  return visit_request_result<pkgplan::operation_plan_identity>(
+      body_, [](const auto& request) -> const pkgplan::operation_plan_identity& {
+        return request.plan().identity();
+      });
+}
+
+const application_target_context&
+package_application_request::target() const noexcept
+{
+  return visit_request_result<application_target_context>(
+      body_, [](const auto& request) -> const application_target_context& {
+        return request.target();
+      });
+}
+
+const application_execution_control&
+package_application_request::control() const noexcept
+{
+  return visit_request_result<application_execution_control>(
+      body_, [](const auto& request) -> const application_execution_control& {
+        return request.control();
+      });
+}
+
+const package_application_request_body&
+package_application_request::body() const noexcept
+{
+  return body_;
+}
+
+const installation_application_request*
+package_application_request::installation() const noexcept
+{
+  return std::get_if<installation_application_request>(&body_);
+}
+
+const upgrade_application_request*
+package_application_request::upgrade() const noexcept
+{
+  return std::get_if<upgrade_application_request>(&body_);
+}
+
+const removal_application_request*
+package_application_request::removal() const noexcept
+{
+  return std::get_if<removal_application_request>(&body_);
+}
+
+
 } // namespace pkgapply

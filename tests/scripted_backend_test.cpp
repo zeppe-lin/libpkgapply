@@ -221,6 +221,15 @@ main()
 
   const pkgapply::test::fixture::planning_authorities plan_authorities(
       context.target());
+  const auto execution_control = pkgapply::application_execution_control::make(
+      pkgapply::application_recovery_requirement::best_effort,
+      pkgapply::application_durability_requirement::all_application_domains,
+      pkgapply::application_cancellation_policy::recover_after_target_mutation);
+  const auto incoming_application =
+      pkgapply::installation_application_request::make(
+          pkgapply::test::fixture::ordinary_installation(plan_authorities),
+          context,
+          execution_control);
   const auto old_object = pkgapply::test::fixture::regular_object(1);
   const auto rejected_policy = pkgapply::test::fixture::policy_snapshot(
       plan_authorities,
@@ -237,10 +246,14 @@ main()
       rejected_policy);
   const auto rejected_request =
       pkgapply::test::fixture::rejected_request(rejected_plan, path);
+  const auto removal_application = pkgapply::removal_application_request::make(
+      rejected_plan, context, execution_control);
 
   {
     auto transaction =
-        backend.begin_with_incoming_image(context, lease, image);
+        backend.begin_with_incoming_image(
+            pkgapply::package_application_request(incoming_application),
+            lease, image);
     require(state->transaction_alive(),
             "scripted transaction lifetime was not retained");
     require(transaction->backend() == context.mutation_backend(),
@@ -326,7 +339,9 @@ main()
       pkgapply::backend_operation_outcome::failed);
   {
     auto transaction =
-        backend.begin_without_incoming_image(context, lease);
+        backend.begin_without_incoming_image(
+            pkgapply::package_application_request(removal_application),
+            lease);
     const auto failed = transaction->execute_active(
         pkgapply::backend_active_effect_request::make(
             path, pkgplan::planned_active_outcome::retain_observed));
@@ -351,7 +366,9 @@ main()
   });
   {
     auto transaction =
-        backend.begin_without_incoming_image(context, lease);
+        backend.begin_without_incoming_image(
+            pkgapply::package_application_request(removal_application),
+            lease);
     const auto before = transaction->observe({path});
     const auto after = transaction->observe({path});
     require(before.find(path) != nullptr &&
@@ -366,7 +383,9 @@ main()
   state->throw_at(pkgapply::test::scripted_backend_boundary::observe);
   {
     auto transaction =
-        backend.begin_without_incoming_image(context, lease);
+        backend.begin_without_incoming_image(
+            pkgapply::package_application_request(removal_application),
+            lease);
     bool failed = false;
     try {
       static_cast<void>(transaction->observe({path}));

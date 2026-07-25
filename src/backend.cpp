@@ -376,7 +376,7 @@ application_backend_transaction::restart_checkpoint(
 
 std::unique_ptr<application_backend_transaction>
 application_backend::resume_with_incoming_image(
-    const application_target_context&,
+    const package_application_request&,
     target_mutation_lease&,
     const application_journal_record&,
     const pkgimage::package_image&)
@@ -386,7 +386,7 @@ application_backend::resume_with_incoming_image(
 
 std::unique_ptr<application_backend_transaction>
 application_backend::resume_without_incoming_image(
-    const application_target_context&,
+    const package_application_request&,
     target_mutation_lease&,
     const application_journal_record&)
 {

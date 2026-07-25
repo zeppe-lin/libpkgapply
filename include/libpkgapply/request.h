@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 
 #include <libpkgapply/digest.h>
 #include <libpkgapply/execution_control.h>
@@ -99,5 +100,36 @@ private:
   application_target_context target_;
   application_execution_control control_;
 };
+
+
+/*! \brief Closed operation-specific body of one immutable application request. */
+using package_application_request_body = std::variant<
+    installation_application_request,
+    upgrade_application_request,
+    removal_application_request>;
+
+/*! \brief One immutable install, upgrade, or removal application request. */
+class package_application_request final {
+public:
+  explicit package_application_request(installation_application_request request);
+  explicit package_application_request(upgrade_application_request request);
+  explicit package_application_request(removal_application_request request);
+
+  [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
+  [[nodiscard]] const application_request_identity& identity() const noexcept;
+  [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
+  [[nodiscard]] const application_target_context& target() const noexcept;
+  [[nodiscard]] const application_execution_control& control() const noexcept;
+  [[nodiscard]] const package_application_request_body& body() const noexcept;
+
+  [[nodiscard]] const installation_application_request*
+  installation() const noexcept;
+  [[nodiscard]] const upgrade_application_request* upgrade() const noexcept;
+  [[nodiscard]] const removal_application_request* removal() const noexcept;
+
+private:
+  package_application_request_body body_;
+};
+
 
 } // namespace pkgapply

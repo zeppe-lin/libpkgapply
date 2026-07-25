@@ -361,7 +361,9 @@ main()
       removal_request, removal_projection, lease, backend);
 
   auto transaction =
-      backend.begin_with_incoming_image(context, lease, archive.image());
+      backend.begin_with_incoming_image(
+          pkgapply::package_application_request(request), lease,
+          archive.image());
   pkgapply::validate_backend_transaction(
       context, lease, backend, *transaction);
 

@@ -10,6 +10,7 @@
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/journal.h>
 #include <libpkgapply/mutation_lease.h>
+#include <libpkgapply/request.h>
 #include <libpkgapply/path_consequence.h>
 #include <libpkgapply/result.h>
 #include <libpkgimage/entry_selection.h>
@@ -378,20 +379,20 @@ public:
   /*! \brief Begin an install or upgrade transaction with exact archive truth. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   begin_with_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const pkgimage::package_image& incoming_image) = 0;
 
   /*! \brief Begin a removal transaction without incoming archive authority. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   begin_without_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease) = 0;
 
   /*! \brief Reopen one durable install or upgrade attempt under a new lease. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   resume_with_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const application_journal_record& journal,
       const pkgimage::package_image& incoming_image);
@@ -399,7 +400,7 @@ public:
   /*! \brief Reopen one durable removal attempt under a new lease. */
   [[nodiscard]] virtual std::unique_ptr<application_backend_transaction>
   resume_without_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const application_journal_record& journal);
 };

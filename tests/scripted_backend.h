@@ -145,31 +145,31 @@ public:
 
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   begin_with_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const pkgimage::package_image& incoming_image) override;
 
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   begin_without_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease) override;
 
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   resume_with_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const application_journal_record& journal,
       const pkgimage::package_image& incoming_image) override;
 
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   resume_without_incoming_image(
-      const application_target_context& target,
+      const package_application_request& request,
       target_mutation_lease& lease,
       const application_journal_record& journal) override;
 
 private:
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
-  begin(const application_target_context& target,
+  begin(const package_application_request& request,
         target_mutation_lease& lease,
         bool has_incoming_image,
         scripted_backend_boundary boundary,
