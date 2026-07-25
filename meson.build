@@ -29,7 +29,7 @@ pkgconf = import('pkgconfig')
 
 libpkgplan_dep = dependency(
   'libpkgplan',
-  version: '>=0.1.0',
+  version: '>=0.2.0',
   required: true,
   static: want_static,
   fallback: ['libpkgplan', 'libpkgplan_dep'],

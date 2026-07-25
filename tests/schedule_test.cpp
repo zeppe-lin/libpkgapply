@@ -50,7 +50,7 @@ installation()
               pkgplan::incoming_path_policy::retain(
                   pkgplan::rejected_object_policy::stage,
                   pkgplan::retained_active_ownership_policy::
-                      add_operated_owner)))});
+                      do_not_claim_operated_package)))});
   return pkgapply::test::fixture::installation_plan(
       authorities,
       {

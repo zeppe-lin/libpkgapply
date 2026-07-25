@@ -178,7 +178,7 @@ Build-time requirements are:
 * Ninja;
 * pkg-config;
 * `libpkgimage` 0.3.0 or later;
-* `libpkgplan` 0.1.0 or later; and
+* `libpkgplan` 0.2.0 or later; and
 * OpenSSL `libcrypto` with SHA-256 EVP support.
 
 Building

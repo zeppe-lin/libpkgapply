@@ -86,7 +86,7 @@ validate_common(const Request& request,
   if (request.schema_version() != application_request_schema_version)
     refuse(application_admission_error_code::unsupported_request_schema,
            "unsupported application request schema");
-  if (request.plan().schema_version() != 1)
+  if (request.plan().schema_version() != 3)
     refuse(application_admission_error_code::unsupported_plan_schema,
            "unsupported package operation plan schema");
   if (request.plan().kind() != expected_kind)

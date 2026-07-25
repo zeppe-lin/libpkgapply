@@ -212,6 +212,31 @@ observations(
       std::move(facts));
 }
 
+[[nodiscard]] inline pkgplan::candidate_control_projection
+incoming_control()
+{
+  return pkgplan::candidate_control_projection(
+      {pkgplan::runtime_dependency_declaration::make("libc >= 1")},
+      {pkgplan::removal_lifecycle_declaration::make(
+          pkgplan::removal_lifecycle_phase::pre_remove,
+          "application/x-zeppe-lin-shell",
+          "prepare-remove")},
+      {pkgplan::target_profile_fact::make("architecture", "x86_64")});
+}
+
+[[nodiscard]] inline pkgplan::installed_control_projection
+historical_control()
+{
+  return pkgplan::installed_control_projection(
+      pkgplan::installed_control_completeness{},
+      {pkgplan::runtime_dependency_declaration::make("libc >= 0")},
+      {pkgplan::removal_lifecycle_declaration::make(
+          pkgplan::removal_lifecycle_phase::post_remove,
+          "application/x-zeppe-lin-shell",
+          "finish-remove")},
+      {pkgplan::target_profile_fact::make("architecture", "x86_64")});
+}
+
 [[nodiscard]] inline pkgplan::installed_package_fact
 installed(const planning_authorities& authorities,
           pkgplan::package_release installed_release = release(1, "1.0"))
@@ -220,7 +245,8 @@ installed(const planning_authorities& authorities,
       authorities.installed_package,
       authorities.installed_control,
       authorities.snapshot,
-      std::move(installed_release));
+      std::move(installed_release),
+      historical_control());
 }
 
 [[nodiscard]] inline pkgplan::installation_plan
@@ -237,7 +263,8 @@ installation_plan(
   pkgplan::installation_request request(
       pkgplan::candidate_package_fact(
           planning_identity<pkgplan::candidate_control_identity>(2),
-          incoming_release),
+          incoming_release,
+          incoming_control()),
       pkgplan::artifact_package_fact(
           planning_identity<pkgplan::artifact_identity>(3),
           planning_identity<pkgplan::artifact_manifest_identity>(4),
@@ -274,7 +301,8 @@ upgrade_plan(
       installed(authorities),
       pkgplan::candidate_package_fact(
           planning_identity<pkgplan::candidate_control_identity>(3),
-          incoming_release),
+          incoming_release,
+          incoming_control()),
       pkgplan::artifact_package_fact(
           planning_identity<pkgplan::artifact_identity>(4),
           planning_identity<pkgplan::artifact_manifest_identity>(5),

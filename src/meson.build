@@ -84,7 +84,7 @@ pkgconf.generate(
   subdirs: '.',
   requires: [
     'libpkgimage >= 0.3.0',
-    'libpkgplan >= 0.1.0',
+    'libpkgplan >= 0.2.0',
   ],
   requires_private: [libcrypto_dep],
 )
