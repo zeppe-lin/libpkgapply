@@ -741,9 +741,89 @@ record, exact visible record, and contradictory storage state. Terminal cleanup
 must not remove completed evidence while a receipt or durable journal still
 references it.
 
-The core does not discover application attempts. The complete backend still
-selects which validated journal snapshot and checkpoint belong to a durable
-attempt, then supplies both to `resume_application()`.
+POSIX backend transaction composition
+-------------------------------------
+
+The concrete POSIX backend is a mechanism composition root, not another
+semantic engine. Its installed factory exposes the `application_backend`
+contract required by the package manager. The concrete transaction remains
+private to `libpkgapply-posix`; callers cannot invoke the journal, staging,
+rejected, active, recovery, or evidence mechanisms out of core-derived order.
+
+One backend instance is configured with retained descriptors and immutable
+identities for the selected target root and every storage namespace. The
+configuration must reproduce the target context's observation backend,
+mutation backend, capability profile, root view, active namespace, rejected
+store, staging namespace, journal namespace, and exclusion domain. A
+transaction never discovers a root pathname, storage path, package archive,
+plan, or lease from ambient configuration.
+
+A fresh transaction borrows the caller's exact lease instance, duplicates the
+configured descriptors, and issues one unpredictable attempt nonce. Beginning
+a transaction performs no observation, journal publication, payload replay,
+capture, rejected publication, active mutation, synchronization, or evidence
+publication. Installation and upgrade bind the exact incoming package image;
+removal binds no incoming-image authority and cannot later acquire one.
+
+The transaction owns one coherent live view of the POSIX mechanisms:
+
+```text
+target observer
+journal store              restart-checkpoint store
+payload store              old-object capture store
+rejected-object store      active-namespace session
+completed-evidence store
+```
+
+The observer, capture store, and active session must remain anchored to the
+same selected target-root object. All stores remain anchored to the namespace
+descriptors fixed by backend configuration. Replacing a pathname used to open
+a descriptor cannot redirect a live transaction to another target or store.
+
+Each virtual operation delegates to exactly one mechanism and retains the
+returned physical fact in transaction state. `synchronize(domain)` has an
+explicit routing table for all six durability domains; it does not flush an
+unrelated store or infer confirmation from an earlier rename, link, or journal
+write. Backend exceptions preserve whether publication or replacement may
+already be visible so the core can classify uncertainty truthfully.
+
+`publish_journal()` is also the restart publication barrier. Before a journal
+snapshot that depends on new mechanism facts becomes durable current truth,
+the transaction constructs the exact checkpoint for that snapshot and
+publishes it immutably. The checkpoint may become durable before the journal
+snapshot; such an unreferenced checkpoint is harmless. The reverse order is
+forbidden because it could expose a resumable journal without its exact replay
+material. A journal snapshot and checkpoint are never updated in place as one
+invented cross-file atomic object.
+
+Reopening does not allocate a new attempt. The transaction derives the original
+nonce from the supplied durable journal, reports that exact journal through
+`resumed_journal()`, and loads only the checkpoint keyed by that journal-record
+identity. It then verifies every checkpoint claim against the corresponding
+physical authority: sealed payloads, captures, rejected records, active
+workspace and final-path state, synchronization facts, and completed evidence
+when present. Missing or contradictory authority is a restart failure or
+indeterminate physical result, never permission to repeat an unresolved active
+or recovery command.
+
+The active session is rebuilt from the admitted observation closure, exact
+captures, optional incoming image, sealed payloads, and durable forward and
+recovery prefixes. Completed effects are registered as already attempted;
+unresolved intents are represented as indeterminate and are not reissued.
+Final observation may be repeated because it is read-only. Exact idempotent
+private publication and synchronization may be retried only where the core
+restart contract permits it.
+
+Transaction destruction closes descriptors and abandons only unsealed private
+construction. It does not delete durable checkpoints, captures, rejected
+records, completed evidence, or unresolved active workspace. Displaced old
+objects are discarded only after a terminal journal is durable and the core has
+made recovery unnecessary. RAII cleanup never becomes transaction resolution.
+
+The core does not enumerate durable attempts or select a journal. The caller
+supplies one validated durable journal to `resume_application()`. The complete
+backend reopens exactly that attempt and loads only the checkpoint keyed by the
+supplied journal snapshot.
 
 State integration
 -----------------
@@ -780,16 +860,12 @@ Core and backend split
 * constrained backend interfaces.
 
 The reference `libpkgapply-posix` library is built in mechanism-sized
-tranches. It currently contains FD-anchored journal and immutable restart-
-checkpoint stores, target observation, private incoming-payload staging,
-attempt-bound old-object capture storage, and immutable source-bound rejected-
-object publication. Its complete boundary will additionally contain:
-
-* target-root and lease interoperability;
-* active namespace mutation;
-* cross-mechanism durability coordination;
-* conservative recovery actuation; and
-* complete application-backend transaction composition.
+tranches. It now contains FD-anchored journal, restart-checkpoint, and
+completed-evidence stores; target observation; private incoming-payload staging;
+attempt-bound old-object capture; immutable rejected-object publication; and
+active namespace mutation and recovery. Its remaining implementation boundary
+is the complete backend factory and private transaction that bind those
+mechanisms to one target, lease, attempt, durability router, and restart view.
 
 The core depends publicly on `libpkgplan` and `libpkgimage`, and privately on
 its identity implementation. It has no direct archive-decoder dependency and

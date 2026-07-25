@@ -24,8 +24,8 @@ Schema discipline
 
 Application identities, completed evidence, journal, restart-checkpoint,
 and completed-evidence-record byte encodings, payload-stage, old-object-capture,
-rejected-object-store, active-workspace bindings, and backend storage are
-protocols. Active workspace
+rejected-object-store, active-workspace bindings, backend namespace mapping,
+and checkpoint-before-journal publication order are protocols. Active workspace
 names and physical-state classifications are restart contracts, even though
 they do not enter canonical evidence. One rejected attempt namespace admits
 exactly one accepted operation-plan identity. Do not change field order,
@@ -60,7 +60,9 @@ For each new effect or error branch, verify that the tests establish:
 * no out-of-plan mutation;
 * hard links remain one inode through forward and recovery paths;
 * active workspace state remains restart-decidable;
-* terminal cleanup cannot discard unresolved recovery authority; and
+* terminal cleanup cannot discard unresolved recovery authority;
+* restart revalidates physical authority before skipping completed work;
+* checkpoint publication cannot trail the journal that requires it; and
 * no unsupported atomicity claim.
 
 A green build obtained by weakening a contract test is not releasable.

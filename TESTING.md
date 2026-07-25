@@ -358,6 +358,32 @@ Completed-evidence store tests must prove:
 * checkpoint, journal, rejected-store, active-namespace, and installed-state
   durability are not implied by completed-evidence synchronization.
 
+Complete POSIX transaction-composition tests must prove:
+
+* configured backend identities exactly match the supplied target context;
+* a fresh transaction borrows one held lease and issues one attempt nonce;
+* construction performs no observation, journal, staging, or mutation action;
+* installation and upgrade retain the exact incoming image while removal can
+  never obtain incoming-image authority;
+* observer, capture, and active mechanisms share the selected target-root
+  object and remain descriptor-anchored after pathname replacement;
+* each backend operation delegates once to the correct mechanism and retains
+  the exact physical result and evidence identities;
+* every durability domain routes only to its owning synchronization mechanism;
+* a checkpoint containing new facts is durable before the journal snapshot
+  that first references those facts;
+* failure between checkpoint and journal publication leaves no resumable
+  journal without replay material;
+* restart reproduces the original attempt nonce and exact journal identity;
+* every checkpoint claim is revalidated against sealed payload, capture,
+  rejected, active-workspace, and completed-evidence authority;
+* completed prefixes are skipped, unresolved active or recovery intents are
+  never reissued, and unstarted work remains in frozen schedule order;
+* transaction destruction preserves durable and unresolved recovery authority;
+  and
+* terminal cleanup occurs only after the durable journal makes recovery
+  unnecessary.
+
 The complete reference backend must additionally qualify:
 
 * path replacement races where controllable;

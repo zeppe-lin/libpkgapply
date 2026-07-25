@@ -129,13 +129,19 @@ recovery unnecessary, the session can discard only the attempt's displaced old
 leaves. Visibility, cleanup, and active-namespace durability remain distinct
 operations.
 
-This session is deliberately not installed as another public controller. A
-complete POSIX `application_backend_transaction` still has to compose it with
-the outer lease, journals, restart checkpoints, rejected publication, final
-observation, completed-evidence storage, and durable-attempt reopening. The core
-can already classify a validated durable journal, skip completed forward work,
-and divert unresolved actuator intents away from repeated actuation. Installed-
-state publication remains outside this repository stage.
+Completed application evidence also has an immutable FD-anchored POSIX store.
+The core owns its versioned complete-body encoding; the store publishes a
+mode-0600 identity-keyed record without replacement and synchronizes its
+namespace separately. Restart checkpoints remain replay machinery and cannot
+substitute for this terminal application proof.
+
+The remaining POSIX boundary is one installed backend factory with a private
+`application_backend_transaction`. It must bind the target root, borrowed outer
+lease, journal and checkpoint stores, payload and capture authorities, rejected
+store, active session, final observer, and completed-evidence store into one
+attempt. Restart must reproduce that attempt and revalidate physical authority
+before completed work is skipped. Installed-state publication remains outside
+this repository stage.
 
 Authority boundary
 ------------------
