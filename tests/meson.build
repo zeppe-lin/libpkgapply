@@ -435,4 +435,13 @@ if get_option('tests').allowed()
   )
   test('observe FD-anchored POSIX target objects', posix_target_observer_test)
 
+  posix_active_workspace_test = executable(
+    'posix-active-workspace-test',
+    'posix_active_workspace_test.cpp',
+    include_directories: include_directories('../posix'),
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('classify attempt-bound POSIX active workspaces',
+       posix_active_workspace_test)
+
 endif
