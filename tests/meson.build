@@ -444,4 +444,12 @@ if get_option('tests').allowed()
   test('classify attempt-bound POSIX active workspaces',
        posix_active_workspace_test)
 
+  posix_active_incoming_test = executable(
+    'posix-active-incoming-test',
+    'posix_active_incoming_test.cpp',
+    include_directories: include_directories('../posix'),
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('publish incoming POSIX active objects', posix_active_incoming_test)
+
 endif
