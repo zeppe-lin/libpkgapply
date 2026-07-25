@@ -24,6 +24,11 @@ public:
       const sealed_application_payloads* payloads,
       std::vector<application_path_observation> admitted);
 
+  [[nodiscard]] static application_active_namespace bind_without_incoming(
+      int target_root_fd,
+      application_attempt attempt,
+      std::vector<application_path_observation> admitted);
+
   application_active_namespace(const application_active_namespace&) = delete;
   application_active_namespace& operator=(
       const application_active_namespace&) = delete;
@@ -34,6 +39,10 @@ public:
 
   /*! \brief Publish one exact incoming active object. */
   [[nodiscard]] backend_operation_result publish_incoming(
+      const backend_active_effect_request& request);
+
+  /*! \brief Remove one exact admitted active object. */
+  [[nodiscard]] backend_operation_result remove(
       const backend_active_effect_request& request);
 
   /*! \brief Synchronize all active objects and parents changed so far. */

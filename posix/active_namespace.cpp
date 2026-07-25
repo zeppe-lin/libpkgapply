@@ -252,6 +252,23 @@ still_admitted(const application_active_workspace& roots,
 }
 
 
+void
+normalize_admitted(std::vector<application_path_observation>& admitted)
+{
+  std::sort(
+      admitted.begin(), admitted.end(),
+      [](const auto& lhs, const auto& rhs) {
+        return lhs.path() < rhs.path();
+      });
+  const auto duplicate = std::adjacent_find(
+      admitted.begin(), admitted.end(),
+      [](const auto& lhs, const auto& rhs) {
+        return lhs.path() == rhs.path();
+      });
+  if (duplicate != admitted.end())
+    throw std::invalid_argument("duplicate admitted active observation");
+}
+
 [[nodiscard]] const pkgimage::package_entry&
 resolve_entry(const pkgimage::package_image& image,
               const backend_active_effect_request& request)
@@ -664,20 +681,23 @@ application_active_namespace application_active_namespace::bind(
           target_root_fd, std::move(attempt));
   validate_binding(workspace, incoming_image, payloads);
   validate_hard_links(incoming_image);
-  std::sort(
-      admitted.begin(), admitted.end(),
-      [](const auto& lhs, const auto& rhs) {
-        return lhs.path() < rhs.path();
-      });
-  const auto duplicate = std::adjacent_find(
-      admitted.begin(), admitted.end(),
-      [](const auto& lhs, const auto& rhs) {
-        return lhs.path() == rhs.path();
-      });
-  if (duplicate != admitted.end())
-    throw std::invalid_argument("duplicate admitted active observation");
+  normalize_admitted(admitted);
   return application_active_namespace(
       std::move(workspace), &incoming_image, payloads, std::move(admitted));
+}
+
+application_active_namespace
+application_active_namespace::bind_without_incoming(
+    int target_root_fd,
+    application_attempt attempt,
+    std::vector<application_path_observation> admitted)
+{
+  application_active_workspace workspace =
+      application_active_workspace::from_directory_fd(
+          target_root_fd, std::move(attempt));
+  normalize_admitted(admitted);
+  return application_active_namespace(
+      std::move(workspace), nullptr, nullptr, std::move(admitted));
 }
 
 application_active_namespace::application_active_namespace(
@@ -803,6 +823,59 @@ backend_operation_result application_active_namespace::publish_incoming(
   if (published.parent_descriptor >= 0)
     retain_dirty_descriptor(published.parent_descriptor);
   return std::move(published.result);
+}
+
+backend_operation_result application_active_namespace::remove(
+    const backend_active_effect_request& request)
+{
+  if (request.outcome() != pkgplan::planned_active_outcome::remove_observed &&
+      request.outcome() !=
+          pkgplan::planned_active_outcome::remove_directory_if_empty)
+  {
+    throw std::invalid_argument("active removal received another outcome");
+  }
+  if (request.incoming_entry())
+    throw std::invalid_argument("active removal cites an incoming entry");
+
+  const auto* before = admitted(request.path());
+  if (before == nullptr || before->state() != fact_state::known ||
+      !before->object())
+  {
+    throw std::invalid_argument("active removal lacks a present observation");
+  }
+  const bool directory = before->object()->kind() ==
+      completed_object_kind::directory;
+  if ((request.outcome() ==
+           pkgplan::planned_active_outcome::remove_directory_if_empty) !=
+      directory)
+  {
+    throw std::invalid_argument(
+        "active removal outcome mismatches object kind");
+  }
+
+  active_path_workspace workspace = workspace_.open(request.path());
+  if (workspace.inspect().state() != active_workspace_state::clear)
+    return operation(backend_operation_outcome::indeterminate);
+  if (!still_admitted(workspace_, *before))
+    return operation(backend_operation_outcome::indeterminate);
+
+  const int flags = directory ? AT_REMOVEDIR : 0;
+  if (::unlinkat(workspace.parent_descriptor(), workspace.leaf().c_str(),
+                 flags) == 0)
+  {
+    const int parent = duplicate_fd(workspace.parent_descriptor());
+    if (parent >= 0)
+      retain_dirty_descriptor(parent);
+    return operation(backend_operation_outcome::completed);
+  }
+
+  const int failure = errno;
+  const bool unchanged = still_admitted(workspace_, *before);
+  if (!unchanged)
+    return operation(backend_operation_outcome::indeterminate);
+  if (directory && (failure == ENOTEMPTY || failure == EEXIST))
+    return operation(backend_operation_outcome::conditional_retained);
+  return operation(backend_operation_outcome::failed);
 }
 
 application_durability_fact application_active_namespace::synchronize()
