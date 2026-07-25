@@ -209,6 +209,9 @@ meson test -C build-static --print-errorlogs
 `default_library=both` is intentionally unsupported. Shared and static
 artifacts are qualified as separate builds with matching dependency linkage.
 
+Installed manuals are *libpkgapply*(3), *libpkgapply-posix*(3), and
+*pkgapply*(7). Set `-Dman_pages=enabled` to require `scdoc` during a build.
+
 Release discipline
 ------------------
 

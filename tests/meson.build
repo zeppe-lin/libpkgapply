@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 if get_option('tests').allowed()
+  sh = find_program('sh')
+
   public_header_test = executable(
     'public-header-test',
     'public_header_test.cpp',
@@ -520,5 +522,14 @@ if get_option('tests').allowed()
     dependencies: libpkgapply_posix_dep,
   )
   test('restore POSIX active objects', posix_active_recovery_test)
+
+  test(
+    'verify documentation source contracts',
+    sh,
+    args: [
+      join_paths(meson.current_source_dir(), 'documentation_source_test.sh'),
+      meson.project_source_root(),
+    ],
+  )
 
 endif
