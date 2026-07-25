@@ -332,6 +332,14 @@ Removal and recovery tests must prove:
 * contradictory final or workspace facts become indeterminate; and
 * active visibility remains separate from namespace synchronization.
 
+The current POSIX suite directly exercises parent-local publication, preserved
+old leaves, regular and directory recovery, non-recursive removal, hard-link
+recovery without byte-copy degradation, prior-absence restoration, missing-
+capture indeterminacy, terminal displaced-old cleanup, and independent
+namespace synchronization. These are mechanism tests. Restart reconstruction
+and full transaction sequencing remain separate complete-backend
+qualifications.
+
 The complete reference backend must additionally qualify:
 
 * path replacement races where controllable;

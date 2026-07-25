@@ -23,9 +23,11 @@ Schema discipline
 -----------------
 
 Application identities, completed evidence, journal and restart-checkpoint
-byte encodings, payload-stage, old-object-capture, and rejected-object-store
-bindings, and backend storage are protocols. One rejected attempt namespace
-admits exactly one accepted operation-plan identity. Do not change field order,
+byte encodings, payload-stage, old-object-capture, rejected-object-store, and
+active-workspace bindings, and backend storage are protocols. Active workspace
+names and physical-state classifications are restart contracts, even though
+they do not enter canonical evidence. One rejected attempt namespace admits
+exactly one accepted operation-plan identity. Do not change field order,
 integer width, enum tags, domain labels, normalization, checksum framing, or
 digest framing under an existing schema version.
 
@@ -54,7 +56,10 @@ For each new effect or error branch, verify that the tests establish:
 * write-ahead journal ordering;
 * truthful recovery and durability classification;
 * final observation before completed evidence;
-* no out-of-plan mutation; and
+* no out-of-plan mutation;
+* hard links remain one inode through forward and recovery paths;
+* active workspace state remains restart-decidable;
+* terminal cleanup cannot discard unresolved recovery authority; and
 * no unsupported atomicity claim.
 
 A green build obtained by weakening a contract test is not releasable.

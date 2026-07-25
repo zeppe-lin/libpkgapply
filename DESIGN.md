@@ -671,9 +671,28 @@ clears no dirty state until the whole selected guarantee succeeds. A successful
 
 The deterministic parent-local names are restart machinery, not canonical
 application evidence. A reopened transaction inspects those names and the
-logical leaf to distinguish an unexposed prepared object, a displaced old
-object, a visibly published incoming object, and contradictory physical state.
-An unresolved journal intent is never blindly issued a second time.
+logical leaf to distinguish an unexposed prepared object, a removed or replaced
+object with displaced old authority, a visibly published incoming object, and
+contradictory physical state. An unresolved journal intent is never blindly
+issued a second time.
+
+The reference implementation is a private, non-installed active-namespace
+session rather than a second public executor. It binds image, payload,
+observation, capture, target-root, and attempt authorities once. Existing
+non-directory objects with recovery authority are displaced before replacement
+or removal, preserving hard-link groups as physical old-object authority.
+Recovery consumes deterministic workspace truth first, then exact capture
+material. Missing or contradictory authority reports `indeterminate`. After a
+terminal application journal is durable, the complete transaction may discard
+only displaced old leaves belonging to that attempt; unresolved workspace state
+is never garbage-collected as though it were committed.
+
+The session records completed in-process effect paths for recovery. Durable
+restart reconstruction of that effect prefix remains the responsibility of the
+complete POSIX backend transaction, which will rebuild the private session from
+the validated journal and checkpoint before calling it. The mechanism alone
+does not discover attempts, select journals, or classify terminal application
+success.
 
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable

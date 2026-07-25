@@ -118,12 +118,24 @@ rejected publication before active mutation and never reread the target path.
 Exact republication is idempotent. Record visibility and rejected-store
 durability remain separate facts established by separate operations.
 
-No concrete filesystem actuator or complete POSIX application backend is
-present yet. The core can classify a validated durable journal, reopen the exact
-backend attempt under a new outer lease, reconcile a stored replay checkpoint
-with the append-only journal, skip completed forward work, divert unresolved
-actuator intents away from repeated actuation, and resume to a terminal receipt.
-Installed-state publication remains outside this repository stage.
+The POSIX layer now includes a private attempt-bound active-namespace session.
+It binds one target-root descriptor, application attempt, exact incoming image,
+sealed payload authority, admitted observations, and recovery captures. Incoming
+objects are prepared under deterministic names in their destination parent;
+regular payloads are verified before rename, hard links retain the exact anchor
+inode, removal is non-recursive, and recovery restores displaced old objects or
+exact captures without inventing rollback. After a terminal journal makes
+recovery unnecessary, the session can discard only the attempt's displaced old
+leaves. Visibility, cleanup, and active-namespace durability remain distinct
+operations.
+
+This session is deliberately not installed as another public controller. A
+complete POSIX `application_backend_transaction` still has to compose it with
+the outer lease, journals, restart checkpoints, rejected publication, final
+observation, completed-evidence storage, and durable-attempt reopening. The core
+can already classify a validated durable journal, skip completed forward work,
+and divert unresolved actuator intents away from repeated actuation. Installed-
+state publication remains outside this repository stage.
 
 Authority boundary
 ------------------
