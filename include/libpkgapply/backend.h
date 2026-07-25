@@ -207,30 +207,58 @@ private:
   std::optional<pkgimage::entry_id> incoming_entry_;
 };
 
-/*! \brief Exact rejected-object command derived from one accepted plan path. */
+/*! \brief Exact rejected-object command copied from one accepted plan path. */
 class backend_rejected_effect_request final {
 public:
-  [[nodiscard]] static backend_rejected_effect_request stage_incoming(
-      pkgplan::package_path path,
-      pkgimage::entry_id incoming_entry);
-
-  [[nodiscard]] static backend_rejected_effect_request stage_old(
-      pkgplan::package_path path);
+  /*! \brief Copy complete structured staging intent from libpkgplan. */
+  [[nodiscard]] static backend_rejected_effect_request
+  from_plan(const pkgplan::rejected_object_plan& plan);
 
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
   [[nodiscard]] pkgplan::planned_rejected_outcome outcome() const noexcept;
+  [[nodiscard]] pkgplan::rejected_object_source_side source_side() const noexcept;
+  [[nodiscard]] pkgplan::rejected_object_reason reason() const noexcept;
+  [[nodiscard]] const pkgplan::package_release_identity& release() const noexcept;
+  [[nodiscard]] const std::optional<pkgplan::artifact_identity>&
+  artifact() const noexcept;
+  [[nodiscard]] const std::optional<pkgplan::artifact_manifest_identity>&
+  artifact_manifest() const noexcept;
+  [[nodiscard]] const std::optional<pkgimage::package_image_identity>&
+  image() const noexcept;
   [[nodiscard]] const std::optional<pkgimage::entry_id>&
   incoming_entry() const noexcept;
+  [[nodiscard]] const std::optional<pkgplan::installed_package_identity>&
+  installed_package() const noexcept;
+  [[nodiscard]] const std::optional<pkgplan::installed_control_identity>&
+  installed_control() const noexcept;
+  [[nodiscard]] const pkgplan::observation_set_identity&
+  observations() const noexcept;
 
 private:
   backend_rejected_effect_request(
       pkgplan::package_path path,
-      pkgplan::planned_rejected_outcome outcome,
-      std::optional<pkgimage::entry_id> incoming_entry);
+      pkgplan::rejected_object_source_side source_side,
+      pkgplan::rejected_object_reason reason,
+      pkgplan::package_release_identity release,
+      std::optional<pkgplan::artifact_identity> artifact,
+      std::optional<pkgplan::artifact_manifest_identity> artifact_manifest,
+      std::optional<pkgimage::package_image_identity> image,
+      std::optional<pkgimage::entry_id> incoming_entry,
+      std::optional<pkgplan::installed_package_identity> installed_package,
+      std::optional<pkgplan::installed_control_identity> installed_control,
+      pkgplan::observation_set_identity observations);
 
   pkgplan::package_path path_;
-  pkgplan::planned_rejected_outcome outcome_;
+  pkgplan::rejected_object_source_side source_side_;
+  pkgplan::rejected_object_reason reason_;
+  pkgplan::package_release_identity release_;
+  std::optional<pkgplan::artifact_identity> artifact_;
+  std::optional<pkgplan::artifact_manifest_identity> artifact_manifest_;
+  std::optional<pkgimage::package_image_identity> image_;
   std::optional<pkgimage::entry_id> incoming_entry_;
+  std::optional<pkgplan::installed_package_identity> installed_package_;
+  std::optional<pkgplan::installed_control_identity> installed_control_;
+  pkgplan::observation_set_identity observations_;
 };
 
 /*! \brief Backend-owned sink for one exact incoming regular payload closure. */

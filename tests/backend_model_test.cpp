@@ -3,6 +3,8 @@
 
 #include <libpkgapply/backend.h>
 
+#include "plan_fixture.h"
+
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
@@ -212,20 +214,65 @@ main()
       },
       "invalid planned active outcome was accepted");
 
+  const pkgapply::test::fixture::planning_authorities incoming_authorities(
+      identity<pkgplan::target_system_context_identity>(50));
+  const auto incoming_path = pkgplan::package_path::parse("incoming.conf");
+  const auto incoming_policy = pkgapply::test::fixture::policy_snapshot(
+      incoming_authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::retain(
+              pkgplan::rejected_object_policy::stage,
+              pkgplan::retained_active_ownership_policy::
+                  do_not_claim_operated_package)));
+  const auto incoming_plan = pkgapply::test::fixture::installation_plan(
+      incoming_authorities,
+      {pkgapply::test::fixture::regular_entry(incoming_path.string(), 9)},
+      {pkgplan::target_path_observation::absent(incoming_path)},
+      {}, incoming_policy);
   const auto rejected_incoming =
-      pkgapply::backend_rejected_effect_request::stage_incoming(
-          second, pkgimage::entry_id{9});
+      pkgapply::test::fixture::rejected_request(incoming_plan, incoming_path);
   require(rejected_incoming.outcome() ==
               pkgplan::planned_rejected_outcome::stage_incoming &&
-          rejected_incoming.incoming_entry() == pkgimage::entry_id{9},
-          "incoming rejected-object command changed");
+          rejected_incoming.source_side() ==
+              pkgplan::rejected_object_source_side::incoming &&
+          rejected_incoming.reason() ==
+              pkgplan::rejected_object_reason::install_policy_exclusion &&
+          rejected_incoming.incoming_entry().has_value() &&
+          rejected_incoming.artifact().has_value() &&
+          rejected_incoming.artifact_manifest().has_value() &&
+          rejected_incoming.image().has_value() &&
+          !rejected_incoming.installed_package().has_value(),
+          "incoming rejected-object command lost structured provenance");
 
+  const pkgapply::test::fixture::planning_authorities old_authorities(
+      identity<pkgplan::target_system_context_identity>(60));
+  const auto old_object = pkgapply::test::fixture::regular_object(1);
+  const auto old_policy = pkgapply::test::fixture::policy_snapshot(
+      old_authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::activate(),
+          pkgplan::obsolete_path_policy::remove(
+              pkgplan::rejected_object_policy::stage)));
+  const auto old_plan = pkgapply::test::fixture::removal_plan(
+      old_authorities,
+      {pkgplan::installed_ownership_claim(
+          first, old_authorities.installed_package, old_object)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(first, old_object))},
+      old_policy);
   const auto rejected_old =
-      pkgapply::backend_rejected_effect_request::stage_old(first);
+      pkgapply::test::fixture::rejected_request(old_plan, first);
   require(rejected_old.outcome() ==
               pkgplan::planned_rejected_outcome::stage_old &&
-          !rejected_old.incoming_entry().has_value(),
-          "old rejected-object command gained incoming authority");
+          rejected_old.source_side() ==
+              pkgplan::rejected_object_source_side::old_installed &&
+          rejected_old.reason() ==
+              pkgplan::rejected_object_reason::removal_old_preservation &&
+          !rejected_old.incoming_entry().has_value() &&
+          rejected_old.installed_package().has_value() &&
+          rejected_old.installed_control().has_value() &&
+          !rejected_old.artifact().has_value(),
+          "old rejected-object command lost structured provenance");
 
   const auto rejected_record =
       identity<pkgapply::rejected_object_record_identity>(30);

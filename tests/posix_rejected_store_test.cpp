@@ -7,6 +7,8 @@
 #include <libpkgapply-posix/target_observer.h>
 #include <libpkgimage/package_archive.h>
 
+#include "plan_fixture.h"
+
 #include <array>
 #include <cerrno>
 #include <cstddef>
@@ -282,6 +284,57 @@ const pkgimage::package_entry& image_entry(
   return *result;
 }
 
+pkgplan::installation_plan staged_incoming_plan(
+    std::uint8_t seed,
+    const std::vector<pkgimage::package_entry>& entries)
+{
+  const pkgapply::test::fixture::planning_authorities authorities(
+      identity<pkgplan::target_system_context_identity>(seed));
+  std::vector<pkgplan::package_path> explicit_paths;
+  explicit_paths.reserve(entries.size());
+  for (const auto& entry : entries) {
+    explicit_paths.push_back(pkgplan::package_path::parse(entry.path.string()));
+  }
+  std::sort(explicit_paths.begin(), explicit_paths.end());
+  explicit_paths.erase(
+      std::unique(explicit_paths.begin(), explicit_paths.end()),
+      explicit_paths.end());
+
+  std::vector<pkgplan::target_path_observation> observations;
+  for (const auto& path : explicit_paths) {
+    observations.push_back(pkgplan::target_path_observation::absent(path));
+  }
+  for (const auto& path : explicit_paths) {
+    auto parent = path.parent();
+    while (parent) {
+      if (!std::binary_search(
+              explicit_paths.begin(), explicit_paths.end(), *parent)) {
+        const auto duplicate = std::find_if(
+            observations.begin(), observations.end(),
+            [&parent](const auto& observation) {
+              return observation.path() == *parent;
+            });
+        if (duplicate == observations.end()) {
+          observations.push_back(pkgplan::target_path_observation::present(
+              pkgplan::filesystem_object_fact(
+                  *parent,
+                  pkgapply::test::fixture::directory_object())));
+        }
+      }
+      parent = parent->parent();
+    }
+  }
+  const auto policy = pkgapply::test::fixture::policy_snapshot(
+      authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::retain(
+              pkgplan::rejected_object_policy::stage,
+              pkgplan::retained_active_ownership_policy::
+                  do_not_claim_operated_package)));
+  return pkgapply::test::fixture::installation_plan(
+      authorities, entries, std::move(observations), {}, policy);
+}
+
 std::string read_descriptor(int fd)
 {
   std::string result;
@@ -334,7 +387,8 @@ int main()
   temporary_directory rejected_directory("libpkgapply-rejected-store");
   memory_archive archive;
   const auto admitted_attempt = attempt(20);
-  const auto admitted_plan = identity<pkgplan::operation_plan_identity>(40);
+  const auto incoming_plan = staged_incoming_plan(40, archive.image().entries());
+  const auto& admitted_plan = incoming_plan.identity();
   const auto selection = pkgimage::entry_selection::all_regular(archive.image());
 
   auto payload_store = pkgapply::posix::application_payload_store::open(
@@ -356,8 +410,10 @@ int main()
           rejected_directory.path());
 
   const auto metadata_attempt = attempt(21);
-  const auto metadata_plan = identity<pkgplan::operation_plan_identity>(41);
   const pkgimage::package_image metadata_image(nonregular_entries());
+  const auto metadata_operation =
+      staged_incoming_plan(41, metadata_image.entries());
+  const auto& metadata_plan = metadata_operation.identity();
   const auto empty_selection =
       pkgimage::entry_selection::all_regular(metadata_image);
   require(empty_selection.size() == 0,
@@ -365,9 +421,9 @@ int main()
 
   const auto publish_metadata = [&](std::string_view path) {
     const auto& entry = image_entry(metadata_image, path);
-    const auto request =
-        pkgapply::backend_rejected_effect_request::stage_incoming(
-            pkgplan::package_path::parse(entry.path.string()), entry.id);
+    const auto request = pkgapply::test::fixture::rejected_request(
+        metadata_operation,
+        pkgplan::package_path::parse(entry.path.string()));
     const auto result = rejected_store.publish_incoming(
         metadata_attempt, metadata_plan, request, metadata_image);
     require(result.outcome() ==
@@ -397,9 +453,8 @@ int main()
           "empty-payload rejected records lost typed image facts");
 
   const auto& regular = image_entry(archive.image(), "usr/bin/tool");
-  const auto regular_request =
-      pkgapply::backend_rejected_effect_request::stage_incoming(
-          pkgplan::package_path::parse(regular.path.string()), regular.id);
+  const auto regular_request = pkgapply::test::fixture::rejected_request(
+      incoming_plan, pkgplan::package_path::parse(regular.path.string()));
   bool regular_without_payload_rejected = false;
   try {
     static_cast<void>(rejected_store.publish_incoming(
@@ -446,9 +501,8 @@ int main()
           "exact rejected publication was not idempotent");
 
   const auto& hardlink = image_entry(archive.image(), "usr/bin/tool-hard");
-  const auto hardlink_request =
-      pkgapply::backend_rejected_effect_request::stage_incoming(
-          pkgplan::package_path::parse(hardlink.path.string()), hardlink.id);
+  const auto hardlink_request = pkgapply::test::fixture::rejected_request(
+      incoming_plan, pkgplan::package_path::parse(hardlink.path.string()));
   bool hardlink_without_payload_rejected = false;
   try {
     static_cast<void>(rejected_store.publish_incoming(
@@ -484,9 +538,8 @@ int main()
   }
 
   const auto& symlink = image_entry(archive.image(), "usr/bin/tool-link");
-  const auto symlink_request =
-      pkgapply::backend_rejected_effect_request::stage_incoming(
-          pkgplan::package_path::parse(symlink.path.string()), symlink.id);
+  const auto symlink_request = pkgapply::test::fixture::rejected_request(
+      incoming_plan, pkgplan::package_path::parse(symlink.path.string()));
   const auto symlink_result = rejected_store.publish_incoming(
       admitted_attempt, admitted_plan, symlink_request, archive.image());
   require(symlink_result.record().has_value(),
@@ -508,9 +561,8 @@ int main()
           "non-regular rejected record granted a payload descriptor");
 
   const auto& character = image_entry(archive.image(), "dev/tool-control");
-  const auto character_request =
-      pkgapply::backend_rejected_effect_request::stage_incoming(
-          pkgplan::package_path::parse(character.path.string()), character.id);
+  const auto character_request = pkgapply::test::fixture::rejected_request(
+      incoming_plan, pkgplan::package_path::parse(character.path.string()));
   const auto character_result = rejected_store.publish_incoming(
       admitted_attempt, admitted_plan, character_request, archive.image());
   require(character_result.record().has_value(),
@@ -560,41 +612,58 @@ int main()
   const auto observations = observer.observe({old_path});
   auto capture_store = pkgapply::posix::application_capture_store::open(
       capture_directory.path(), target_directory.path());
+  const auto old_attempt = attempt(22);
   const pkgapply::old_object_capture_request capture_request(
       old_path, true, true);
   require(capture_store.capture(
-              admitted_attempt, capture_request,
+              old_attempt, capture_request,
               find_observation(observations, old_path)).outcome() ==
               pkgapply::backend_operation_outcome::completed,
           "old rejected source was not captured");
   auto captured = capture_store.load(
-      admitted_attempt, capture_request,
+      old_attempt, capture_request,
       find_observation(observations, old_path));
   require(captured.has_value(), "captured old rejected source disappeared");
 
+  const pkgapply::test::fixture::planning_authorities old_authorities(
+      identity<pkgplan::target_system_context_identity>(70));
+  const auto old_metadata = pkgapply::test::fixture::regular_object(7);
+  const auto old_policy = pkgapply::test::fixture::policy_snapshot(
+      old_authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::activate(),
+          pkgplan::obsolete_path_policy::remove(
+              pkgplan::rejected_object_policy::stage)));
+  const auto old_operation = pkgapply::test::fixture::removal_plan(
+      old_authorities,
+      {pkgplan::installed_ownership_claim(
+          old_path, old_authorities.installed_package, old_metadata)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(old_path, old_metadata))},
+      old_policy);
   const auto old_request =
-      pkgapply::backend_rejected_effect_request::stage_old(old_path);
-  bool cross_path_foreign_plan_rejected = false;
-  try {
-    static_cast<void>(rejected_store.publish_old(
-        admitted_attempt, identity<pkgplan::operation_plan_identity>(99),
-        old_request, *captured));
-  } catch (const pkgapply::posix::rejected_store_error& error) {
-    cross_path_foreign_plan_rejected = error.code() ==
-        pkgapply::posix::rejected_store_error_code::binding_mismatch;
-  }
-  require(cross_path_foreign_plan_rejected,
-          "rejected attempt accepted another plan on an unpublished path");
-
+      pkgapply::test::fixture::rejected_request(old_operation, old_path);
   const auto old_result = rejected_store.publish_old(
-      admitted_attempt, admitted_plan, old_request, *captured);
+      old_attempt, old_operation.identity(), old_request, *captured);
   require(old_result.record().has_value(),
           "old rejected object was not published");
+  bool foreign_old_plan_rejected = false;
+  try {
+    static_cast<void>(rejected_store.publish_old(
+        old_attempt, identity<pkgplan::operation_plan_identity>(99),
+        old_request, *captured));
+  } catch (const pkgapply::posix::rejected_store_error& error) {
+    foreign_old_plan_rejected = error.code() ==
+        pkgapply::posix::rejected_store_error_code::binding_mismatch;
+  }
+  require(foreign_old_plan_rejected,
+          "old rejected attempt accepted another operation plan");
   require(::unlink((etc + "/old.conf").c_str()) == 0,
           "cannot remove old target after rejected publication");
   write_file(etc + "/old.conf", "new bytes", 0600);
 
-  auto loaded_old = rejected_store.load(admitted_attempt, admitted_plan, old_request);
+  auto loaded_old = rejected_store.load(
+      old_attempt, old_operation.identity(), old_request);
   require(loaded_old.has_value() &&
               loaded_old->source() ==
                   pkgapply::posix::rejected_object_source::old &&
@@ -607,11 +676,13 @@ int main()
             "old rejected record reread the mutated target");
   }
   require(rejected_store.publish_old(
-              admitted_attempt, admitted_plan, old_request, *captured).record() ==
+              old_attempt, old_operation.identity(), old_request, *captured).record() ==
               old_result.record(),
           "old rejected exact republication changed identity");
 
   rejected_store.synchronize(admitted_attempt);
+  rejected_store.synchronize(metadata_attempt);
+  rejected_store.synchronize(old_attempt);
 
   const int rejected_fd = ::open(
       rejected_directory.path().c_str(),
@@ -626,7 +697,8 @@ int main()
   const std::string moved = rejected_directory.path() + "-moved";
   require(::rename(rejected_directory.path().c_str(), moved.c_str()) == 0,
           "cannot move rejected-object namespace");
-  require(anchored.load(admitted_attempt, admitted_plan, old_request).has_value(),
+  require(anchored.load(
+              admitted_attempt, admitted_plan, regular_request).has_value(),
           "descriptor-anchored rejected store followed the old pathname");
   anchored.synchronize(admitted_attempt);
   require(::rename(moved.c_str(), rejected_directory.path().c_str()) == 0,
@@ -651,16 +723,18 @@ int main()
   require(corruption_rejected,
           "rejected payload corruption survived restart validation");
 
+  const std::string old_attempt_hex = old_attempt.identity().string().substr(
+      std::string("v1:sha256:").size());
   const auto old_path_digest = sha256(old_request.path().string());
   const std::string corrupt_record =
-      rejected_directory.path() + "/rejected-v1-" + attempt_hex +
+      rejected_directory.path() + "/rejected-v1-" + old_attempt_hex +
       "/old-v1/record-v1-" +
       hexadecimal(old_path_digest.data(), old_path_digest.size());
   write_file(corrupt_record, "broken", 0600);
   bool record_corruption_rejected = false;
   try {
     static_cast<void>(rejected_store.load(
-        admitted_attempt, admitted_plan, old_request));
+        old_attempt, old_operation.identity(), old_request));
   } catch (const pkgapply::posix::rejected_store_error& error) {
     record_corruption_rejected = error.code() ==
         pkgapply::posix::rejected_store_error_code::record_invalid;

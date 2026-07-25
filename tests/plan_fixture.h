@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -10,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <libpkgapply/backend.h>
 #include <libpkgplan/install.h>
 #include <libpkgplan/remove.h>
 #include <libpkgplan/upgrade.h>
@@ -281,8 +283,14 @@ installation_plan(
           : policy_snapshot(authorities));
 
   pkgplan::installation_result result = pkgplan::plan_install(request);
-  if (!result.has_plan() || result.plan() == nullptr)
-    throw std::runtime_error("installation fixture was refused");
+  if (!result.has_plan() || result.plan() == nullptr) {
+    const auto* refusal = result.refusal();
+    throw std::runtime_error(
+        "installation fixture was refused with code "
+        + std::to_string(refusal == nullptr
+              ? -1
+              : static_cast<int>(refusal->code())));
+  }
   return *result.plan();
 }
 
@@ -346,6 +354,25 @@ removal_plan(
   if (!result.has_plan() || result.plan() == nullptr)
     throw std::runtime_error("removal fixture was refused");
   return *result.plan();
+}
+
+
+template<class Plan>
+[[nodiscard]] inline backend_rejected_effect_request
+rejected_request(const Plan& plan, const pkgplan::package_path& path)
+{
+  const auto item = std::lower_bound(
+      plan.paths().begin(), plan.paths().end(), path,
+      [](const auto& decision, const auto& wanted) {
+        return decision.path() < wanted;
+      });
+  if (item == plan.paths().end() || item->path() != path ||
+      !item->rejected_object())
+  {
+    throw std::runtime_error(
+        "fixture path lacks structured rejected-object intent");
+  }
+  return backend_rejected_effect_request::from_plan(*item->rejected_object());
 }
 
 [[nodiscard]] inline pkgplan::installation_plan

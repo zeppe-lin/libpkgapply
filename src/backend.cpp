@@ -271,39 +271,93 @@ backend_active_effect_request::incoming_entry() const noexcept
 { return incoming_entry_; }
 
 backend_rejected_effect_request
-backend_rejected_effect_request::stage_incoming(
-    pkgplan::package_path path,
-    pkgimage::entry_id incoming_entry)
+backend_rejected_effect_request::from_plan(
+    const pkgplan::rejected_object_plan& plan)
 {
-  return backend_rejected_effect_request(
-      std::move(path), pkgplan::planned_rejected_outcome::stage_incoming,
-      incoming_entry);
-}
-
-backend_rejected_effect_request
-backend_rejected_effect_request::stage_old(pkgplan::package_path path)
-{
-  return backend_rejected_effect_request(
-      std::move(path), pkgplan::planned_rejected_outcome::stage_old,
-      std::nullopt);
+  if (const auto* incoming = plan.incoming_source()) {
+    return backend_rejected_effect_request(
+        plan.path(), plan.source_side(), plan.reason(), incoming->release(),
+        incoming->artifact(), incoming->artifact_manifest(), incoming->image(),
+        incoming->entry(), std::nullopt, std::nullopt, plan.observations());
+  }
+  if (const auto* old = plan.old_installed_source()) {
+    return backend_rejected_effect_request(
+        plan.path(), plan.source_side(), plan.reason(), old->release(),
+        std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        old->package(), old->control(), plan.observations());
+  }
+  throw std::invalid_argument(
+      "rejected-object plan lacks structured source provenance");
 }
 
 backend_rejected_effect_request::backend_rejected_effect_request(
     pkgplan::package_path path,
-    pkgplan::planned_rejected_outcome outcome,
-    std::optional<pkgimage::entry_id> incoming_entry)
-    : path_(std::move(path)), outcome_(outcome),
-      incoming_entry_(incoming_entry)
+    pkgplan::rejected_object_source_side source_side,
+    pkgplan::rejected_object_reason reason,
+    pkgplan::package_release_identity release,
+    std::optional<pkgplan::artifact_identity> artifact,
+    std::optional<pkgplan::artifact_manifest_identity> artifact_manifest,
+    std::optional<pkgimage::package_image_identity> image,
+    std::optional<pkgimage::entry_id> incoming_entry,
+    std::optional<pkgplan::installed_package_identity> installed_package,
+    std::optional<pkgplan::installed_control_identity> installed_control,
+    pkgplan::observation_set_identity observations)
+    : path_(std::move(path)), source_side_(source_side), reason_(reason),
+      release_(std::move(release)), artifact_(std::move(artifact)),
+      artifact_manifest_(std::move(artifact_manifest)), image_(std::move(image)),
+      incoming_entry_(incoming_entry),
+      installed_package_(std::move(installed_package)),
+      installed_control_(std::move(installed_control)),
+      observations_(std::move(observations))
 {
+  const bool incoming =
+      source_side_ == pkgplan::rejected_object_source_side::incoming;
+  if (incoming != (artifact_ && artifact_manifest_ && image_ && incoming_entry_))
+    throw std::invalid_argument(
+        "rejected-object incoming provenance is incomplete");
+  if (incoming == (installed_package_ || installed_control_))
+    throw std::invalid_argument(
+        "rejected-object installed provenance applicability is invalid");
+  if (!incoming && (!installed_package_ || !installed_control_))
+    throw std::invalid_argument(
+        "rejected-object old provenance is incomplete");
 }
 
 const pkgplan::package_path&
 backend_rejected_effect_request::path() const noexcept { return path_; }
 pkgplan::planned_rejected_outcome
-backend_rejected_effect_request::outcome() const noexcept { return outcome_; }
+backend_rejected_effect_request::outcome() const noexcept
+{
+  return source_side_ == pkgplan::rejected_object_source_side::incoming
+      ? pkgplan::planned_rejected_outcome::stage_incoming
+      : pkgplan::planned_rejected_outcome::stage_old;
+}
+pkgplan::rejected_object_source_side
+backend_rejected_effect_request::source_side() const noexcept
+{ return source_side_; }
+pkgplan::rejected_object_reason
+backend_rejected_effect_request::reason() const noexcept { return reason_; }
+const pkgplan::package_release_identity&
+backend_rejected_effect_request::release() const noexcept { return release_; }
+const std::optional<pkgplan::artifact_identity>&
+backend_rejected_effect_request::artifact() const noexcept { return artifact_; }
+const std::optional<pkgplan::artifact_manifest_identity>&
+backend_rejected_effect_request::artifact_manifest() const noexcept
+{ return artifact_manifest_; }
+const std::optional<pkgimage::package_image_identity>&
+backend_rejected_effect_request::image() const noexcept { return image_; }
 const std::optional<pkgimage::entry_id>&
 backend_rejected_effect_request::incoming_entry() const noexcept
 { return incoming_entry_; }
+const std::optional<pkgplan::installed_package_identity>&
+backend_rejected_effect_request::installed_package() const noexcept
+{ return installed_package_; }
+const std::optional<pkgplan::installed_control_identity>&
+backend_rejected_effect_request::installed_control() const noexcept
+{ return installed_control_; }
+const pkgplan::observation_set_identity&
+backend_rejected_effect_request::observations() const noexcept
+{ return observations_; }
 
 
 std::optional<application_journal_record_identity>

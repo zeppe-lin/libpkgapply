@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "scripted_backend.h"
+#include "plan_fixture.h"
 
 #include <array>
 #include <cstddef>
@@ -218,6 +219,25 @@ main()
   pkgimage::package_image image = incoming_image();
   const auto selection = pkgimage::entry_selection::all_regular(image);
 
+  const pkgapply::test::fixture::planning_authorities plan_authorities(
+      context.target());
+  const auto old_object = pkgapply::test::fixture::regular_object(1);
+  const auto rejected_policy = pkgapply::test::fixture::policy_snapshot(
+      plan_authorities,
+      pkgapply::test::fixture::path_policy(
+          pkgplan::incoming_path_policy::activate(),
+          pkgplan::obsolete_path_policy::remove(
+              pkgplan::rejected_object_policy::stage)));
+  const auto rejected_plan = pkgapply::test::fixture::removal_plan(
+      plan_authorities,
+      {pkgplan::installed_ownership_claim(
+          path, plan_authorities.installed_package, old_object)},
+      {pkgplan::target_path_observation::present(
+          pkgplan::filesystem_object_fact(path, old_object))},
+      rejected_policy);
+  const auto rejected_request =
+      pkgapply::test::fixture::rejected_request(rejected_plan, path);
+
   {
     auto transaction =
         backend.begin_with_incoming_image(context, lease, image);
@@ -265,8 +285,7 @@ main()
                 pkgapply::backend_operation_outcome::completed,
             "scripted active effect did not complete");
 
-    const auto rejected = transaction->execute_rejected(
-        pkgapply::backend_rejected_effect_request::stage_old(path));
+    const auto rejected = transaction->execute_rejected(rejected_request);
     require(rejected.outcome() ==
                 pkgapply::backend_operation_outcome::completed &&
             rejected.record().has_value(),

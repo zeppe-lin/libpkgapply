@@ -32,7 +32,8 @@ constexpr std::array<std::byte, 8> binding_magic{
 constexpr std::array<std::byte, 8> record_magic{
     std::byte{'Z'}, std::byte{'P'}, std::byte{'L'}, std::byte{'R'},
     std::byte{'J'}, std::byte{'O'}, std::byte{'B'}, std::byte{'J'}};
-constexpr std::uint16_t rejected_encoding_version = 1;
+constexpr std::uint16_t binding_encoding_version = 1;
+constexpr std::uint16_t rejected_record_encoding_version = 2;
 constexpr std::size_t maximum_record_size = 4U * 1024U * 1024U;
 constexpr mode_t private_directory_mode = 0700;
 constexpr mode_t private_file_mode = 0600;
@@ -431,13 +432,14 @@ private:
 
 std::vector<std::byte>
 frame(const std::array<std::byte, 8>& magic,
+      std::uint16_t version,
       const std::vector<std::byte>& body)
 {
   const auto checksum = sha256_bytes(body.data(), body.size());
   std::vector<std::byte> bytes;
   bytes.reserve(magic.size() + 2U + 8U + checksum.size() + body.size());
   bytes.insert(bytes.end(), magic.begin(), magic.end());
-  append_u16(bytes, rejected_encoding_version);
+  append_u16(bytes, version);
   append_u64(bytes, body.size());
   for (const std::uint8_t byte : checksum)
     append_u8(bytes, byte);
@@ -447,7 +449,8 @@ frame(const std::array<std::byte, 8>& magic,
 
 std::vector<std::byte>
 unframe(const std::vector<std::byte>& bytes,
-        const std::array<std::byte, 8>& magic)
+        const std::array<std::byte, 8>& magic,
+        std::uint16_t version)
 {
   constexpr std::size_t envelope = 8U + 2U + 8U + 32U;
   if (bytes.size() < envelope)
@@ -458,7 +461,7 @@ unframe(const std::vector<std::byte>& bytes,
   if (!std::equal(observed_magic.begin(), observed_magic.end(), magic.begin()))
     throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
                 "rejected-object record has invalid magic");
-  if (reader.u16() != rejected_encoding_version)
+  if (reader.u16() != version)
     throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
                 "rejected-object record has unsupported version");
   const std::uint64_t body_size = reader.u64();
@@ -671,7 +674,7 @@ encode_binding(const application_attempt& attempt,
 {
   auto body = encode_attempt_body(attempt);
   append_string(body, plan.string());
-  return frame(binding_magic, body);
+  return frame(binding_magic, binding_encoding_version, body);
 }
 
 pkgplan::operation_plan_identity
@@ -679,7 +682,7 @@ decode_binding(const std::vector<std::byte>& bytes,
                const application_attempt& attempt)
 {
   try {
-    const auto body = unframe(bytes, binding_magic);
+    const auto body = unframe(bytes, binding_magic, binding_encoding_version);
     byte_reader reader(body);
     require_attempt_body(reader, attempt);
     const auto plan = pkgplan::operation_plan_identity::parse(reader.string());
@@ -726,14 +729,35 @@ encode_record_body(const application_attempt& attempt,
                    rejected_object_source source,
                    const application_path_observation& observation)
 {
+  const rejected_object_source expected_source =
+      request.source_side() == pkgplan::rejected_object_source_side::incoming
+          ? rejected_object_source::incoming
+          : rejected_object_source::old;
+  if (source != expected_source)
+    throw std::invalid_argument(
+        "rejected-object physical source differs from plan provenance");
+
   std::vector<std::byte> body = encode_attempt_body(attempt);
   append_string(body, plan.string());
-  append_u8(body, static_cast<std::uint8_t>(source));
-  append_u8(body, static_cast<std::uint8_t>(request.outcome()));
+  append_u8(body, static_cast<std::uint8_t>(request.source_side()));
+  append_u8(body, static_cast<std::uint8_t>(request.reason()));
   append_string(body, request.path().string());
-  append_u8(body, request.incoming_entry().has_value() ? 1U : 0U);
-  if (request.incoming_entry())
+  append_string(body, request.release().string());
+  append_string(body, request.observations().string());
+
+  if (request.source_side() ==
+      pkgplan::rejected_object_source_side::incoming)
+  {
+    append_string(body, request.artifact()->string());
+    append_string(body, request.artifact_manifest()->string());
+    append_string(body, request.image()->string());
     append_u64(body, static_cast<std::uint64_t>(*request.incoming_entry()));
+  }
+  else
+  {
+    append_string(body, request.installed_package()->string());
+    append_string(body, request.installed_control()->string());
+  }
   append_observation(body, observation);
   return body;
 }
@@ -742,84 +766,115 @@ rejected_record
 decode_record_unchecked(
     const std::vector<std::byte>& bytes,
     const application_attempt& attempt,
-    const pkgplan::operation_plan_identity& expected_plan)
+    const pkgplan::operation_plan_identity& expected_plan,
+    const backend_rejected_effect_request& expected_request)
 {
-  const auto body = unframe(bytes, record_magic);
+  const auto body = unframe(
+      bytes, record_magic, rejected_record_encoding_version);
   byte_reader reader(body);
   require_attempt_body(reader, attempt);
   const auto plan = pkgplan::operation_plan_identity::parse(reader.string());
   if (plan != expected_plan)
     throw_error(rejected_store_error_code::binding_mismatch, EINVAL, {},
                 "rejected-object plan binding mismatch");
+
   const auto source_value = reader.u8();
-  if (source_value < static_cast<std::uint8_t>(rejected_object_source::incoming) ||
-      source_value > static_cast<std::uint8_t>(rejected_object_source::old))
+  if (source_value < static_cast<std::uint8_t>(
+                         pkgplan::rejected_object_source_side::incoming) ||
+      source_value > static_cast<std::uint8_t>(
+                         pkgplan::rejected_object_source_side::old_installed))
   {
     throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "rejected-object record has invalid source");
+                "rejected-object record has invalid source side");
   }
-  const auto outcome_value = reader.u8();
-  if (outcome_value != static_cast<std::uint8_t>(
-          pkgplan::planned_rejected_outcome::stage_incoming) &&
-      outcome_value !=
-          static_cast<std::uint8_t>(pkgplan::planned_rejected_outcome::stage_old))
+  const auto source_side =
+      static_cast<pkgplan::rejected_object_source_side>(source_value);
+
+  const auto reason_value = reader.u8();
+  if (reason_value < static_cast<std::uint8_t>(
+                         pkgplan::rejected_object_reason::install_policy_exclusion) ||
+      reason_value > static_cast<std::uint8_t>(
+                         pkgplan::rejected_object_reason::removal_old_preservation))
   {
     throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "rejected-object record has invalid outcome");
+                "rejected-object record has invalid reason");
   }
+  const auto reason = static_cast<pkgplan::rejected_object_reason>(reason_value);
   auto path = pkgplan::package_path::parse(reader.string());
-  const auto has_entry = reader.u8();
-  if (has_entry > 1U)
-    throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "rejected-object record has invalid entry applicability");
+  const auto release = pkgplan::package_release_identity::parse(reader.string());
+  const auto observations =
+      pkgplan::observation_set_identity::parse(reader.string());
+
+  std::optional<pkgplan::artifact_identity> artifact;
+  std::optional<pkgplan::artifact_manifest_identity> artifact_manifest;
+  std::optional<pkgimage::package_image_identity> image;
   std::optional<pkgimage::entry_id> entry;
-  if (has_entry != 0U) {
+  std::optional<pkgplan::installed_package_identity> installed_package;
+  std::optional<pkgplan::installed_control_identity> installed_control;
+
+  if (source_side == pkgplan::rejected_object_source_side::incoming) {
+    artifact = pkgplan::artifact_identity::parse(reader.string());
+    artifact_manifest =
+        pkgplan::artifact_manifest_identity::parse(reader.string());
+    image = pkgimage::package_image_identity::parse(reader.string());
     const auto value = reader.u64();
     if (value > std::numeric_limits<pkgimage::entry_id>::max())
       throw_error(rejected_store_error_code::record_invalid, EOVERFLOW, {},
                   "rejected-object entry identity is out of range");
     entry = static_cast<pkgimage::entry_id>(value);
   }
+  else {
+    installed_package =
+        pkgplan::installed_package_identity::parse(reader.string());
+    installed_control =
+        pkgplan::installed_control_identity::parse(reader.string());
+  }
+
   auto observation = read_observation(reader);
   reader.finish();
 
-  const auto outcome = static_cast<pkgplan::planned_rejected_outcome>(outcome_value);
-  backend_rejected_effect_request request =
-      outcome == pkgplan::planned_rejected_outcome::stage_incoming
-          ? backend_rejected_effect_request::stage_incoming(
-                path, entry.value_or(pkgimage::invalid_entry_id))
-          : backend_rejected_effect_request::stage_old(path);
-  if (outcome == pkgplan::planned_rejected_outcome::stage_incoming && !entry)
-    throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "incoming rejected record lacks image entry authority");
-  if (outcome == pkgplan::planned_rejected_outcome::stage_old && entry)
-    throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "old rejected record gained image entry authority");
+  if (path != expected_request.path() ||
+      source_side != expected_request.source_side() ||
+      reason != expected_request.reason() ||
+      release != expected_request.release() ||
+      observations != expected_request.observations() ||
+      artifact != expected_request.artifact() ||
+      artifact_manifest != expected_request.artifact_manifest() ||
+      image != expected_request.image() ||
+      entry != expected_request.incoming_entry() ||
+      installed_package != expected_request.installed_package() ||
+      installed_control != expected_request.installed_control())
+  {
+    throw_error(rejected_store_error_code::binding_mismatch, EINVAL,
+                expected_request.path().string(),
+                "rejected-object structured provenance mismatch");
+  }
   if (observation.path() != path || observation.state() != fact_state::known ||
       !observation.object())
   {
     throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
                 "rejected-object observation binding is invalid");
   }
-  const auto source = static_cast<rejected_object_source>(source_value);
-  if ((source == rejected_object_source::incoming) !=
-      (outcome == pkgplan::planned_rejected_outcome::stage_incoming))
-  {
-    throw_error(rejected_store_error_code::record_invalid, EINVAL, {},
-                "rejected-object source and outcome disagree");
-  }
+
+  const rejected_object_source source =
+      expected_request.source_side() ==
+              pkgplan::rejected_object_source_side::incoming
+          ? rejected_object_source::incoming
+          : rejected_object_source::old;
   return rejected_record{
-      attempt, plan, std::move(request), source, std::move(observation),
+      attempt, plan, expected_request, source, std::move(observation),
       record_identity(body)};
 }
 
 rejected_record
 decode_record(const std::vector<std::byte>& bytes,
               const application_attempt& attempt,
-              const pkgplan::operation_plan_identity& expected_plan)
+              const pkgplan::operation_plan_identity& expected_plan,
+              const backend_rejected_effect_request& expected_request)
 {
   try {
-    return decode_record_unchecked(bytes, attempt, expected_plan);
+    return decode_record_unchecked(
+        bytes, attempt, expected_plan, expected_request);
   } catch (const rejected_store_error&) {
     throw;
   } catch (const std::invalid_argument&) {
@@ -1416,24 +1471,27 @@ open_verified_payload(int source_directory_fd,
 rejected_object_source
 source_for(const backend_rejected_effect_request& request)
 {
-  switch (request.outcome()) {
-    case pkgplan::planned_rejected_outcome::stage_incoming:
-      return rejected_object_source::incoming;
-    case pkgplan::planned_rejected_outcome::stage_old:
-      return rejected_object_source::old;
-    case pkgplan::planned_rejected_outcome::none:
-      break;
-  }
-  throw std::invalid_argument(
-      "rejected-object store requires a staging outcome");
+  return request.source_side() ==
+             pkgplan::rejected_object_source_side::incoming
+      ? rejected_object_source::incoming
+      : rejected_object_source::old;
 }
 
 bool
 same_request(const backend_rejected_effect_request& lhs,
              const backend_rejected_effect_request& rhs)
 {
-  return lhs.path() == rhs.path() && lhs.outcome() == rhs.outcome() &&
-      lhs.incoming_entry() == rhs.incoming_entry();
+  return lhs.path() == rhs.path() &&
+      lhs.source_side() == rhs.source_side() &&
+      lhs.reason() == rhs.reason() &&
+      lhs.release() == rhs.release() &&
+      lhs.artifact() == rhs.artifact() &&
+      lhs.artifact_manifest() == rhs.artifact_manifest() &&
+      lhs.image() == rhs.image() &&
+      lhs.incoming_entry() == rhs.incoming_entry() &&
+      lhs.installed_package() == rhs.installed_package() &&
+      lhs.installed_control() == rhs.installed_control() &&
+      lhs.observations() == rhs.observations();
 }
 
 rejected_object_publication_result
@@ -1454,7 +1512,7 @@ publish_record(int store_fd,
       rejected_store_error_code::record_read_failed,
       maximum_record_size, true);
   if (!existing.empty()) {
-    rejected_record record = decode_record(existing, attempt, plan);
+    rejected_record record = decode_record(existing, attempt, plan, request);
     if (!same_request(record.request, request) || record.source != source ||
         !same_observation(record.observation, observation))
     {
@@ -1483,7 +1541,8 @@ publish_record(int store_fd,
 
   const auto body = encode_record_body(attempt, plan, request, source, observation);
   const auto identity = record_identity(body);
-  const auto encoded = frame(record_magic, body);
+  const auto encoded = frame(
+      record_magic, rejected_record_encoding_version, body);
   publish_immutable_bytes(
       source_fd.get(), name, encoded,
       rejected_store_error_code::record_write_failed,
@@ -1789,7 +1848,7 @@ application_rejected_object_store::load(
       maximum_record_size, true);
   if (bytes.empty())
     return std::nullopt;
-  rejected_record record = decode_record(bytes, attempt, plan);
+  rejected_record record = decode_record(bytes, attempt, plan, request);
   if (!same_request(record.request, request) || record.source != source)
     throw rejected_store_error(
         rejected_store_error_code::binding_mismatch, EINVAL,

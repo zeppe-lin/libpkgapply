@@ -1462,28 +1462,25 @@ rejected_effect_request(const Decision& decision,
 {
   if (decision.path() != step.path())
     throw std::logic_error("rejected-object schedule decision path mismatch");
+  if (!decision.rejected_object())
+    throw std::logic_error(
+        "rejected-object schedule lacks structured plan provenance");
+
+  backend_rejected_effect_request request =
+      backend_rejected_effect_request::from_plan(*decision.rejected_object());
+  if (request.path() != decision.path() ||
+      request.outcome() != decision.rejected())
+  {
+    throw std::logic_error(
+        "rejected-object structured intent differs from path decision");
+  }
 
   const std::optional<pkgimage::entry_id> incoming =
       rejected_incoming_entry(decision);
-  switch (decision.rejected()) {
-    case pkgplan::planned_rejected_outcome::stage_incoming:
-      if (!incoming || step.incoming_entry() != incoming)
-        throw std::logic_error(
-            "incoming rejected-object schedule binding mismatch");
-      return backend_rejected_effect_request::stage_incoming(
-          decision.path(), *incoming);
-
-    case pkgplan::planned_rejected_outcome::stage_old:
-      if (step.incoming_entry())
-        throw std::logic_error(
-            "old rejected-object schedule gained incoming authority");
-      return backend_rejected_effect_request::stage_old(decision.path());
-
-    case pkgplan::planned_rejected_outcome::none:
-      throw std::logic_error(
-          "rejected-object schedule cites a non-rejected plan path");
-  }
-  throw std::logic_error("invalid planned rejected-object outcome");
+  if (request.incoming_entry() != incoming || step.incoming_entry() != incoming)
+    throw std::logic_error(
+        "rejected-object schedule provenance binding mismatch");
+  return request;
 }
 
 template<class Decision>
