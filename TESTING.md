@@ -298,17 +298,45 @@ Immutable rejected-store tests prove:
 * namespace descriptors remain authoritative after pathname movement; and
 * record visibility and namespace synchronization remain separate operations.
 
+Active-namespace qualification is split by mechanism boundary. Workspace tests
+must prove:
+
+* deterministic attempt- and path-bound names in the exact destination parent;
+* exclusive no-follow creation and collision refusal before target mutation;
+* descriptor anchoring across target-root and parent pathname movement;
+* no traversal through a symbolic-link parent;
+* no central-filesystem assumption for publication; and
+* conservative classification of fresh and unresolved workspace states.
+
+Incoming-publication tests must prove:
+
+* regular and zero-length bytes come only from the exact sealed payload entry;
+* the final regular pathname never exposes a partially copied payload;
+* directory, symbolic-link, FIFO, and capability-gated device publication;
+* preservation of existing directory contents during metadata activation;
+* non-recursive empty-directory type replacement;
+* hard links share the exact active or retained regular anchor inode;
+* contradictory hard-link inode metadata is refused before active mutation;
+* parent-local temporary collisions leave the logical target unchanged; and
+* any uncertainty after a potentially visible mutation is indeterminate.
+
+Removal and recovery tests must prove:
+
+* `remove_observed` never performs recursive deletion;
+* only `remove_directory_if_empty` may return `conditional_retained`;
+* a non-empty cleanup directory remains unchanged;
+* prior absence, regular, directory, symbolic-link, FIFO, and supported device
+  states are restored only from exact attempt-bound authority;
+* reverse recovery does not recreate a hard link as unrelated bytes;
+* incomplete capture authority cannot claim exact restoration;
+* contradictory final or workspace facts become indeterminate; and
+* active visibility remains separate from namespace synchronization.
+
 The complete reference backend must additionally qualify:
 
-* no-follow component traversal below the managed target root;
-* symlink escape attempts;
 * path replacement races where controllable;
 * outer-lock interoperability with another process;
-* private staging and same-filesystem publication;
 * rejected-store collision prevention;
-* regular, directory, symlink, hard-link, and FIFO effects;
-* zero-length files;
-* conditional non-recursive directory cleanup;
 * synchronization failure; and
 * unchanged out-of-scope paths.
 

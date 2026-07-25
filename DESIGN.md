@@ -612,6 +612,69 @@ durability. The backend must synchronize the attempt namespace separately and
 report only the guarantee actually established. This mechanism neither mutates
 the active namespace nor classifies the complete application outcome.
 
+POSIX active namespace publication
+----------------------------------
+
+The active namespace is not another application controller. The complete POSIX
+transaction binds the managed target root, application attempt, optional exact
+package image, sealed payload authority, admitted observations, old-object
+captures, journal, and outer lease once. Its `execute_active()` implementation
+then receives only the exact command derived by the semantic engine.
+
+A mechanism result has a strict visibility meaning. `completed` means the
+requested effect is visible. `conditional_retained` is valid only when
+`remove_directory_if_empty` proves a non-empty directory remained unchanged.
+`failed` proves the logical target unchanged. Any syscall sequence that may
+have changed the logical target but cannot prove the resulting state reports
+`indeterminate`; the POSIX layer does not classify application success.
+
+Incoming non-directory objects are prepared under an exclusive attempt-bound
+name in the exact destination parent. Regular bytes are copied from the sealed
+payload descriptor, verified, and assigned metadata before publication.
+Symbolic links, FIFOs, and permitted device nodes are likewise complete before
+their parent-local name is renamed onto the final leaf. The backend never opens
+the final regular path with `O_TRUNC`, and a central staging filesystem is not
+used as a substitute for same-filesystem publication.
+
+A directory activated over an existing directory preserves that inode and
+unmanaged children while applying only the planned directory metadata. A type
+change involving a directory uses deterministic parent-local new and displaced
+names; it never recursively deletes the directory. An incoming non-directory
+may replace an existing directory only after that directory is proven empty.
+
+An incoming hard link is created with `linkat()` from its exact logical anchor,
+then verified as the same regular inode before publication. It is never copied
+as an unrelated regular file. Because POSIX hard links share inode metadata,
+the reference backend rejects an image binding whose hard-link mode, owner,
+group, or timestamp differs from its regular anchor. `libpkgimage` should make
+that impossible-image invariant canonical; until then the backend preflight
+must refuse it before active mutation.
+
+`remove_observed` is non-recursive. `remove_directory_if_empty` maps a proven
+non-empty result to `conditional_retained`. Unexpected absence, type change, or
+race after admission is indeterminate unless the mechanism can prove that its
+own command established the final state.
+
+Recovery is selected and ordered by the core. The POSIX transaction restores
+one path from deterministic workspace facts and the exact admitted prior-state
+authority. Prior regular bytes come only from a verified capture, prior special
+objects from exact captured facts, and prior absence is restored only by
+removing an object proven to belong to the same attempt. Ambiguous workspace or
+final-path state is indeterminate; incomplete capture authority never becomes a
+claim of exact restoration.
+
+Visibility and durability remain separate. Active publication records dirty
+regular descriptors and affected parent directories. Synchronizing the active
+namespace flushes the required content, metadata, and directory entries, and
+clears no dirty state until the whole selected guarantee succeeds. A successful
+`renameat()` is not promoted into global filesystem atomicity or durability.
+
+The deterministic parent-local names are restart machinery, not canonical
+application evidence. A reopened transaction inspects those names and the
+logical leaf to distinguish an unexposed prepared object, a displaced old
+object, a visibly published incoming object, and contradictory physical state.
+An unresolved journal intent is never blindly issued a second time.
+
 The core does not discover application attempts. The complete backend still
 selects which validated journal snapshot and checkpoint belong to a durable
 attempt, then supplies both to `resume_application()`.
