@@ -332,13 +332,14 @@ Removal and recovery tests must prove:
 * contradictory final or workspace facts become indeterminate; and
 * active visibility remains separate from namespace synchronization.
 
-The current POSIX suite directly exercises parent-local publication, preserved
-old leaves, regular and directory recovery, non-recursive removal, hard-link
-recovery without byte-copy degradation, prior-absence restoration, missing-
-capture indeterminacy, terminal displaced-old cleanup, and independent
-namespace synchronization. These are mechanism tests. Restart reconstruction
-and full transaction sequencing remain separate complete-backend
-qualifications.
+The POSIX mechanism suite directly exercises parent-local publication,
+preserved old leaves, regular and directory recovery, non-recursive removal,
+hard-link recovery without byte-copy degradation, prior-absence restoration,
+missing-capture indeterminacy, terminal displaced-old cleanup, and independent
+namespace synchronization. Complete-backend tests separately exercise exact
+factory identities, no-effect construction, nonce uniqueness, descriptor
+anchoring, checkpoint-before-journal publication, durable attempt reopening,
+physical restart revalidation, and terminal evidence.
 
 Completed-evidence store tests must prove:
 
@@ -383,6 +384,13 @@ Complete POSIX transaction-composition tests must prove:
   and
 * terminal cleanup occurs only after the durable journal makes recovery
   unnecessary.
+
+The unprivileged composition corpus drives the concrete backend through regular
+payload installation, metadata-only installation, incoming rejected staging,
+old-object capture and rejected staging, active removal, six-domain durability,
+and completed-evidence publication. It also rejects invalid descriptors,
+foreign targets, wrong transaction forms, foreign images, released leases, and
+restart journals without checkpoints.
 
 The complete reference backend must additionally qualify:
 

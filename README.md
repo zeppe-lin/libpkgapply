@@ -13,11 +13,11 @@ libpkgstate   durable installed truth and state publication
 pkgman        transaction composition and final resolution
 ```
 
-Implemented foundation
-----------------------
+Implemented contract
+--------------------
 
-The current development tree provides the immutable and live-authority
-foundation required before target mutation is admitted:
+Version 0.1.0 provides the immutable, semantic, restart, and live-mechanism
+contract required to apply one accepted package operation:
 
 * strict domain-separated SHA-256 application identities;
 * immutable target application contexts and execution controls;
@@ -68,7 +68,11 @@ foundation required before target mutation is admitted:
 * public installation, upgrade, and removal `apply()` overloads that drive one
   admitted backend transaction through preparation, rejected publication,
   active effects, final observation, and automatic typed recovery before
-  returning a terminal receipt.
+  returning a terminal receipt; and
+* an installed descriptor-anchored POSIX backend factory whose private
+  transaction composes target observation, journal and checkpoint publication,
+  payload staging, capture, rejected storage, active mutation, recovery,
+  durability routing, completed evidence, and exact durable restart.
 
 The core now owns strict versioned byte encodings for validated journal
 snapshots and durable restart checkpoints. Journal decoding revalidates
@@ -135,18 +139,18 @@ mode-0600 identity-keyed record without replacement and synchronizes its
 namespace separately. Restart checkpoints remain replay machinery and cannot
 substitute for this terminal application proof.
 
-The remaining POSIX boundary is one installed backend factory with a private
-`application_backend_transaction`. It must bind the target root, borrowed outer
-lease, journal and checkpoint stores, payload and capture authorities, rejected
-store, active session, final observer, and completed-evidence store into one
-attempt. Restart must reproduce that attempt and revalidate physical authority
-before completed work is skipped. Installed-state publication remains outside
-this repository stage.
+`application_posix_backend::from_directory_fds()` is the installed POSIX
+composition boundary. It duplicates one selected target-root descriptor and the
+journal, checkpoint, payload, capture, rejected, and completed-evidence store
+descriptors. Fresh transactions issue one nonce without effects. Reopened
+transactions preserve the original attempt and revalidate checkpoint claims
+against the corresponding physical authority before completed work is skipped.
+Installed-state publication remains outside this repository.
 
 Authority boundary
 ------------------
 
-The completed library will:
+The library:
 
 * consume an accepted installation, upgrade, or removal plan;
 * require one caller-held target mutation lease;
@@ -157,7 +161,7 @@ The completed library will:
 * return an immutable application receipt; and
 * return completed application evidence only after complete success.
 
-The library will not:
+The library does not:
 
 * select packages or solve dependencies;
 * parse package-manager configuration;
@@ -205,11 +209,12 @@ meson test -C build-static --print-errorlogs
 `default_library=both` is intentionally unsupported. Shared and static
 artifacts are qualified as separate builds with matching dependency linkage.
 
-Development doctrine
---------------------
+Release discipline
+------------------
 
-Version 0.1.0 is being built contract-first. Effectful code is admitted only
-with direct failure, stale-state, journal, recovery, and identity tests.
+Version 0.1.0 was completed contract-first. Effectful code remains admissible
+only with direct failure, stale-state, journal, restart, recovery, durability,
+and identity tests.
 
 See `DESIGN.md` for the normative authority and sequencing model and
 `TESTING.md` for release qualification.

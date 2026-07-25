@@ -542,8 +542,8 @@ type, size, stable descriptor interval, and content digest before granting a
 read-only descriptor. Incomplete stages are not returned as restart authority.
 
 This mechanism does not create active objects, rejected objects, recovery
-captures, or journal facts. The complete backend will compose it with the
-semantic engine and retain its full application-attempt binding.
+captures, or journal facts. The complete backend composes it with the
+semantic engine and retains its full application-attempt binding.
 
 The POSIX old-object capture namespace is a separate attempt-bound authority.
 Its directory name and immutable binding commit to the full application attempt,
@@ -689,7 +689,7 @@ is never garbage-collected as though it were committed.
 
 The session records completed in-process effect paths for recovery. Durable
 restart reconstruction of that effect prefix remains the responsibility of the
-complete POSIX backend transaction, which will rebuild the private session from
+complete POSIX backend transaction, which rebuilds the private session from
 the validated journal and checkpoint before calling it. The mechanism alone
 does not discover attempts, select journals, or classify terminal application
 success.
@@ -825,6 +825,12 @@ supplies one validated durable journal to `resume_application()`. The complete
 backend reopens exactly that attempt and loads only the checkpoint keyed by the
 supplied journal snapshot.
 
+The installed implementation is
+`application_posix_backend::from_directory_fds()`. Configuration duplicates the
+already-selected target and store directory descriptors. Its public surface is
+only the abstract backend contract; mechanism order and mutable transaction
+state remain private to `libpkgapply-posix`.
+
 State integration
 -----------------
 
@@ -859,13 +865,13 @@ Core and backend split
 * non-virtual application sequencing; and
 * constrained backend interfaces.
 
-The reference `libpkgapply-posix` library is built in mechanism-sized
-tranches. It now contains FD-anchored journal, restart-checkpoint, and
-completed-evidence stores; target observation; private incoming-payload staging;
-attempt-bound old-object capture; immutable rejected-object publication; and
-active namespace mutation and recovery. Its remaining implementation boundary
-is the complete backend factory and private transaction that bind those
-mechanisms to one target, lease, attempt, durability router, and restart view.
+The reference `libpkgapply-posix` library contains FD-anchored journal,
+restart-checkpoint, and completed-evidence stores; target observation; private
+incoming-payload staging; attempt-bound old-object capture; immutable rejected-
+object publication; active namespace mutation and recovery; and the installed
+`application_posix_backend` factory. Its private transaction binds those
+mechanisms to one exact request, target, borrowed lease, attempt, durability
+router, and restart view without becoming another semantic engine.
 
 The core depends publicly on `libpkgplan` and `libpkgimage`, and privately on
 its identity implementation. It has no direct archive-decoder dependency and
