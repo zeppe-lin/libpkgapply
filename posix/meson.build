@@ -4,6 +4,7 @@
 libpkgapply_posix = library(
   'pkgapply-posix',
   [
+    'active_workspace.cpp',
     'capture_store.cpp',
     'checkpoint_store.cpp',
     'journal_store.cpp',
