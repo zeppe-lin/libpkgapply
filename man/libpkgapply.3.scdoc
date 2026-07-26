@@ -25,9 +25,12 @@ request without archive authority.
 
 *libpkgapply* is a C++17 library for applying one immutable, accepted
 *libpkgplan* installation, upgrade, or removal plan to one managed target.
-It revalidates the caller's exact target, lease, installed-state projection,
-filesystem observations, archive identity, package image, and inspection
-receipt before mutation.
+Installation and upgrade requests retain one complete successful
+*libpkgbuild* result, an independently inspected *libpkgimage* value, and the
+*libpkgsource-plan* candidate projection derived from the build request's
+sealed source snapshot. The library revalidates this incoming authority, the
+accepted plan, target, lease, installed-state projection, filesystem
+observations, and replay archive before mutation.
 
 The semantic engine owns mechanism order. It stages selected regular payloads,
 captures old objects needed for rejected publication or recovery, publishes
@@ -48,9 +51,16 @@ control. The closed *package_application_request* envelope is used only at
 backend composition boundaries; it does not erase operation-specific
 semantics.
 
-Installation and upgrade requests require the exact incoming package archive
-for the complete call. Removal has no incoming archive, image, candidate,
-artifact, or current source authority.
+Installation and upgrade requests require an
+*incoming_package_authority*. It is admitted only when a complete successful
+build result and independent image inspection agree on the artifact digest and
+every ordered payload entry. Request construction additionally proves that the
+accepted plan names the same source-derived candidate control, release,
+artifact, manifest, image, inspection receipt, and archive precondition.
+
+The complete call also borrows the exact replayable package archive. Removal
+has no incoming build, archive, image, candidate, artifact, or current source
+authority.
 
 # TARGET AND LEASE
 
@@ -102,10 +112,10 @@ concurrent replay.
 
 # VERSION
 
-Version 0.1.0 exposes API version 0. Canonical application, journal,
+Version 1.0.0 exposes API version 1. Canonical application, journal,
 checkpoint, completed-evidence, and mechanism-storage schema versions are
 independent of the project version and shared-library SONAME.
 
 # SEE ALSO
 
-*libpkgapply-posix*(3), *pkgapply*(7), *libpkgplan*(3)
+*libpkgapply-posix*(3), *pkgapply*(7), *libpkgbuild*(3), *libpkgplan*(3)

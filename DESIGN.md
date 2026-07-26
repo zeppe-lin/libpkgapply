@@ -21,16 +21,23 @@ Authority graph
 ---------------
 
 ```text
-candidate, artifact, image, installed, observation, and policy facts
-                              |
-                              v
-                         libpkgplan
-                              |
-                              v
-                 accepted package-operation plan
-                              |
-                              v
-                        libpkgapply
+sealed source snapshot              independently inspected artifact
+          |                                      ^
+          v                                      |
+      libpkgbuild -------------------------------+
+          | successful result + exact payload
+          v
+  incoming_package_authority ----> source-derived candidate control
+          |                                      |
+          +------------------+-------------------+
+                             v
+                        libpkgplan
+                             |
+                             v
+                accepted package-operation plan
+                             |
+                             v
+                       libpkgapply
                               |
               +---------------+---------------+
               |                               |
@@ -51,6 +58,37 @@ The package manager remains the composition root. It acquires the outer
 target mutation lease, supplies immutable authorities, retains the lease
 through installed-state publication and recovery choice, and records the
 complete transaction result.
+
+Incoming package authority
+--------------------------
+
+Installation and upgrade do not accept an archive, candidate-control value, or
+build-provenance token independently. `incoming_package_authority::admit()`
+requires one complete successful `libpkgbuild` result and one independently
+inspected `libpkgimage` value. Admission proves:
+
+```text
+build request source snapshot is sealed
+build result is successful and complete
+sealed artifact digest == inspected archive digest
+ordered build payload == ordered normalized image
+candidate control == libpkgsource-plan projection of build source
+```
+
+The admitted value retains all three authorities rather than flattening them
+into strings. Its identity binds the build result and request, source snapshot,
+payload, artifact, artifact binding, source-derived candidate, archive digest,
+normalized image, and inspection receipt.
+
+An installation or upgrade request can be constructed only when its accepted
+plan names the same release, candidate identity and control, artifact, image,
+inspection receipt, artifact manifest, archive precondition, and publication
+control. This is a pre-mutation structural invariant. The later admission gate
+revalidates the replayed archive against both the request-bound incoming
+package and the plan.
+
+Removal has no incoming package authority. It cannot smuggle an incoming
+archive precondition into the application layer.
 
 Accepted plan
 -------------
@@ -86,8 +124,10 @@ Public application facade
 -------------------------
 
 The package-manager-facing API exposes three operation-specific `apply()`
-overloads. Installation and upgrade retain a caller-owned `package_archive`;
-removal has no incoming archive parameter. Every overload also requires the
+overloads. Installation and upgrade requests retain admitted native build and
+image authority while the call borrows the exact replayable
+`package_archive`; removal has neither incoming authority nor an archive
+parameter. Every overload also requires the
 exact lease-bound state projection, the caller-held outer mutation lease, and
 one selected backend.
 
@@ -922,6 +962,11 @@ Hard invariants
 17. Removal requires no current candidate, source, provider, artifact, or
     archive.
 18. Version 0.1.0 executes no unbound lifecycle declaration.
+19. Version 1.0.0 installation and upgrade requests retain exactly one
+    successful native build, independent image inspection, and source-derived
+    candidate projection.
+20. A valid plan from another build, image, receipt, artifact, or candidate
+    universe is rejected before mutation even when package names match.
 19. `libpkgapply` does not publish installed state.
 20. `libpkgstate` is absent from the core dependency graph.
 21. No receipt or journal record invents global filesystem/state atomicity.

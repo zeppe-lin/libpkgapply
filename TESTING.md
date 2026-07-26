@@ -22,7 +22,10 @@ Model tests
 -----------
 
 Plan-bearing tests construct accepted plans only through the released
-`libpkgplan` request and planner APIs. Tests must not instantiate planner-private
+`libpkgplan` request and planner APIs. Installation and upgrade fixtures derive
+candidate control through released `libpkgsource-plan` and carry complete
+released `libpkgbuild` results; manually invented candidate-control values are
+not valid incoming authority. Tests must not instantiate planner-private
 plan, decision, precondition, publication, or ownership-transition values, and
 must not substitute constructor-shaped doubles for those APIs. At least one
 qualification build uses installed released `libpkgplan` and `libpkgimage`
@@ -34,6 +37,11 @@ The immutable model suite must cover:
 * strict typed identity parsing and domain separation;
 * fixed canonical identity vectors;
 * request and operation-kind separation;
+* successful native build and independent image admission;
+* build artifact digest versus inspected archive binding;
+* complete ordered payload versus normalized image equality;
+* source-derived candidate identity and control;
+* rejection of same-name but foreign build, image, receipt, and plan facts;
 * target context normalization;
 * lease-bound state projection completeness;
 * known, unknown, and not-applicable object facts;

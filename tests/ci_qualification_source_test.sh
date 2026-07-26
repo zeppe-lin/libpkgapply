@@ -29,6 +29,8 @@ for contract in \
   '--wrap-mode=nofallback' \
   'LIBPKGIMAGE_SOURCE' \
   'LIBPKGPLAN_SOURCE' \
+  'LIBPKGSOURCE_SOURCE' \
+  'LIBPKGBUILD_SOURCE' \
   '-Dtests=enabled' \
   '-Dwerror=true'
 do
@@ -38,8 +40,8 @@ done
 
 for contract in \
   'libpkgapply-posix' \
-  'libpkgapply.so.0' \
-  'libpkgapply-posix.so.0' \
+  'libpkgapply.so.1' \
+  'libpkgapply-posix.so.1' \
   'core libpkgapply metadata is contaminated by installed state' \
   'ci-dependency-prefix'
 do
@@ -56,5 +58,11 @@ grep -F "version: '>=0.2.0'" "$root/meson.build" >/dev/null ||
   fail 'Meson dependency floor does not require libpkgplan 0.2.0'
 grep -F "version: '>=0.3.0'" "$root/meson.build" >/dev/null ||
   fail 'Meson dependency floor does not require libpkgimage 0.3.0'
+grep -F "version: '>=1.0.0'" "$root/meson.build" >/dev/null ||
+  fail 'Meson dependency floors omit native 1.0 authorities'
+grep -F "'libpkgbuild >= 1.0.0'" "$root/src/meson.build" >/dev/null ||
+  fail 'core pkg-config metadata omits libpkgbuild 1.0.0'
+grep -F "'libpkgsource-plan >= 1.0.0'" "$root/src/meson.build" >/dev/null ||
+  fail 'core pkg-config metadata omits libpkgsource-plan 1.0.0'
 grep -F "'libpkgplan >= 0.2.0'" "$root/src/meson.build" >/dev/null ||
   fail 'core pkg-config metadata omits libpkgplan 0.2.0'

@@ -11,10 +11,12 @@ Package application is the physical transition between one accepted
 chain is:
 
 ```
+libpkgsource  sealed package declaration and source identity
+libpkgbuild   successful build and exact artifact authority
 libpkgplan    immutable intended transition
 libpkgapply   observed application effects and recovery evidence
 libpkgstate   durable installed truth and state publication
-pkgman        transaction composition and final resolution
+pkgctl        transaction composition and final resolution
 ```
 
 No layer may silently absorb the authority of another.
@@ -26,10 +28,13 @@ context, state projection, installed snapshot, ownership inventory, path-owner
 closure, planning-time filesystem facts, backend identities, and capability
 profile are revalidated before mutation.
 
-Installation and upgrade additionally require the exact complete archive
-digest, package image, inspection receipt, and image-entry identities accepted
-by the plan. An archive pathname or package filename is never authority.
-Removal requires no current source or incoming archive.
+Installation and upgrade additionally require one admitted incoming package:
+a complete successful *libpkgbuild* result, an independent *libpkgimage*
+inspection, and source-derived candidate control. The build artifact digest,
+ordered payload, archive digest, image, receipt, release, candidate control,
+manifest, plan precondition, and publication must agree before mutation. An
+archive pathname or package filename is never authority. Removal requires no
+current source, build result, or incoming archive.
 
 A stale fact returns a precondition-refused receipt before payload staging,
 journal publication, capture, rejected publication, active mutation, or
@@ -79,15 +84,16 @@ A completed receipt contains publication-eligible path consequences and
 completed application evidence. That evidence is application truth, not
 installed-state truth. *libpkgapply* does not construct installed packages,
 installed control, state deltas, publication requests, or publication receipts.
-A destination-owned state adapter must consume the accepted plan, completed
-application evidence, prior state, and complete installed-control material.
+A destination-owned state adapter must consume the request-bound source and
+build authority, accepted plan, completed application evidence, and prior state.
+It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 0.1.0 does not solve dependencies, select packages, parse policy,
+Version 1.0.0 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 
 # SEE ALSO
 
-*libpkgapply*(3), *libpkgapply-posix*(3), *libpkgplan*(3)
+*libpkgapply*(3), *libpkgapply-posix*(3), *libpkgbuild*(3), *libpkgplan*(3)

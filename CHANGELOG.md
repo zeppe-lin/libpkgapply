@@ -1,6 +1,55 @@
 libpkgapply changelog
 =====================
 
+1.0.0 - 2026-07-27
+------------------
+
+Native incoming authority
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Added `incoming_package_authority`, which admits one complete successful
+  `libpkgbuild 1.0.0` result together with an independently inspected
+  `libpkgimage` value.
+- Verify the exact build artifact digest and every ordered payload field before
+  exposing source-derived `libpkgplan` candidate control.
+- Require installation and upgrade requests to retain this admitted authority;
+  removal remains explicitly archive-free and has no incoming build authority.
+- Reject plans whose release, candidate control, artifact, image, inspection
+  receipt, manifest, or archive precondition differs from the admitted build.
+
+Authority and ABI transition
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Advanced the application-request schema to version 2, public API version to
+  1, core SONAME to 1, and POSIX backend SONAME to 1.
+- Added public dependency floors for `libpkgbuild 1.0.0` and
+  `libpkgsource-plan 1.0.0` while preserving `libpkgimage 0.3.0` and
+  `libpkgplan 0.2.0` as exact authority boundaries.
+- Retained the journaled semantic engine, recovery model, completed filesystem
+  evidence, and descriptor-anchored POSIX mechanisms without moving source,
+  build, planning, or installed-state authority into the backend.
+
+Operational transition
+~~~~~~~~~~~~~~~~~~~~~~
+
+- Version 0.1.0 application requests cannot be reconstructed as version 1.0.0
+  requests because they did not retain native build authority.
+- Complete or recover every durable 0.1.0 attempt with the 0.1.0 libraries
+  before upgrading. Journals and checkpoints are not migrated or
+  reinterpreted in place.
+- Callers must construct install and upgrade requests from the exact native
+  build result and independently inspected image used to produce the accepted
+  plan. Archive filenames and caller-invented control values are not migration
+  inputs.
+
+Deliberate boundaries
+~~~~~~~~~~~~~~~~~~~~~
+
+Version 1.0.0 does not publish installed state, execute package lifecycle
+material, resolve dependencies, select package candidates, discover archives
+or targets from ambient configuration, compose multi-package transactions, or
+claim global filesystem and state atomicity.
+
 0.1.0 - 2026-07-25
 ------------------
 

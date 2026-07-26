@@ -44,7 +44,7 @@ libpkgapply = library(
   ],
   install: true,
   version: meson.project_version(),
-  soversion: '0',
+  soversion: '1',
 )
 
 libpkgapply_dep = declare_dependency(

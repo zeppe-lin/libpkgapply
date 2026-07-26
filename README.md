@@ -7,17 +7,29 @@ libpkgapply
 Its authority is deliberately narrow:
 
 ```text
+libpkgsource  sealed package declaration and source identity
+libpkgbuild   verified build result and exact artifact authority
 libpkgplan    immutable intended transition
 libpkgapply   observed application effects and recovery evidence
 libpkgstate   durable installed truth and state publication
-pkgman        transaction composition and final resolution
+pkgctl        transaction composition and final resolution
 ```
 
 Implemented contract
 --------------------
 
-Version 0.1.0 provides the immutable, semantic, restart, and live-mechanism
-contract required to apply one accepted package operation:
+Version 1.0.0 provides the immutable, semantic, restart, and live-mechanism
+contract required to apply one accepted package operation.
+
+Installation and upgrade begin with `incoming_package_authority`: one complete
+successful `libpkgbuild` result bound to an independent `libpkgimage`
+inspection and the `libpkgsource-plan` candidate projection derived from the
+build request's sealed source snapshot. Request construction rejects any plan
+whose release, control, artifact, image, receipt, manifest, or archive
+precondition differs from that authority. Removal deliberately has no incoming
+package authority.
+
+The implemented surface includes:
 
 * strict domain-separated SHA-256 application identities;
 * immutable target application contexts and execution controls;
@@ -152,6 +164,7 @@ Authority boundary
 
 The library:
 
+* admit an exact successful native build and independently inspected image;
 * consume an accepted installation, upgrade, or removal plan;
 * require one caller-held target mutation lease;
 * revalidate state and filesystem preconditions under that lease;
@@ -181,6 +194,8 @@ Build-time requirements are:
 * Meson 1.2.0 or later;
 * Ninja;
 * pkg-config;
+* `libpkgbuild` 1.0.0 or later;
+* `libpkgsource-plan` 1.0.0 or later;
 * `libpkgimage` 0.3.0 or later;
 * `libpkgplan` 0.2.0 or later; and
 * OpenSSL `libcrypto` with SHA-256 EVP support.
@@ -215,9 +230,13 @@ Installed manuals are *libpkgapply*(3), *libpkgapply-posix*(3), and
 Release discipline
 ------------------
 
-Version 0.1.0 was completed contract-first. Effectful code remains admissible
+Version 1.0.0 is qualified as a native build-bound application authority. Effectful code remains admissible
 only with direct failure, stale-state, journal, restart, recovery, durability,
 and identity tests.
+
+Version 0.1.0 requests and durable attempts do not contain native build
+authority. Complete or recover them with the 0.1.0 libraries before upgrading;
+there is no in-place journal or checkpoint migration.
 
 See `DESIGN.md` for the normative authority and sequencing model and
 `TESTING.md` for release qualification.

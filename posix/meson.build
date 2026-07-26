@@ -19,7 +19,7 @@ libpkgapply_posix = library(
   dependencies: [libpkgapply_dep, libcrypto_dep],
   install: true,
   version: meson.project_version(),
-  soversion: '0',
+  soversion: '1',
 )
 
 libpkgapply_posix_dep = declare_dependency(

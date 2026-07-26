@@ -32,6 +32,12 @@ grep -F '`application_posix_backend` factory' \
 grep -F 'incoming rejected staging' "$root/TESTING.md" >/dev/null ||
   fail 'testing contract omits concrete rejected-route qualification'
 
+grep -F 'incoming_package_authority::admit()' "$root/DESIGN.md" >/dev/null ||
+  fail 'design omits native incoming build admission'
+
+grep -F 'Complete or recover every durable 0.1.0 attempt'   "$root/CHANGELOG.md" >/dev/null ||
+  fail 'release record omits durable-attempt transition'
+
 for stale in \
   'The remaining POSIX boundary' \
   'The complete backend will compose' \
@@ -44,5 +50,5 @@ do
   fi
 done
 
-grep -F 'PROJECT_NUMBER         = 0.1.0' "$root/Doxyfile" >/dev/null ||
-  fail 'Doxygen project version is not 0.1.0'
+grep -F 'PROJECT_NUMBER         = 1.0.0' "$root/Doxyfile" >/dev/null ||
+  fail 'Doxygen project version is not 1.0.0'
