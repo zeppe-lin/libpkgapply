@@ -23,6 +23,8 @@ script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
 source_dir=$(CDPATH= cd "$script_dir/.." && pwd)
 image_source=${LIBPKGIMAGE_SOURCE:-$source_dir/subprojects/libpkgimage}
 plan_source=${LIBPKGPLAN_SOURCE:-$source_dir/subprojects/libpkgplan}
+source_source=${LIBPKGSOURCE_SOURCE:-$source_dir/subprojects/libpkgsource}
+build_source=${LIBPKGBUILD_SOURCE:-$source_dir/subprojects/libpkgbuild}
 
 [ -f "$image_source/meson.build" ] || {
   echo "libpkgimage source is absent: $image_source" >&2
@@ -30,6 +32,14 @@ plan_source=${LIBPKGPLAN_SOURCE:-$source_dir/subprojects/libpkgplan}
 }
 [ -f "$plan_source/meson.build" ] || {
   echo "libpkgplan source is absent: $plan_source" >&2
+  exit 1
+}
+[ -f "$source_source/meson.build" ] || {
+  echo "libpkgsource source is absent: $source_source" >&2
+  exit 1
+}
+[ -f "$build_source/meson.build" ] || {
+  echo "libpkgbuild source is absent: $build_source" >&2
   exit 1
 }
 
@@ -41,6 +51,8 @@ dependency_prefix=$build_path/dependencies
 install_prefix=$build_path/install
 image_build=$build_path/libpkgimage
 plan_build=$build_path/libpkgplan
+source_build=$build_path/libpkgsource
+build_build=$build_path/libpkgbuild
 
 rm -rf "$dependency_prefix" "$install_prefix"
 mkdir -p "$build_path"
@@ -90,6 +102,22 @@ export LD_LIBRARY_PATH=$dependency_prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PAT
 configure_dependency "$plan_source" "$plan_build" -Dreference_tools=disabled
 [ "$(pkg-config --modversion libpkgplan)" = 0.2.0 ] || {
   echo 'qualified libpkgplan is not version 0.2.0' >&2
+  exit 1
+}
+
+configure_dependency "$source_source" "$source_build" -Dplanner_adapter=enabled
+[ "$(pkg-config --modversion libpkgsource)" = 1.0.0 ] || {
+  echo 'qualified libpkgsource is not version 1.0.0' >&2
+  exit 1
+}
+[ "$(pkg-config --modversion libpkgsource-plan)" = 1.0.0 ] || {
+  echo 'qualified libpkgsource-plan is not version 1.0.0' >&2
+  exit 1
+}
+
+configure_dependency "$build_source" "$build_build" -Dplanner_adapter=disabled
+[ "$(pkg-config --modversion libpkgbuild)" = 1.0.0 ] || {
+  echo 'qualified libpkgbuild is not version 1.0.0' >&2
   exit 1
 }
 

@@ -356,7 +356,8 @@ void test_regular_install()
       authorities, {entry}, {pkgplan::target_path_observation::absent(path)},
       {}, std::nullopt, digest);
   const auto request = pkgapply::installation_application_request::make(
-      plan, layout.target(), execution_control());
+      plan, pkgapply::test::fixture::incoming_package({entry}, digest),
+      layout.target(), execution_control());
   memory_archive archive({entry}, {bytes}, digest);
   fake_lease lease(
       application_identity<pkgapply::mutation_lease_instance_identity>(80),
@@ -405,7 +406,8 @@ void test_incoming_rejected_stage()
       authorities, {entry}, {pkgplan::target_path_observation::absent(path)},
       {}, policy, digest);
   const auto request = pkgapply::installation_application_request::make(
-      plan, layout.target(), execution_control());
+      plan, pkgapply::test::fixture::incoming_package({entry}, digest),
+      layout.target(), execution_control());
   memory_archive archive({entry}, {bytes}, digest);
   fake_lease lease(
       application_identity<pkgapply::mutation_lease_instance_identity>(110),

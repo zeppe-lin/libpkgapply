@@ -514,6 +514,7 @@ main()
   });
   const auto install_request = pkgapply::installation_application_request::make(
       pkgapply::test::fixture::ordinary_installation(authorities),
+      pkgapply::test::fixture::ordinary_installation_incoming(),
       context,
       control());
   const auto install_state = state(
@@ -702,6 +703,7 @@ main()
   });
   const auto upgrade_request = pkgapply::upgrade_application_request::make(
       pkgapply::test::fixture::ordinary_upgrade(authorities),
+      pkgapply::test::fixture::ordinary_upgrade_incoming(),
       context,
       control());
   const auto upgrade_state = state(
@@ -757,12 +759,15 @@ main()
                   pkgplan::filesystem_object_fact(
                       rejected_install_path, rejected_install_active))},
               {}, rejected_install_policy),
+          pkgapply::test::fixture::incoming_package(
+              {pkgapply::test::fixture::regular_entry("tool.conf", 7)}),
           context, control());
   const auto rejected_install_state = state(
       lease, rejected_install_request.plan().preconditions());
   const auto durable_rejected_install_request =
       pkgapply::installation_application_request::make(
-          rejected_install_request.plan(), context,
+          rejected_install_request.plan(), rejected_install_request.incoming(),
+          context,
           pkgapply::application_execution_control::make(
               pkgapply::application_recovery_requirement::best_effort,
               pkgapply::application_durability_requirement::
@@ -1425,7 +1430,7 @@ main()
   // command and retains confirmed durability for final observation.
   const auto durable_active_request =
       pkgapply::installation_application_request::make(
-          install_request.plan(), context,
+          install_request.plan(), install_request.incoming(), context,
           pkgapply::application_execution_control::make(
               pkgapply::application_recovery_requirement::best_effort,
               pkgapply::application_durability_requirement::
@@ -1840,6 +1845,9 @@ main()
                pkgapply::test::fixture::regular_entry("tree/file", 6)},
               {pkgplan::target_path_observation::absent(tree),
                pkgplan::target_path_observation::absent(tree_file)}),
+          pkgapply::test::fixture::incoming_package(
+              {pkgapply::test::fixture::directory_entry("tree"),
+               pkgapply::test::fixture::regular_entry("tree/file", 6)}),
           context,
           pkgapply::application_execution_control::make(
               pkgapply::application_recovery_requirement::best_effort,
@@ -1951,7 +1959,7 @@ main()
   // backend recovery commands or pretending recovery assets exist.
   const auto no_recovery_request =
       pkgapply::installation_application_request::make(
-          install_request.plan(), context,
+          install_request.plan(), install_request.incoming(), context,
           pkgapply::application_execution_control::make(
               pkgapply::application_recovery_requirement::none,
               pkgapply::application_durability_requirement::
@@ -2040,7 +2048,7 @@ main()
   // Exact recovery is refused before payload replay when capture is insufficient.
   const auto exact_upgrade_request =
       pkgapply::upgrade_application_request::make(
-          upgrade_request.plan(),
+          upgrade_request.plan(), upgrade_request.incoming(),
           context,
           pkgapply::application_execution_control::make(
               pkgapply::application_recovery_requirement::exact_prior_state,

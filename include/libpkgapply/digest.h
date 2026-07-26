@@ -161,6 +161,13 @@ struct application_execution_control_identity_domain final {
   }
 };
 
+struct incoming_package_authority_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/incoming-package-authority/v1";
+  }
+};
+
 struct application_request_identity_domain final {
   [[nodiscard]] static constexpr std::string_view name() noexcept
   {
@@ -323,6 +330,8 @@ using application_target_context_identity =
     typed_digest<detail::application_target_context_identity_domain>;
 using application_execution_control_identity =
     typed_digest<detail::application_execution_control_identity_domain>;
+using incoming_package_authority_identity =
+    typed_digest<detail::incoming_package_authority_identity_domain>;
 using application_request_identity =
     typed_digest<detail::application_request_identity_domain>;
 using application_journal_identity =
@@ -369,6 +378,8 @@ extern template class typed_digest<
     detail::application_target_context_identity_domain>;
 extern template class typed_digest<
     detail::application_execution_control_identity_domain>;
+extern template class typed_digest<
+    detail::incoming_package_authority_identity_domain>;
 extern template class typed_digest<detail::application_request_identity_domain>;
 extern template class typed_digest<detail::application_journal_identity_domain>;
 extern template class typed_digest<

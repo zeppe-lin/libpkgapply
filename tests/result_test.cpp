@@ -160,7 +160,10 @@ int main()
       {pkgplan::target_path_observation::absent(path)});
   const auto& decision = plan.paths().front();
   auto request = pkgapply::installation_application_request::make(
-      plan, context, execution);
+      plan,
+      pkgapply::test::fixture::incoming_package(
+          {pkgapply::test::fixture::directory_entry("tool")}),
+      context, execution);
   auto evidence = pkgapply::completed_application_evidence::installation(
       request, app_identity<pkgapply::application_attempt_identity>(40),
       app_identity<pkgapply::lease_bound_state_projection_identity>(41),
@@ -319,7 +322,10 @@ int main()
       {}, rejected_policy);
   const auto rejected_request =
       pkgapply::installation_application_request::make(
-          rejected_plan, context, execution);
+          rejected_plan,
+          pkgapply::test::fixture::incoming_package(
+              {pkgapply::test::fixture::regular_entry("tool.conf", 7)}),
+          context, execution);
   const auto& rejected_decision = rejected_request.plan().paths().front();
   const auto rejected_record =
       app_identity<pkgapply::rejected_object_record_identity>(70);

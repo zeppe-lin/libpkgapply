@@ -12,6 +12,9 @@
 #include <vector>
 
 #include <libpkgapply/backend.h>
+#include <libpkgapply/incoming_package.h>
+#include <libpkgbuild/libpkgbuild.h>
+#include <libpkgsource-plan/adapter.h>
 #include <libpkgplan/install.h>
 #include <libpkgplan/remove.h>
 #include <libpkgplan/upgrade.h>
@@ -161,6 +164,148 @@ inspected_image(std::vector<pkgimage::package_entry> entries,
       std::move(image), std::move(receipt));
 }
 
+[[nodiscard]] inline pkgsource::declaration_provenance
+source_at(const char* path, std::uint32_t line)
+{
+  return pkgsource::declaration_provenance("recipe.yml", path, line, 1);
+}
+
+[[nodiscard]] inline pkgsource::source_snapshot
+source_snapshot(std::string version)
+{
+  using namespace pkgsource;
+  return seal_source(
+      source_origin("recipe.yml"), source_syntax::recipe_yaml_v1,
+      recipe_declaration(
+          package_release(package_reference("tool"), std::move(version), 1),
+          package_metadata("Tool", std::nullopt, std::nullopt,
+                           {"GPL-3.0-or-later"}),
+          {},
+          program(program_language::posix_shell, "install -Dm755 tool $PKG/tool\n"),
+          {requirement_declaration(
+              requirement_scope::run(),
+              requirement_subject(package_reference("libc")),
+              source_at("requirements.run[0]", 8))},
+          {lifecycle_program(
+              lifecycle_action::pre_remove,
+              program(program_language::posix_shell, "prepare-remove"))},
+          architecture_requirements(
+              {architecture_reference("x86_64")},
+              {architecture_reference("x86_64")}),
+          source_at("$", 1)),
+      profile_catalog::seal({}));
+}
+
+[[nodiscard]] inline std::string
+sha256_hex(const std::string& value)
+{
+  constexpr std::string_view prefix = "v1:sha256:";
+  if (value.compare(0, prefix.size(), prefix) != 0)
+    throw std::invalid_argument("fixture digest is not canonical SHA-256");
+  return value.substr(prefix.size());
+}
+
+[[nodiscard]] inline pkgbuild::payload_manifest
+build_payload(const std::vector<pkgimage::package_entry>& entries)
+{
+  std::vector<pkgbuild::payload_entry> payload;
+  payload.reserve(entries.size());
+  for (const auto& entry : entries) {
+    const auto path = pkgbuild::payload_path::parse(entry.path.string());
+    const pkgbuild::payload_time time{entry.mtime, entry.mtime_nanoseconds};
+    switch (entry.type) {
+      case pkgimage::entry_type::regular:
+        if (!entry.regular_content)
+          throw std::invalid_argument("regular fixture entry lacks content");
+        payload.push_back(pkgbuild::payload_entry::regular(
+            path, entry.mode, entry.uid, entry.gid, entry.size, time,
+            pkgbuild::sha256_digest(
+                sha256_hex(entry.regular_content->string()))));
+        break;
+      case pkgimage::entry_type::directory:
+        payload.push_back(pkgbuild::payload_entry::directory(
+            path, entry.mode, entry.uid, entry.gid, time));
+        break;
+      case pkgimage::entry_type::symlink:
+        if (!entry.symlink_target)
+          throw std::invalid_argument("symlink fixture entry lacks target");
+        payload.push_back(pkgbuild::payload_entry::symlink(
+            path, entry.mode, entry.uid, entry.gid, time,
+            *entry.symlink_target));
+        break;
+      case pkgimage::entry_type::hardlink:
+        if (!entry.hardlink_target)
+          throw std::invalid_argument("hardlink fixture entry lacks target");
+        payload.push_back(pkgbuild::payload_entry::hardlink(
+            path, entry.mode, entry.uid, entry.gid, time,
+            pkgbuild::payload_path::parse(entry.hardlink_target->string())));
+        break;
+      case pkgimage::entry_type::fifo:
+        payload.push_back(pkgbuild::payload_entry::fifo(
+            path, entry.mode, entry.uid, entry.gid, time));
+        break;
+      case pkgimage::entry_type::character_device:
+        if (!entry.device)
+          throw std::invalid_argument("character-device fixture lacks device");
+        payload.push_back(pkgbuild::payload_entry::character_device(
+            path, entry.mode, entry.uid, entry.gid, time,
+            pkgbuild::device_number{entry.device->major, entry.device->minor}));
+        break;
+      case pkgimage::entry_type::block_device:
+        if (!entry.device)
+          throw std::invalid_argument("block-device fixture lacks device");
+        payload.push_back(pkgbuild::payload_entry::block_device(
+            path, entry.mode, entry.uid, entry.gid, time,
+            pkgbuild::device_number{entry.device->major, entry.device->minor}));
+        break;
+    }
+  }
+  return pkgbuild::payload_manifest::seal(std::move(payload));
+}
+
+[[nodiscard]] inline pkgbuild::build_request
+build_request(std::string version)
+{
+  auto source = source_snapshot(std::move(version));
+  return pkgbuild::build_request::seal(
+      source, {}, {}, pkgsource::architecture_reference("x86_64"),
+      pkgsource::architecture_reference("x86_64"),
+      pkgbuild::build_policy::make(
+          pkgbuild::environment_policy::hermetic(1, 0022, 1700000000)));
+}
+
+[[nodiscard]] inline incoming_package_authority
+incoming_package(
+    std::vector<pkgimage::package_entry> entries,
+    pkgimage::complete_archive_digest digest = archive_digest(),
+    std::string version = "1.0")
+{
+  auto image = inspected_image(entries, digest);
+  auto build = pkgbuild::build_result::succeeded(
+      build_request(std::move(version)), build_payload(entries),
+      pkgbuild::sealed_artifact::make(
+          pkgbuild::artifact_encoding::package_tar_v1,
+          pkgbuild::artifact_compression::none, 4096,
+          pkgbuild::sha256_digest(sha256_hex(digest.string()))),
+      pkgbuild::execution_evidence_identity::from_sha256(
+          std::string(64, '8')));
+  return incoming_package_authority::admit(
+      std::move(build), std::move(image));
+}
+
+[[nodiscard]] inline incoming_package_authority
+ordinary_installation_incoming(std::string path = "tool")
+{
+  return incoming_package({regular_entry(std::move(path), 7)});
+}
+
+[[nodiscard]] inline incoming_package_authority
+ordinary_upgrade_incoming(std::string path = "tool")
+{
+  return incoming_package({regular_entry(std::move(path), 2, 0755)},
+                          archive_digest(), "2.0");
+}
+
 [[nodiscard]] inline pkgplan::normalized_path_policy
 path_policy(
     pkgplan::incoming_path_policy incoming =
@@ -214,18 +359,6 @@ observations(
       std::move(facts));
 }
 
-[[nodiscard]] inline pkgplan::candidate_control_projection
-incoming_control()
-{
-  return pkgplan::candidate_control_projection(
-      {pkgplan::runtime_dependency_declaration::make("libc >= 1")},
-      {pkgplan::removal_lifecycle_declaration::make(
-          pkgplan::removal_lifecycle_phase::pre_remove,
-          "application/x-zeppe-lin-shell",
-          "prepare-remove")},
-      {pkgplan::target_profile_fact::make("architecture", "x86_64")});
-}
-
 [[nodiscard]] inline pkgplan::installed_control_projection
 historical_control()
 {
@@ -261,18 +394,17 @@ installation_plan(
         std::nullopt,
     pkgimage::complete_archive_digest digest = archive_digest())
 {
-  const auto incoming_release = release(1, "1.0");
+  const incoming_package_authority incoming =
+      incoming_package(entries, digest, "1.0");
+  const auto& incoming_release = incoming.candidate().release();
   pkgplan::installation_request request(
-      pkgplan::candidate_package_fact(
-          planning_identity<pkgplan::candidate_control_identity>(2),
-          incoming_release,
-          incoming_control()),
+      incoming.candidate(),
       pkgplan::artifact_package_fact(
-          planning_identity<pkgplan::artifact_identity>(3),
+          pkgplan::artifact_identity::parse(digest.string()),
           planning_identity<pkgplan::artifact_manifest_identity>(4),
           incoming_release),
       digest,
-      inspected_image(std::move(entries), digest),
+      incoming.image(),
       authorities.snapshot,
       ownership(authorities, std::move(claims)),
       authorities.target,
@@ -304,19 +436,18 @@ upgrade_plan(
         std::nullopt,
     pkgimage::complete_archive_digest digest = archive_digest())
 {
-  const auto incoming_release = release(2, "2.0");
+  const incoming_package_authority incoming =
+      incoming_package(entries, digest, "2.0");
+  const auto& incoming_release = incoming.candidate().release();
   pkgplan::upgrade_request request(
       installed(authorities),
-      pkgplan::candidate_package_fact(
-          planning_identity<pkgplan::candidate_control_identity>(3),
-          incoming_release,
-          incoming_control()),
+      incoming.candidate(),
       pkgplan::artifact_package_fact(
-          planning_identity<pkgplan::artifact_identity>(4),
+          pkgplan::artifact_identity::parse(digest.string()),
           planning_identity<pkgplan::artifact_manifest_identity>(5),
           incoming_release),
       digest,
-      inspected_image(std::move(entries), digest),
+      incoming.image(),
       authorities.snapshot,
       ownership(authorities, std::move(claims)),
       authorities.target,

@@ -39,6 +39,31 @@ libpkgplan_dep = dependency(
   ],
 )
 
+libpkgbuild_dep = dependency(
+  'libpkgbuild',
+  version: '>=1.0.0',
+  required: true,
+  static: want_static,
+  fallback: ['libpkgbuild', 'libpkgbuild_dep'],
+  default_options: [
+    'default_library=' + library_kind,
+    'link_mode=' + get_option('link_mode'),
+  ],
+)
+
+libpkgsource_plan_dep = dependency(
+  'libpkgsource-plan',
+  version: '>=1.0.0',
+  required: true,
+  static: want_static,
+  fallback: ['libpkgsource', 'libpkgsource_plan_dep'],
+  default_options: [
+    'default_library=' + library_kind,
+    'link_mode=' + get_option('link_mode'),
+    'planner_adapter=enabled',
+  ],
+)
+
 libpkgimage_dep = dependency(
   'libpkgimage',
   version: '>=0.3.0',

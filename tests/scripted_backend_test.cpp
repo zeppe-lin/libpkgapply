@@ -228,6 +228,7 @@ main()
   const auto incoming_application =
       pkgapply::installation_application_request::make(
           pkgapply::test::fixture::ordinary_installation(plan_authorities),
+          pkgapply::test::fixture::ordinary_installation_incoming(),
           context,
           execution_control);
   const auto old_object = pkgapply::test::fixture::regular_object(1);

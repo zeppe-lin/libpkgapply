@@ -219,7 +219,11 @@ installation_request(const pkgapply::application_target_context& context,
       std::nullopt,
       archive.inspection_receipt().archive_digest());
   return pkgapply::installation_application_request::make(
-      plan, context, control());
+      plan,
+      pkgapply::test::fixture::incoming_package(
+          archive.image().entries(),
+          archive.inspection_receipt().archive_digest()),
+      context, control());
 }
 
 template<class Function>

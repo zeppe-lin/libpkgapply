@@ -101,11 +101,12 @@ validate_common(const Request& request,
   validate_state(request.plan().preconditions(), state);
 }
 
-template<class Plan>
+template<class Request>
 void
-validate_incoming_archive(const Plan& plan,
+validate_incoming_archive(const Request& request,
                           const pkgimage::package_archive& archive)
 {
+  const auto& plan = request.plan();
   const auto& incoming = plan.preconditions().incoming_archive();
   if (!incoming)
     refuse(
@@ -115,6 +116,17 @@ validate_incoming_archive(const Plan& plan,
   const pkgimage::package_image& image = archive.image();
   const pkgimage::archive_inspection_receipt& receipt =
       archive.inspection_receipt();
+  const pkgimage::inspected_package_image& admitted = request.incoming().image();
+
+  if (receipt.archive_digest() != admitted.receipt().archive_digest())
+    refuse(application_admission_error_code::archive_digest_mismatch,
+           "replay archive differs from request-bound build authority");
+  if (image.identity() != admitted.image().identity())
+    refuse(application_admission_error_code::package_image_mismatch,
+           "replay image differs from request-bound build authority");
+  if (receipt.identity() != admitted.receipt().identity())
+    refuse(application_admission_error_code::inspection_receipt_mismatch,
+           "replay inspection differs from request-bound build authority");
 
   if (receipt.archive_digest() != incoming->archive())
     refuse(application_admission_error_code::archive_digest_mismatch,
@@ -182,7 +194,7 @@ validate_application_admission(
 {
   validate_common(
       request, pkgplan::operation_kind::install, state, lease, backend);
-  validate_incoming_archive(request.plan(), archive);
+  validate_incoming_archive(request, archive);
 }
 
 void
@@ -195,7 +207,7 @@ validate_application_admission(
 {
   validate_common(
       request, pkgplan::operation_kind::upgrade, state, lease, backend);
-  validate_incoming_archive(request.plan(), archive);
+  validate_incoming_archive(request, archive);
 }
 
 void

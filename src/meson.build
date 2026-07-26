@@ -19,6 +19,7 @@ libpkgapply = library(
     'completed_evidence_codec.cpp',
     'target_context.cpp',
     'execution_control.cpp',
+    'incoming_package.cpp',
     'request.cpp',
     'restart.cpp',
     'restart_checkpoint_codec.cpp',
@@ -34,7 +35,13 @@ libpkgapply = library(
     'schedule.cpp',
   ],
   include_directories: public_inc,
-  dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
+  dependencies: [
+    libcrypto_dep,
+    libpkgbuild_dep,
+    libpkgimage_dep,
+    libpkgplan_dep,
+    libpkgsource_plan_dep,
+  ],
   install: true,
   version: meson.project_version(),
   soversion: '0',
@@ -43,7 +50,13 @@ libpkgapply = library(
 libpkgapply_dep = declare_dependency(
   link_with: libpkgapply,
   include_directories: public_inc,
-  dependencies: [libcrypto_dep, libpkgimage_dep, libpkgplan_dep],
+  dependencies: [
+    libcrypto_dep,
+    libpkgbuild_dep,
+    libpkgimage_dep,
+    libpkgplan_dep,
+    libpkgsource_plan_dep,
+  ],
 )
 
 meson.override_dependency('libpkgapply', libpkgapply_dep)
@@ -59,6 +72,7 @@ install_headers(
   '../include/libpkgapply/completed_evidence_codec.h',
   '../include/libpkgapply/target_context.h',
   '../include/libpkgapply/execution_control.h',
+  '../include/libpkgapply/incoming_package.h',
   '../include/libpkgapply/request.h',
   '../include/libpkgapply/restart.h',
   '../include/libpkgapply/restart_checkpoint_codec.h',
@@ -83,8 +97,10 @@ pkgconf.generate(
   description: 'Package operation application library',
   subdirs: '.',
   requires: [
+    'libpkgbuild >= 1.0.0',
     'libpkgimage >= 0.3.0',
     'libpkgplan >= 0.2.0',
+    'libpkgsource-plan >= 1.0.0',
   ],
   requires_private: [libcrypto_dep],
 )

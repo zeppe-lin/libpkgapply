@@ -84,9 +84,13 @@ int main()
       pkgapply::test::fixture::ordinary_removal(authorities);
 
   const auto install = pkgapply::installation_application_request::make(
-      install_plan, target, execution);
+      install_plan,
+      pkgapply::test::fixture::ordinary_installation_incoming(),
+      target, execution);
   const auto upgrade = pkgapply::upgrade_application_request::make(
-      upgrade_plan, target, execution);
+      upgrade_plan,
+      pkgapply::test::fixture::ordinary_upgrade_incoming(),
+      target, execution);
   const auto removal = pkgapply::removal_application_request::make(
       removal_plan, target, execution);
 
@@ -118,7 +122,7 @@ int main()
           "execution control identity vector changed");
 
   const auto repeated = pkgapply::installation_application_request::make(
-      install_plan, target, execution);
+      install_plan, install.incoming(), target, execution);
   require(repeated.identity() == install.identity(),
           "identical application requests must have identical identities");
 

@@ -20,16 +20,19 @@ enum class request_kind : std::uint8_t {
 };
 
 template<class Plan>
-application_request_identity
-identify_request(request_kind kind,
-                 const Plan& plan,
-                 const application_target_context& target,
-                 const application_execution_control& control)
+application_request_identity identify_incoming_request(
+    request_kind kind,
+    const Plan& plan,
+    const incoming_package_authority& incoming,
+    const application_target_context& target,
+    const application_execution_control& control)
 {
   detail::canonical_record record(application_request_identity::canonical_domain());
   record.append_u16(application_request_schema_version);
   record.append_u8(static_cast<std::uint8_t>(kind));
   record.append_bytes(plan.identity().string());
+  record.append_bool(true);
+  record.append_digest(incoming.identity());
   record.append_digest(target.identity());
   record.append_digest(control.identity());
   return detail::identity_factory::from_sha256<application_request_identity>(
@@ -37,42 +40,121 @@ identify_request(request_kind kind,
 }
 
 template<class Plan>
-void
-validate_target(const Plan& plan, const application_target_context& target)
+application_request_identity identify_removal_request(
+    request_kind kind,
+    const Plan& plan,
+    const application_target_context& target,
+    const application_execution_control& control)
+{
+  detail::canonical_record record(application_request_identity::canonical_domain());
+  record.append_u16(application_request_schema_version);
+  record.append_u8(static_cast<std::uint8_t>(kind));
+  record.append_bytes(plan.identity().string());
+  record.append_bool(false);
+  record.append_digest(target.identity());
+  record.append_digest(control.identity());
+  return detail::identity_factory::from_sha256<application_request_identity>(
+      record.sha256());
+}
+
+template<class Plan>
+void validate_target(const Plan& plan, const application_target_context& target)
 {
   if (plan.preconditions().target() != target.target())
     throw std::invalid_argument("application target does not match accepted plan");
 }
 
+void require_plan_binding(bool condition, const char* message)
+{
+  if (!condition)
+    throw incoming_package_error(
+        incoming_package_error_code::plan_binding, message);
+}
+
+template<class Plan>
+void validate_incoming(const Plan& plan,
+                       const incoming_package_authority& incoming)
+{
+  const auto& candidate = incoming.candidate();
+  const auto& inputs = plan.inputs();
+  const auto& publication = plan.publication();
+  const auto& image = incoming.image();
+  const auto& build = incoming.build();
+
+  require_plan_binding(
+      inputs.candidate_release() == candidate.release().identity() &&
+          inputs.artifact_release() == candidate.release().identity() &&
+          plan.release() == candidate.release() &&
+          publication.release() == candidate.release(),
+      "accepted plan release differs from sealed build source");
+
+  require_plan_binding(
+      inputs.candidate() == candidate.identity() &&
+          inputs.candidate_control() == candidate.control_projection() &&
+          publication.candidate() == candidate.identity() &&
+          publication.installed_control() == candidate.control_projection(),
+      "accepted plan candidate control differs from sealed build source");
+
+  const std::string archive = image.receipt().archive_digest().string();
+  require_plan_binding(
+      inputs.artifact().string() == archive &&
+          publication.artifact() == inputs.artifact() &&
+          inputs.expected_archive() == image.receipt().archive_digest() &&
+          inputs.observed_archive() == image.receipt().archive_digest() &&
+          inputs.image() == image.image().identity() &&
+          inputs.inspection_receipt() == image.receipt().identity(),
+      "accepted plan artifact facts differ from verified build image");
+
+  require_plan_binding(
+      publication.artifact_manifest() == inputs.artifact_manifest(),
+      "accepted plan publication manifest differs from admitted plan inputs");
+
+  const auto& archive_precondition = plan.preconditions().incoming_archive();
+  require_plan_binding(
+      archive_precondition.has_value() &&
+          archive_precondition->archive() == image.receipt().archive_digest() &&
+          archive_precondition->image() == image.image().identity() &&
+          archive_precondition->inspection_receipt() ==
+              image.receipt().identity(),
+      "accepted plan precondition differs from verified build image");
+
+  require_plan_binding(
+      build.outcome() == pkgbuild::build_outcome::succeeded &&
+          build.payload().has_value() && build.artifact().has_value() &&
+          build.artifact_binding().has_value(),
+      "incoming package authority lost complete successful build evidence");
+}
+
 } // namespace
 
-installation_application_request
-installation_application_request::make(
+installation_application_request installation_application_request::make(
     pkgplan::installation_plan plan,
+    incoming_package_authority incoming,
     application_target_context target,
     application_execution_control control)
 {
   validate_target(plan, target);
-  application_request_identity identity = identify_request(
-      request_kind::install, plan, target, control);
+  validate_incoming(plan, incoming);
+  application_request_identity identity = identify_incoming_request(
+      request_kind::install, plan, incoming, target, control);
   return installation_application_request(
-      std::move(identity), std::move(plan), std::move(target), std::move(control));
+      std::move(identity), std::move(plan), std::move(incoming),
+      std::move(target), std::move(control));
 }
 
 installation_application_request::installation_application_request(
     application_request_identity identity,
     pkgplan::installation_plan plan,
+    incoming_package_authority incoming,
     application_target_context target,
     application_execution_control control)
-    : identity_(std::move(identity)),
-      plan_(std::move(plan)),
-      target_(std::move(target)),
+    : identity_(std::move(identity)), plan_(std::move(plan)),
+      incoming_(std::move(incoming)), target_(std::move(target)),
       control_(std::move(control))
 {
 }
 
-std::uint16_t
-installation_application_request::schema_version() const noexcept
+std::uint16_t installation_application_request::schema_version() const noexcept
 {
   return schema_version_;
 }
@@ -89,6 +171,12 @@ installation_application_request::plan() const noexcept
   return plan_;
 }
 
+const incoming_package_authority&
+installation_application_request::incoming() const noexcept
+{
+  return incoming_;
+}
+
 const application_target_context&
 installation_application_request::target() const noexcept
 {
@@ -101,33 +189,34 @@ installation_application_request::control() const noexcept
   return control_;
 }
 
-upgrade_application_request
-upgrade_application_request::make(
+upgrade_application_request upgrade_application_request::make(
     pkgplan::upgrade_plan plan,
+    incoming_package_authority incoming,
     application_target_context target,
     application_execution_control control)
 {
   validate_target(plan, target);
-  application_request_identity identity = identify_request(
-      request_kind::upgrade, plan, target, control);
+  validate_incoming(plan, incoming);
+  application_request_identity identity = identify_incoming_request(
+      request_kind::upgrade, plan, incoming, target, control);
   return upgrade_application_request(
-      std::move(identity), std::move(plan), std::move(target), std::move(control));
+      std::move(identity), std::move(plan), std::move(incoming),
+      std::move(target), std::move(control));
 }
 
 upgrade_application_request::upgrade_application_request(
     application_request_identity identity,
     pkgplan::upgrade_plan plan,
+    incoming_package_authority incoming,
     application_target_context target,
     application_execution_control control)
-    : identity_(std::move(identity)),
-      plan_(std::move(plan)),
-      target_(std::move(target)),
+    : identity_(std::move(identity)), plan_(std::move(plan)),
+      incoming_(std::move(incoming)), target_(std::move(target)),
       control_(std::move(control))
 {
 }
 
-std::uint16_t
-upgrade_application_request::schema_version() const noexcept
+std::uint16_t upgrade_application_request::schema_version() const noexcept
 {
   return schema_version_;
 }
@@ -138,10 +227,15 @@ upgrade_application_request::identity() const noexcept
   return identity_;
 }
 
-const pkgplan::upgrade_plan&
-upgrade_application_request::plan() const noexcept
+const pkgplan::upgrade_plan& upgrade_application_request::plan() const noexcept
 {
   return plan_;
+}
+
+const incoming_package_authority&
+upgrade_application_request::incoming() const noexcept
+{
+  return incoming_;
 }
 
 const application_target_context&
@@ -156,17 +250,19 @@ upgrade_application_request::control() const noexcept
   return control_;
 }
 
-removal_application_request
-removal_application_request::make(
+removal_application_request removal_application_request::make(
     pkgplan::removal_plan plan,
     application_target_context target,
     application_execution_control control)
 {
   validate_target(plan, target);
-  application_request_identity identity = identify_request(
+  if (plan.preconditions().incoming_archive())
+    throw std::invalid_argument("removal plan carries incoming archive authority");
+  application_request_identity identity = identify_removal_request(
       request_kind::remove, plan, target, control);
   return removal_application_request(
-      std::move(identity), std::move(plan), std::move(target), std::move(control));
+      std::move(identity), std::move(plan), std::move(target),
+      std::move(control));
 }
 
 removal_application_request::removal_application_request(
@@ -174,15 +270,12 @@ removal_application_request::removal_application_request(
     pkgplan::removal_plan plan,
     application_target_context target,
     application_execution_control control)
-    : identity_(std::move(identity)),
-      plan_(std::move(plan)),
-      target_(std::move(target)),
-      control_(std::move(control))
+    : identity_(std::move(identity)), plan_(std::move(plan)),
+      target_(std::move(target)), control_(std::move(control))
 {
 }
 
-std::uint16_t
-removal_application_request::schema_version() const noexcept
+std::uint16_t removal_application_request::schema_version() const noexcept
 {
   return schema_version_;
 }
@@ -193,8 +286,7 @@ removal_application_request::identity() const noexcept
   return identity_;
 }
 
-const pkgplan::removal_plan&
-removal_application_request::plan() const noexcept
+const pkgplan::removal_plan& removal_application_request::plan() const noexcept
 {
   return plan_;
 }
@@ -211,13 +303,11 @@ removal_application_request::control() const noexcept
   return control_;
 }
 
-
 namespace {
 
 template<typename Result, typename Visitor>
-const Result&
-visit_request_result(const package_application_request_body& body,
-                     Visitor visitor)
+const Result& visit_request_result(const package_application_request_body& body,
+                                   Visitor visitor)
 {
   return std::visit(
       [&visitor](const auto& request) -> const Result& {
@@ -246,8 +336,7 @@ package_application_request::package_application_request(
 {
 }
 
-pkgplan::operation_kind
-package_application_request::kind() const noexcept
+pkgplan::operation_kind package_application_request::kind() const noexcept
 {
   return std::visit(
       [](const auto& request) { return request.plan().kind(); }, body_);
@@ -269,6 +358,16 @@ package_application_request::plan() const noexcept
       body_, [](const auto& request) -> const pkgplan::operation_plan_identity& {
         return request.plan().identity();
       });
+}
+
+const incoming_package_authority*
+package_application_request::incoming() const noexcept
+{
+  if (const auto* install = installation())
+    return &install->incoming();
+  if (const auto* replacement = upgrade())
+    return &replacement->incoming();
+  return nullptr;
 }
 
 const application_target_context&
@@ -312,6 +411,5 @@ package_application_request::removal() const noexcept
 {
   return std::get_if<removal_application_request>(&body_);
 }
-
 
 } // namespace pkgapply

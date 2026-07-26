@@ -248,7 +248,8 @@ int main()
       authorities, {entry}, {pkgplan::target_path_observation::absent(path)},
       {}, std::nullopt, digest);
   const auto request = pkgapply::installation_application_request::make(
-      plan, target, execution_control());
+      plan, pkgapply::test::fixture::incoming_package({entry}, digest),
+      target, execution_control());
   directory_archive archive(entry, digest);
   fake_lease lease(
       application_identity<pkgapply::mutation_lease_instance_identity>(40),
@@ -340,7 +341,8 @@ int main()
       {pkgplan::target_path_observation::absent(path)}, {}, std::nullopt,
       digest);
   const auto foreign_request = pkgapply::installation_application_request::make(
-      foreign_plan, foreign_target, execution_control());
+      foreign_plan, pkgapply::test::fixture::incoming_package({entry}, digest),
+      foreign_target, execution_control());
   fake_lease foreign_lease(
       application_identity<pkgapply::mutation_lease_instance_identity>(62),
       foreign_target.identity(), foreign_target.mutation_exclusion_domain());

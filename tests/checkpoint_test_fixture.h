@@ -63,6 +63,7 @@ template<class Identity>
           {fixture::directory_entry(path)},
           {pkgplan::target_path_observation::absent(
               pkgplan::package_path::parse(path))}),
+      fixture::incoming_package({fixture::directory_entry(path)}),
       context,
       control());
 }

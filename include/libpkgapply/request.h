@@ -8,6 +8,7 @@
 
 #include <libpkgapply/digest.h>
 #include <libpkgapply/execution_control.h>
+#include <libpkgapply/incoming_package.h>
 #include <libpkgapply/target_context.h>
 #include <libpkgplan/install.h>
 #include <libpkgplan/remove.h>
@@ -15,19 +16,21 @@
 
 namespace pkgapply {
 
-inline constexpr std::uint16_t application_request_schema_version = 1;
+inline constexpr std::uint16_t application_request_schema_version = 2;
 
 /*! \brief Immutable application request for one accepted installation plan. */
 class installation_application_request final {
 public:
   [[nodiscard]] static installation_application_request
   make(pkgplan::installation_plan plan,
+       incoming_package_authority incoming,
        application_target_context target,
        application_execution_control control);
 
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
   [[nodiscard]] const application_request_identity& identity() const noexcept;
   [[nodiscard]] const pkgplan::installation_plan& plan() const noexcept;
+  [[nodiscard]] const incoming_package_authority& incoming() const noexcept;
   [[nodiscard]] const application_target_context& target() const noexcept;
   [[nodiscard]] const application_execution_control& control() const noexcept;
 
@@ -35,12 +38,14 @@ private:
   installation_application_request(
       application_request_identity identity,
       pkgplan::installation_plan plan,
+      incoming_package_authority incoming,
       application_target_context target,
       application_execution_control control);
 
   std::uint16_t schema_version_ = application_request_schema_version;
   application_request_identity identity_;
   pkgplan::installation_plan plan_;
+  incoming_package_authority incoming_;
   application_target_context target_;
   application_execution_control control_;
 };
@@ -50,12 +55,14 @@ class upgrade_application_request final {
 public:
   [[nodiscard]] static upgrade_application_request
   make(pkgplan::upgrade_plan plan,
+       incoming_package_authority incoming,
        application_target_context target,
        application_execution_control control);
 
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
   [[nodiscard]] const application_request_identity& identity() const noexcept;
   [[nodiscard]] const pkgplan::upgrade_plan& plan() const noexcept;
+  [[nodiscard]] const incoming_package_authority& incoming() const noexcept;
   [[nodiscard]] const application_target_context& target() const noexcept;
   [[nodiscard]] const application_execution_control& control() const noexcept;
 
@@ -63,12 +70,14 @@ private:
   upgrade_application_request(
       application_request_identity identity,
       pkgplan::upgrade_plan plan,
+      incoming_package_authority incoming,
       application_target_context target,
       application_execution_control control);
 
   std::uint16_t schema_version_ = application_request_schema_version;
   application_request_identity identity_;
   pkgplan::upgrade_plan plan_;
+  incoming_package_authority incoming_;
   application_target_context target_;
   application_execution_control control_;
 };
@@ -118,6 +127,7 @@ public:
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
   [[nodiscard]] const application_request_identity& identity() const noexcept;
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
+  [[nodiscard]] const incoming_package_authority* incoming() const noexcept;
   [[nodiscard]] const application_target_context& target() const noexcept;
   [[nodiscard]] const application_execution_control& control() const noexcept;
   [[nodiscard]] const package_application_request_body& body() const noexcept;
