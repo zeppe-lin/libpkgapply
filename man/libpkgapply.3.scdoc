@@ -112,7 +112,7 @@ concurrent replay.
 
 # VERSION
 
-Version 1.0.0 exposes API version 1. Canonical application, journal,
+Version 2.0.0 exposes API version 2. Canonical application, journal,
 checkpoint, completed-evidence, and mechanism-storage schema versions are
 independent of the project version and shared-library SONAME.
 

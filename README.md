@@ -18,7 +18,7 @@ pkgctl        transaction composition and final resolution
 Implemented contract
 --------------------
 
-Version 1.0.0 provides the immutable, semantic, restart, and live-mechanism
+Version 2.0.0 provides the immutable, semantic, restart, and live-mechanism
 contract required to apply one accepted package operation.
 
 Installation and upgrade begin with `incoming_package_authority`: one complete
@@ -194,8 +194,8 @@ Build-time requirements are:
 * Meson 1.2.0 or later;
 * Ninja;
 * pkg-config;
-* `libpkgbuild` 1.0.0 or later;
-* `libpkgsource-plan` 1.0.0 or later;
+* `libpkgbuild` 2.0.0 or later;
+* `libpkgsource-plan` 2.0.0 or later;
 * `libpkgimage` 0.3.0 or later;
 * `libpkgplan` 0.2.0 or later; and
 * OpenSSL `libcrypto` with SHA-256 EVP support.
@@ -230,7 +230,7 @@ Installed manuals are *libpkgapply*(3), *libpkgapply-posix*(3), and
 Release discipline
 ------------------
 
-Version 1.0.0 is qualified as a native build-bound application authority. Effectful code remains admissible
+Version 2.0.0 is qualified as a native build-bound application authority. Effectful code remains admissible
 only with direct failure, stale-state, journal, restart, recovery, durability,
 and identity tests.
 

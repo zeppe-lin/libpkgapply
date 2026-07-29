@@ -44,7 +44,7 @@ libpkgapply = library(
   ],
   install: true,
   version: meson.project_version(),
-  soversion: '1',
+  soversion: '2',
 )
 
 libpkgapply_dep = declare_dependency(
@@ -97,10 +97,10 @@ pkgconf.generate(
   description: 'Package operation application library',
   subdirs: '.',
   requires: [
-    'libpkgbuild >= 1.0.0',
+    'libpkgbuild >= 2.0.0',
     'libpkgimage >= 0.3.0',
     'libpkgplan >= 0.2.0',
-    'libpkgsource-plan >= 1.0.0',
+    'libpkgsource-plan >= 2.0.0',
   ],
   requires_private: [libcrypto_dep],
 )

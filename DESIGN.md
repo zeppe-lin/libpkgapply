@@ -962,7 +962,7 @@ Hard invariants
 17. Removal requires no current candidate, source, provider, artifact, or
     archive.
 18. Version 0.1.0 executes no unbound lifecycle declaration.
-19. Version 1.0.0 installation and upgrade requests retain exactly one
+19. Version 2.0.0 installation and upgrade requests retain exactly one
     successful native build, independent image inspection, and source-derived
     candidate projection.
 20. A valid plan from another build, image, receipt, artifact, or candidate

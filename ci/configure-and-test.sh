@@ -106,18 +106,18 @@ configure_dependency "$plan_source" "$plan_build" -Dreference_tools=disabled
 }
 
 configure_dependency "$source_source" "$source_build" -Dplanner_adapter=enabled
-[ "$(pkg-config --modversion libpkgsource)" = 1.0.0 ] || {
-  echo 'qualified libpkgsource is not version 1.0.0' >&2
+[ "$(pkg-config --modversion libpkgsource)" = 2.0.0 ] || {
+  echo 'qualified libpkgsource is not version 2.0.0' >&2
   exit 1
 }
-[ "$(pkg-config --modversion libpkgsource-plan)" = 1.0.0 ] || {
-  echo 'qualified libpkgsource-plan is not version 1.0.0' >&2
+[ "$(pkg-config --modversion libpkgsource-plan)" = 2.0.0 ] || {
+  echo 'qualified libpkgsource-plan is not version 2.0.0' >&2
   exit 1
 }
 
 configure_dependency "$build_source" "$build_build" -Dplanner_adapter=disabled
-[ "$(pkg-config --modversion libpkgbuild)" = 1.0.0 ] || {
-  echo 'qualified libpkgbuild is not version 1.0.0' >&2
+[ "$(pkg-config --modversion libpkgbuild)" = 2.0.0 ] || {
+  echo 'qualified libpkgbuild is not version 2.0.0' >&2
   exit 1
 }
 

@@ -5,5 +5,5 @@
 
 int main()
 {
-  return pkgapply::version() == "1.0.0" && pkgapply::api_version == 1 ? 0 : 1;
+  return pkgapply::version() == "2.0.0" && pkgapply::api_version == 2 ? 0 : 1;
 }

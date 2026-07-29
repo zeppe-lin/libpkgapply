@@ -58,11 +58,11 @@ grep -F "version: '>=0.2.0'" "$root/meson.build" >/dev/null ||
   fail 'Meson dependency floor does not require libpkgplan 0.2.0'
 grep -F "version: '>=0.3.0'" "$root/meson.build" >/dev/null ||
   fail 'Meson dependency floor does not require libpkgimage 0.3.0'
-grep -F "version: '>=1.0.0'" "$root/meson.build" >/dev/null ||
+grep -F "version: '>=2.0.0'" "$root/meson.build" >/dev/null ||
   fail 'Meson dependency floors omit native 1.0 authorities'
-grep -F "'libpkgbuild >= 1.0.0'" "$root/src/meson.build" >/dev/null ||
-  fail 'core pkg-config metadata omits libpkgbuild 1.0.0'
-grep -F "'libpkgsource-plan >= 1.0.0'" "$root/src/meson.build" >/dev/null ||
-  fail 'core pkg-config metadata omits libpkgsource-plan 1.0.0'
+grep -F "'libpkgbuild >= 2.0.0'" "$root/src/meson.build" >/dev/null ||
+  fail 'core pkg-config metadata omits libpkgbuild 2.0.0'
+grep -F "'libpkgsource-plan >= 2.0.0'" "$root/src/meson.build" >/dev/null ||
+  fail 'core pkg-config metadata omits libpkgsource-plan 2.0.0'
 grep -F "'libpkgplan >= 0.2.0'" "$root/src/meson.build" >/dev/null ||
   fail 'core pkg-config metadata omits libpkgplan 0.2.0'

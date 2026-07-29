@@ -8,7 +8,7 @@
 
 namespace pkgapply {
 
-inline constexpr std::uint32_t api_version = 1;
+inline constexpr std::uint32_t api_version = 2;
 
 [[nodiscard]] std::string_view version() noexcept;
 

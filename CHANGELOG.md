@@ -1,6 +1,21 @@
 libpkgapply changelog
 =====================
 
+2.0.0 - 2026-07-29
+
+ABI migration to the generation-2 source/build authority closure.
+
+- Rebuilt incoming package authority against `libpkgbuild 2.0.0` and
+  `libpkgsource-plan 2.0.0`.
+- Advanced `libpkgapply` and `libpkgapply-posix` to SONAME 2 because
+  `incoming_package_authority` and application requests retain complete build
+  results by value.
+- Advanced the public API version to 2.
+- Preserved application planning, precondition, payload, capture, restart,
+  receipt, and completed-evidence identity domains.
+- Version 2.0.0 does not publish installed state, execute package lifecycle
+  programs, or choose transaction order.
+
 1.0.0 - 2026-07-27
 ------------------
 
