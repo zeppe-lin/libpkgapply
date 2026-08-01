@@ -170,6 +170,7 @@ main()
       context.mutation_exclusion_domain(),
       true);
 
+  pkgapply::validate_target_mutation_lease_scope(context, lease);
   pkgapply::validate_target_mutation_lease(context, projection, lease);
 
   bool rejected = false;
@@ -179,7 +180,7 @@ main()
         context.identity(),
         context.mutation_exclusion_domain(),
         false);
-    pkgapply::validate_target_mutation_lease(context, projection, released);
+    pkgapply::validate_target_mutation_lease_scope(context, released);
   } catch (const pkgapply::mutation_lease_error& error) {
     rejected = error.code() == pkgapply::mutation_lease_error_code::not_held;
   }
@@ -192,8 +193,8 @@ main()
         application_identity<pkgapply::application_target_context_identity>(31),
         context.mutation_exclusion_domain(),
         true);
-    pkgapply::validate_target_mutation_lease(
-        context, projection, foreign_target);
+    pkgapply::validate_target_mutation_lease_scope(
+        context, foreign_target);
   } catch (const pkgapply::mutation_lease_error& error) {
     rejected = error.code() ==
         pkgapply::mutation_lease_error_code::target_context_mismatch;
@@ -208,28 +209,32 @@ main()
         application_identity<
             pkgapply::mutation_exclusion_domain_identity>(32),
         true);
-    pkgapply::validate_target_mutation_lease(
-        context, projection, foreign_domain);
+    pkgapply::validate_target_mutation_lease_scope(
+        context, foreign_domain);
   } catch (const pkgapply::mutation_lease_error& error) {
     rejected = error.code() ==
         pkgapply::mutation_lease_error_code::exclusion_domain_mismatch;
   }
   require(rejected, "foreign exclusion-domain lease was accepted");
 
+  const fake_lease another_acquisition(
+      application_identity<pkgapply::mutation_lease_instance_identity>(33),
+      context.identity(),
+      context.mutation_exclusion_domain(),
+      true);
+  pkgapply::validate_target_mutation_lease_scope(
+      context, another_acquisition);
+
   rejected = false;
   try {
-    const fake_lease another_acquisition(
-        application_identity<pkgapply::mutation_lease_instance_identity>(33),
-        context.identity(),
-        context.mutation_exclusion_domain(),
-        true);
     pkgapply::validate_target_mutation_lease(
         context, projection, another_acquisition);
   } catch (const pkgapply::mutation_lease_error& error) {
     rejected = error.code() ==
         pkgapply::mutation_lease_error_code::state_projection_mismatch;
   }
-  require(rejected, "state projection from another lease was accepted");
+  require(rejected,
+          "full validation accepted a projection from another lease");
 
   return 0;
 }
