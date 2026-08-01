@@ -6,6 +6,7 @@
 #include <libpkgapply/digest.h>
 #include <libpkgapply/admission.h>
 #include <libpkgapply/apply.h>
+#include <libpkgapply/application_receipt_codec.h>
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/backend.h>
 #include <libpkgapply/capture.h>
