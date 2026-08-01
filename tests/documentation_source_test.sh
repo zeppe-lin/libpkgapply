@@ -29,6 +29,14 @@ grep -F '`application_posix_backend` factory' \
   "$root/DESIGN.md" >/dev/null ||
   fail 'design omits the implemented POSIX backend factory'
 
+grep -F '`libpkgapply-posix` supplies the concrete caller-owned acquisition mechanism.' \
+  "$root/DESIGN.md" >/dev/null ||
+  fail 'design omits the concrete outer mutation lease'
+
+grep -F '*target_mutation_lease::acquire()*' \
+  "$root/man/libpkgapply-posix.3.scdoc" >/dev/null ||
+  fail 'POSIX manual omits mutation lease acquisition'
+
 grep -F 'incoming rejected staging' "$root/TESTING.md" >/dev/null ||
   fail 'testing contract omits concrete rejected-route qualification'
 

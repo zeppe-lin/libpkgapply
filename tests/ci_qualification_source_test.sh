@@ -16,7 +16,8 @@ for file in \
   "$root/ci/qualify-installed.sh" \
   "$root/ci/lint-manpages.sh" \
   "$root/ci/installed-core-consumer.cpp" \
-  "$root/ci/installed-posix-consumer.cpp"
+  "$root/ci/installed-posix-consumer.cpp" \
+  "$root/tests/posix_mutation_lease_source_test.sh"
 do
   test -s "$file" || fail "missing or empty ${file#"$root"/}"
 done
@@ -47,6 +48,14 @@ for contract in \
 do
   grep -F "$contract" "$root/ci/qualify-installed.sh" >/dev/null ||
     fail "installed qualification omits $contract"
+done
+
+for contract in \
+  'pkgapply::posix::target_mutation_lease' \
+  'pkgapply::target_mutation_lease'
+do
+  grep -F "$contract" "$root/ci/installed-posix-consumer.cpp" >/dev/null ||
+    fail "installed POSIX consumer omits $contract"
 done
 
 for page in libpkgapply.3 libpkgapply-posix.3 pkgapply.7; do
