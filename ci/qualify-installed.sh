@@ -55,8 +55,8 @@ unset PKG_CONFIG_SYSROOT_DIR
 
 for package in libpkgapply libpkgapply-posix; do
   version=$(pkg-config --modversion "$package")
-  [ "$version" = 2.1.0 ] || {
-    echo "installed $package version is '$version', expected '2.1.0'" >&2
+  [ "$version" = 2.2.0 ] || {
+    echo "installed $package version is '$version', expected '2.2.0'" >&2
     exit 1
   }
 done

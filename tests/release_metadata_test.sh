@@ -11,12 +11,12 @@ fail()
   exit 1
 }
 
-grep -F "version: '2.1.0'" "$root/meson.build" >/dev/null ||
-  fail 'Meson project version is not 2.1.0'
-grep -F 'PROJECT_NUMBER         = 2.1.0' "$root/Doxyfile" >/dev/null ||
-  fail 'Doxygen project version is not 2.1.0'
-grep -F 'return "2.1.0";' "$root/src/version.cpp" >/dev/null ||
-  fail 'runtime version is not 2.1.0'
+grep -F "version: '2.2.0'" "$root/meson.build" >/dev/null ||
+  fail 'Meson project version is not 2.2.0'
+grep -F 'PROJECT_NUMBER         = 2.2.0' "$root/Doxyfile" >/dev/null ||
+  fail 'Doxygen project version is not 2.2.0'
+grep -F 'return "2.2.0";' "$root/src/version.cpp" >/dev/null ||
+  fail 'runtime version is not 2.2.0'
 grep -F 'inline constexpr std::uint32_t api_version = 2;'   "$root/include/libpkgapply/version.h" >/dev/null ||
   fail 'public API version is not 2'
 
@@ -32,11 +32,15 @@ first_release=$(
     q
   }' "$root/CHANGELOG.md"
 )
-[ "$first_release" = 2.1.0 ] ||
-  fail "CHANGELOG first release is '$first_release', expected '2.1.0'"
+[ "$first_release" = 2.2.0 ] ||
+  fail "CHANGELOG first release is '$first_release', expected '2.2.0'"
 
-grep -F 'Version 2.1.0 provides the physical outer exclusion mechanism'   "$root/CHANGELOG.md" >/dev/null ||
-  fail 'release record omits outer exclusion boundary'
+grep -F 'Version 2.2.0 adds no lease acquisition' \
+  "$root/CHANGELOG.md" >/dev/null ||
+  fail 'release record omits target-scoped validation boundary'
+grep -F '`validate_target_mutation_lease_scope()`' \
+  "$root/CHANGELOG.md" >/dev/null ||
+  fail 'release record omits target-scoped validator'
 grep -F 'libpkgbuild 2.0.0' "$root/CHANGELOG.md" >/dev/null ||
   fail 'release record omits native build authority floor'
 grep -F 'libpkgsource-plan 2.0.0' "$root/CHANGELOG.md" >/dev/null ||

@@ -18,7 +18,7 @@ pkgctl        transaction composition and final resolution
 Implemented contract
 --------------------
 
-Version 2.1.0 provides the immutable, semantic, restart, and live-mechanism
+Version 2.2.0 provides the immutable, semantic, restart, and live-mechanism
 contract required to apply one accepted package operation.
 
 Installation and upgrade begin with `incoming_package_authority`: one complete
@@ -248,7 +248,7 @@ Installed manuals are *libpkgapply*(3), *libpkgapply-posix*(3), and
 Release discipline
 ------------------
 
-Version 2.1.0 is qualified as a native build-bound application authority. Effectful code remains admissible
+Version 2.2.0 is qualified as a native build-bound application authority. Effectful code remains admissible
 only with direct failure, stale-state, journal, restart, recovery, durability,
 and identity tests.
 
