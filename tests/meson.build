@@ -576,6 +576,16 @@ if get_option('tests').allowed()
   test('restore POSIX active objects', posix_active_recovery_test)
 
   test(
+    'verify durable application receipt codec contract',
+    sh,
+    args: [
+      join_paths(meson.current_source_dir(),
+                 'application_receipt_codec_source_test.sh'),
+      meson.project_source_root(),
+    ],
+  )
+
+  test(
     'verify target-scoped mutation lease contract',
     sh,
     args: [

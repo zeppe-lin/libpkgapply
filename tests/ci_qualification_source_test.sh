@@ -17,6 +17,7 @@ for file in \
   "$root/ci/lint-manpages.sh" \
   "$root/ci/installed-core-consumer.cpp" \
   "$root/ci/installed-posix-consumer.cpp" \
+  "$root/tests/application_receipt_codec_source_test.sh" \
   "$root/tests/mutation_lease_scope_source_test.sh" \
   "$root/tests/posix_mutation_lease_source_test.sh"
 do
@@ -54,6 +55,10 @@ done
 grep -F 'validate_target_mutation_lease_scope' \
   "$root/ci/installed-core-consumer.cpp" >/dev/null ||
   fail 'installed core consumer omits target-scope lease validation'
+
+grep -F 'encode_application_receipt' \
+  "$root/ci/installed-core-consumer.cpp" >/dev/null ||
+  fail 'installed core consumer omits application receipt codec'
 
 for contract in \
   'pkgapply::posix::target_mutation_lease' \

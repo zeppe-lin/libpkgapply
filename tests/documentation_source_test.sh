@@ -45,6 +45,18 @@ grep -F '*target_mutation_lease::acquire()*' \
   "$root/man/libpkgapply-posix.3.scdoc" >/dev/null ||
   fail 'POSIX manual omits mutation lease acquisition'
 
+grep -F 'Durable application-receipt encoding' \
+  "$root/DESIGN.md" >/dev/null ||
+  fail 'design omits durable application-receipt encoding'
+
+grep -F '*encode_application_receipt()*' \
+  "$root/man/libpkgapply.3.scdoc" >/dev/null ||
+  fail 'core manual omits application-receipt codec'
+
+grep -F 'Application-receipt codec tests prove:' \
+  "$root/TESTING.md" >/dev/null ||
+  fail 'testing contract omits application-receipt codec'
+
 grep -F 'incoming rejected staging' "$root/TESTING.md" >/dev/null ||
   fail 'testing contract omits concrete rejected-route qualification'
 
