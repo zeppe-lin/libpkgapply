@@ -32,6 +32,12 @@ projection, installed snapshot, ownership inventory, path-owner closure,
 planning-time filesystem facts, backend identities, and capability profile are
 revalidated before mutation.
 
+Recovery that only rereads canonical state uses the weaker target-scope lease
+validator and must perform no mutation. Application and publication require the
+stronger validator binding that same live acquisition to an exact state
+projection. A stale pre-publication projection is never reconstructed after the
+canonical state has advanced.
+
 Installation and upgrade additionally require one admitted incoming package:
 a complete successful *libpkgbuild* result, an independent *libpkgimage*
 inspection, and source-derived candidate control. The build artifact digest,
@@ -94,7 +100,7 @@ It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 2.1.0 does not solve dependencies, select packages, parse policy,
+Version 2.2.0 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 

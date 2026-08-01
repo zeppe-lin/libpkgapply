@@ -214,6 +214,17 @@ The lease establishes exclusion only among cooperating actors. Filesystem
 operations must still use stable root handles, no-follow component traversal,
 and final observation because unrelated processes may ignore the protocol.
 
+Lease validation is capability-specific.
+`validate_target_mutation_lease_scope()` proves that a live acquisition belongs
+to the exact target context and exclusion domain. It is sufficient only for a
+recovery or finalization step that observes canonical target state and performs
+no application or publication. `validate_target_mutation_lease()` is the
+stronger actuator gate: it first validates that scope, then proves the supplied
+installed-state projection was established under the same acquisition instance.
+A caller must not manufacture the old projection after canonical publication
+has already advanced to a new state epoch merely to satisfy an actuator-shaped
+interface.
+
 Lease-bound state projection
 ----------------------------
 

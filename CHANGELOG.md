@@ -1,6 +1,29 @@
 libpkgapply changelog
 =====================
 
+2.2.0 - 2026-08-01
+------------------
+
+Target-scoped lease validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Added `validate_target_mutation_lease_scope()` for recovery and finalization
+  paths that must prove one live lease belongs to the exact application target
+  and mutation-exclusion domain without inventing a stale state projection.
+- Kept `validate_target_mutation_lease()` as the stronger actuator gate and
+  made it reuse the scope validation before checking the exact projection lease
+  instance.
+- Preserved API version 2, both SONAMEs at 2, every durable schema, the POSIX
+  acquisition mechanism, and all generation-2 source/build authority floors.
+
+Deliberate boundary
+~~~~~~~~~~~~~~~~~~~
+
+Version 2.2.0 adds no lease acquisition, installed-state read, application,
+publication, reconciliation, retry, repair, or package-manager command. A
+scope-valid lease alone does not authorize filesystem mutation or state
+publication.
+
 2.1.0 - 2026-08-01
 ------------------
 

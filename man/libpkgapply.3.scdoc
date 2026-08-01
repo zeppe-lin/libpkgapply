@@ -78,6 +78,14 @@ descriptor without choosing wait or retry policy. *lease_bound_state_projection*
 binds the selected installed snapshot, ownership inventory, path-owner closure,
 and projection evidence to that exact lease instance.
 
+*validate_target_mutation_lease_scope()* validates only that one live lease
+belongs to the exact target context and mutation-exclusion domain. It is for
+observation-only recovery and finalization paths where canonical state may have
+already advanced and no truthful old-state projection exists.
+*validate_target_mutation_lease()* additionally validates that the supplied
+state projection belongs to the same acquisition and remains the required gate
+before application or state-publication actuation.
+
 # BACKEND CONTRACT
 
 *application_backend* opens one *application_backend_transaction*. A fresh
@@ -116,7 +124,7 @@ concurrent replay.
 
 # VERSION
 
-Version 2.1.0 exposes API version 2. Canonical application, journal,
+Version 2.2.0 exposes API version 2. Canonical application, journal,
 checkpoint, completed-evidence, and mechanism-storage schema versions are
 independent of the project version and shared-library SONAME.
 

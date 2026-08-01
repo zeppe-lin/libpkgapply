@@ -40,8 +40,13 @@ POSIX outer-lease tests must prove:
 * a final lock-file symlink is refused;
 * unlink or replacement makes `held()` false;
 * target context, exclusion domain, nonce, and acquisition identity remain exact;
-* the acquired lease validates one projection made under that exact instance; and
-* acquisition performs no installed-state read or target mutation.
+* target-scope validation accepts another acquisition in the same target and
+  exclusion domain without requiring or fabricating a state projection;
+* target-scope validation rejects released, foreign-target, and foreign-domain
+  leases;
+* full validation accepts only a projection made under that exact acquisition;
+  and
+* acquisition and validation perform no installed-state read or target mutation.
 
 The immutable model suite must cover:
 

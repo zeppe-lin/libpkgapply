@@ -42,8 +42,9 @@ The implemented surface includes:
   identifiers;
 * typed application outcomes, recovery states, durability profiles, receipts,
   and publication-eligible completed evidence; and
-* validation of caller-held target mutation leases against the target context,
-  exclusion domain, acquisition instance, and state projection; and
+* separate validation of caller-held mutation-lease target scope for
+  observation-only recovery, and full validation against the acquisition
+  instance and state projection before actuation; and
 * constrained backend mechanism contracts for exact observations, private
   payload staging, old-object capture, active and rejected effects, recovery,
   durability synchronization, and journal publication; and
@@ -112,6 +113,14 @@ Waiting, retry, and backoff remain caller policy. The coordination file is never
 removed, and a held lease becomes false if its named lock authority is unlinked
 or replaced. Acquisition does not observe installed state, inspect target paths,
 construct an application backend, or mutate the managed target.
+
+The core exposes two deliberately different validation gates.
+`validate_target_mutation_lease_scope()` proves only that one live acquisition
+protects the exact application target and shared exclusion domain; this is the
+truthful authority for recovery paths that merely reread canonical state after
+publication may already have advanced it. `validate_target_mutation_lease()`
+additionally requires a state projection established under that same lease and
+remains mandatory before application or publication actuation.
 
 Private incoming regular payloads can now be staged beneath a retained
 namespace descriptor. One application-attempt identity owns one private stage;
