@@ -123,9 +123,8 @@ mutation_lease_error::code() const noexcept
 }
 
 void
-validate_target_mutation_lease(
+validate_target_mutation_lease_scope(
     const application_target_context& target,
-    const lease_bound_state_projection& state,
     const target_mutation_lease& lease)
 {
   if (!lease.held()) {
@@ -145,6 +144,15 @@ validate_target_mutation_lease(
         mutation_lease_error_code::exclusion_domain_mismatch,
         "target mutation lease belongs to another exclusion domain");
   }
+}
+
+void
+validate_target_mutation_lease(
+    const application_target_context& target,
+    const lease_bound_state_projection& state,
+    const target_mutation_lease& lease)
+{
+  validate_target_mutation_lease_scope(target, lease);
 
   if (lease.identity() != state.lease()) {
     throw mutation_lease_error(

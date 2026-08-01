@@ -118,7 +118,26 @@ public:
   [[nodiscard]] virtual bool held() const noexcept = 0;
 };
 
+/*! \brief Validate one live lease against its immutable target scope.
+ *
+ * This weaker validation is for recovery paths that only observe canonical
+ * target state and therefore have no truthful pre-application state
+ * projection.  It proves that the lease is held for the exact application
+ * target and shared exclusion domain; it does not authorize filesystem
+ * application or state publication.
+ *
+ * Success is only a point-in-time admission check. The caller remains
+ * responsible for keeping the lease held for the complete observation or
+ * finalization step.
+ */
+void validate_target_mutation_lease_scope(
+    const application_target_context& target,
+    const target_mutation_lease& lease);
+
 /*! \brief Validate one live lease against immutable application authorities.
+ *
+ * This full validation additionally proves that the supplied installed-state
+ * projection was established under the same acquisition instance.
  *
  * Success is only a point-in-time admission check. The caller remains
  * responsible for keeping the lease held for the complete outer transaction.
