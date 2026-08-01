@@ -3,6 +3,9 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -11,6 +14,58 @@
 #include <libpkgapply/target_context.h>
 
 namespace pkgapply {
+
+inline constexpr std::uint16_t mutation_lease_acquisition_schema_version = 1;
+inline constexpr std::size_t mutation_lease_nonce_size = 32;
+
+/*! \brief Mechanism-issued nonce distinguishing one physical lease acquisition. */
+class mutation_lease_nonce final {
+public:
+  using byte_array = std::array<std::uint8_t, mutation_lease_nonce_size>;
+
+  [[nodiscard]] static mutation_lease_nonce from_bytes(byte_array bytes);
+  [[nodiscard]] const byte_array& bytes() const noexcept;
+
+  friend bool operator==(const mutation_lease_nonce& lhs,
+                         const mutation_lease_nonce& rhs) noexcept;
+  friend bool operator!=(const mutation_lease_nonce& lhs,
+                         const mutation_lease_nonce& rhs) noexcept;
+  friend bool operator<(const mutation_lease_nonce& lhs,
+                        const mutation_lease_nonce& rhs) noexcept;
+
+private:
+  explicit mutation_lease_nonce(byte_array bytes);
+  byte_array bytes_;
+};
+
+/*! \brief Canonical identity binding one target lease acquisition instance. */
+class mutation_lease_acquisition final {
+public:
+  [[nodiscard]] static mutation_lease_acquisition make(
+      application_target_context_identity target,
+      mutation_exclusion_domain_identity exclusion_domain,
+      mutation_lease_nonce nonce);
+
+  [[nodiscard]] std::uint16_t schema_version() const noexcept;
+  [[nodiscard]] const mutation_lease_instance_identity& identity() const noexcept;
+  [[nodiscard]] const application_target_context_identity& target() const noexcept;
+  [[nodiscard]] const mutation_exclusion_domain_identity&
+  exclusion_domain() const noexcept;
+  [[nodiscard]] const mutation_lease_nonce& nonce() const noexcept;
+
+private:
+  mutation_lease_acquisition(
+      mutation_lease_instance_identity identity,
+      application_target_context_identity target,
+      mutation_exclusion_domain_identity exclusion_domain,
+      mutation_lease_nonce nonce);
+
+  std::uint16_t schema_version_ = mutation_lease_acquisition_schema_version;
+  mutation_lease_instance_identity identity_;
+  application_target_context_identity target_;
+  mutation_exclusion_domain_identity exclusion_domain_;
+  mutation_lease_nonce nonce_;
+};
 
 /*! \brief Structured reason that a supplied target lease was refused. */
 enum class mutation_lease_error_code {
