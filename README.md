@@ -88,10 +88,14 @@ The implemented surface includes:
   durability routing, completed evidence, and exact durable restart.
 
 The core now owns strict versioned byte encodings for validated journal
-snapshots and durable restart checkpoints. Journal decoding revalidates
-identities, bounds all input, and enforces monotonic successors. Checkpoint
-decoding verifies a body checksum and binds every reconstructed replay fact to
-the exact journal snapshot and immutable application request.
+snapshots, durable restart checkpoints, completed application evidence, and
+terminal application receipts. Receipt decoding requires the exact immutable
+application request, verifies the whole-record checksum and receipt identity,
+and reconstructs values only through the public factories. Successful receipts
+embed the existing completed-evidence record rather than duplicating filesystem
+evidence. Journal decoding revalidates identities, bounds all input, and
+enforces monotonic successors. Checkpoint decoding binds every reconstructed
+replay fact to the exact journal snapshot and immutable application request.
 
 `libpkgapply-posix` stores both protocols in FD-anchored directories. Journal
 snapshots use private temporary files, file synchronization, atomic replacement,

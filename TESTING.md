@@ -249,6 +249,17 @@ Restart admission and replay tests separately prove:
 
 In-process RAII cleanup and restart replay are tested separately.
 
+Application-receipt codec tests prove:
+
+* completed receipts retain the exact subordinate completed-evidence identity;
+* precondition refusal, pre-target failure, and durability-unconfirmed outcomes
+  retain their exact recovery, durability, path, journal, and backend facts;
+* canonical re-encoding is byte-for-byte stable;
+* same-length corruption and truncation are rejected before admission;
+* a foreign immutable application request is rejected; and
+* decoding performs no journal lookup, target access, replay, recovery, or
+  publication.
+
 POSIX backend tests
 -------------------
 

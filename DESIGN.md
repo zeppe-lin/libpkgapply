@@ -388,6 +388,25 @@ The receipt records only guarantees actually established by the backend.
 It never upgrades rename, synchronization, signal handling, or process
 cleanup into unsupported global atomicity.
 
+Durable application-receipt encoding
+------------------------------------
+
+The core owns one versioned, length-qualified, SHA-256-protected encoding for a
+validated terminal `application_receipt`. Decode requires the complete immutable
+installation, upgrade, or removal request. Request, operation kind, receipt
+identity, and every reconstructed factory result must agree with that authority.
+
+A completed receipt embeds the existing canonical completed-application-
+evidence encoding, plus the receipt recovery state and outer backend evidence.
+It does not repeat the path, durability, attempt, projection, or journal body.
+A non-completed receipt retains its exact attempt, state projection, outcome,
+recovery state, durability profile, partial path consequences, optional journal,
+and backend evidence. Canonical re-encoding must reproduce the exact input.
+
+The decoder performs no journal lookup, target observation, filesystem access,
+application replay, recovery, evidence publication, or installed-state
+publication. A receipt codec is evidence admission, not an actuator or store.
+
 Rejected objects
 ----------------
 

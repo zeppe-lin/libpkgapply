@@ -111,6 +111,13 @@ required synchronization, and final observation has succeeded. Failed,
 partially recovered, durability-unconfirmed, or indeterminate attempts cannot
 be converted into completed evidence.
 
+*encode_application_receipt()* emits one checksummed canonical record for a
+validated terminal receipt. *decode_application_receipt()* requires the exact
+immutable installation, upgrade, or removal request and rebuilds the receipt
+through the public factories. Completed receipts embed the existing completed-
+evidence record. Decoding performs no journal access, target observation,
+application replay, recovery, or state publication.
+
 Expected stale or physical outcomes are values. Invalid construction, corrupt
 canonical records, backend contract violations, and early I/O failures that
 prevent truthful receipt construction are exceptions.

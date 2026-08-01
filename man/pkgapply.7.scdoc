@@ -90,6 +90,12 @@ reissued, and unstarted work continues in the frozen schedule.
 
 # RESULT AND STATE SEAM
 
+Application receipts have an owner-defined canonical byte encoding. Decode
+requires the original immutable application request and does not infer request,
+plan, target, or control authority from digest text. A successful receipt
+reuses the completed-evidence encoding; failed receipts remain a distinct
+schema branch and cannot become publication authority.
+
 A completed receipt contains publication-eligible path consequences and
 completed application evidence. That evidence is application truth, not
 installed-state truth. *libpkgapply* does not construct installed packages,

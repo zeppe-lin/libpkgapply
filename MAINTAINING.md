@@ -22,8 +22,8 @@ A release requires:
 Schema discipline
 -----------------
 
-Application identities, completed evidence, journal, restart-checkpoint,
-and completed-evidence-record byte encodings, payload-stage, old-object-capture,
+Application identities, completed evidence, receipts, journal, restart-checkpoint,
+application-receipt and completed-evidence-record byte encodings, payload-stage, old-object-capture,
 rejected-object-store, active-workspace bindings, backend namespace mapping,
 and checkpoint-before-journal publication order are protocols. Active workspace
 names and physical-state classifications are restart contracts, even though

@@ -1,6 +1,33 @@
 libpkgapply changelog
 =====================
 
+2.3.0 - 2026-08-02
+------------------
+
+Durable application-receipt evidence
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Added a canonical, checksummed `application_receipt` encoding for completed,
+  refused, failed, partially recovered, durability-unconfirmed, and
+  indeterminate application outcomes.
+- Reused the existing completed-application-evidence record as the subordinate
+  body of successful receipts instead of defining a second filesystem-evidence
+  schema.
+- Required the exact immutable installation, upgrade, or removal request when
+  decoding and reconstructed every receipt through the public invariant-
+  enforcing factories.
+- Preserved API version 2, both SONAMEs at 2, the application-receipt identity
+  schema, every existing durable application protocol, and all dependency
+  floors.
+
+Deliberate boundary
+~~~~~~~~~~~~~~~~~~~
+
+Version 2.3.0 adds no receipt store, journal traversal, target observation,
+application replay, recovery actuation, installed-state projection, state
+publication, discovery, repair, or package-manager command. Receipt bytes are
+owner evidence; the caller still supplies the immutable request authority.
+
 2.2.0 - 2026-08-01
 ------------------
 
