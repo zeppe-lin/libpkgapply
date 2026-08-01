@@ -9,5 +9,5 @@ int main()
   const auto receipt_encoder = &pkgapply::encode_application_receipt;
   (void)validator;
   (void)receipt_encoder;
-  return pkgapply::version() == "2.2.0" && pkgapply::api_version == 2 ? 0 : 1;
+  return pkgapply::version() == "2.3.0" && pkgapply::api_version == 2 ? 0 : 1;
 }

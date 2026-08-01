@@ -78,5 +78,5 @@ do
   fi
 done
 
-grep -F 'PROJECT_NUMBER         = 2.2.0' "$root/Doxyfile" >/dev/null ||
-  fail 'Doxygen project version is not 2.2.0'
+grep -F 'PROJECT_NUMBER         = 2.3.0' "$root/Doxyfile" >/dev/null ||
+  fail 'Doxygen project version is not 2.3.0'
