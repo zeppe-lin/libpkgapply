@@ -47,6 +47,13 @@ The core must not acquire direct `libarchive`, package-manager configuration,
 source-format, dependency-solver, lifecycle-policy, or state-storage
 authority.
 
+The POSIX mutation-lease mechanism may acquire only the explicit exclusion
+resource selected by its caller. It must remain nonblocking, descriptor-
+anchored, final-symlink refusing, and independent of installed-state reads,
+target observation, application-backend construction, publication, retry, and
+cleanup policy. The coordination file is permanent protocol material and must
+not be unlinked on release.
+
 Release review
 --------------
 

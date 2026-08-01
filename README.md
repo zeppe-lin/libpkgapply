@@ -104,6 +104,15 @@ root directory. It refuses symbolic-link parents, inspects leaf links without
 following them, hashes regular bytes from stable descriptors, and verifies only
 explicitly requested hard-link relations.
 
+The POSIX layer now also provides the caller-owned outer target mutation lease.
+The caller supplies one already-selected lock-directory descriptor; the lease
+opens the lock file derived from the immutable mutation-exclusion-domain
+identity, refuses final symlinks, and attempts a nonblocking exclusive lock.
+Waiting, retry, and backoff remain caller policy. The coordination file is never
+removed, and a held lease becomes false if its named lock authority is unlinked
+or replaced. Acquisition does not observe installed state, inspect target paths,
+construct an application backend, or mutate the managed target.
+
 Private incoming regular payloads can now be staged beneath a retained
 namespace descriptor. One application-attempt identity owns one private stage;
 an immutable binding fixes the exact package image and selected regular entries

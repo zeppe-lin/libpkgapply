@@ -9,6 +9,10 @@ libpkgapply-posix - descriptor-anchored POSIX application backend
 ```
 #include <libpkgapply-posix/libpkgapply-posix.h>
 
+auto lease = pkgapply::posix::target_mutation_lease::acquire(
+    target,
+    lock_directory_fd);
+
 auto backend =
     pkgapply::posix::application_posix_backend::from_directory_fds(
         target,
@@ -35,6 +39,27 @@ another target or storage namespace.
 The supplied target context remains the semantic identity authority. The
 factory does not discover target identities, storage locations, archives,
 plans, leases, or package-manager configuration from ambient state.
+
+# TARGET MUTATION LEASE
+
+*target_mutation_lease::acquire()* duplicates one caller-selected lock-directory
+descriptor and opens a coordination file derived from the target context's
+mutation-exclusion-domain identity. The final component is not followed when it
+is a symbolic link. Acquisition uses a nonblocking exclusive advisory lock;
+a competing live holder is reported as *lock_busy*. Waiting and retry remain
+caller policy.
+
+Each successful acquisition receives one mechanism-issued nonce and one
+canonical acquisition identity binding that nonce to the exact target context
+and exclusion domain. The caller retains the object through application,
+installed-state publication, and finalization or recovery. The coordination
+file is never removed. If its directory entry is unlinked or replaced,
+*held()* returns false.
+
+Lease acquisition does not read installed state, observe target paths, create
+an application transaction, invoke a backend, or mutate the managed target.
+The caller must acquire this outer lease before any narrower state-publication
+lock.
 
 # DESCRIPTORS
 
@@ -83,6 +108,10 @@ checkpoint for that snapshot is published first. An unreferenced checkpoint is
 harmless; a visible resumable journal without its replay material is forbidden.
 
 # ERRORS
+
+*target_mutation_lease_error* reports invalid lock-directory authority,
+lock open or type failure, a competing holder, lock replacement, and nonce
+failure.
 
 *posix_backend_error* reports configuration and restart binding failures.
 Codes distinguish invalid descriptors, descriptor-duplication failure, target

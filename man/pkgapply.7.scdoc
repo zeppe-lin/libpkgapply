@@ -23,10 +23,14 @@ No layer may silently absorb the authority of another.
 
 # ADMISSION
 
-Application begins under one caller-held mutation lease. The exact target
-context, state projection, installed snapshot, ownership inventory, path-owner
-closure, planning-time filesystem facts, backend identities, and capability
-profile are revalidated before mutation.
+Application begins under one caller-held mutation lease. One acquisition
+identity binds the exact target context and mutation-exclusion domain to a
+mechanism-issued nonce. The reference POSIX mechanism takes a nonblocking
+exclusive lock in an explicit caller-selected coordination directory; it does
+not select waiting, retry, or backoff policy. The exact target context, state
+projection, installed snapshot, ownership inventory, path-owner closure,
+planning-time filesystem facts, backend identities, and capability profile are
+revalidated before mutation.
 
 Installation and upgrade additionally require one admitted incoming package:
 a complete successful *libpkgbuild* result, an independent *libpkgimage*

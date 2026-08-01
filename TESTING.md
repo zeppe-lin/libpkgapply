@@ -31,6 +31,18 @@ must not substitute constructor-shaped doubles for those APIs. At least one
 qualification build uses installed released `libpkgplan` and `libpkgimage`
 headers and libraries rather than local test doubles.
 
+POSIX outer-lease tests must prove:
+
+* acquisition is anchored to an already-selected directory descriptor;
+* one exclusion-domain identity maps to one deterministic coordination name;
+* a competing holder is refused without waiting;
+* the lock file is regular and is not removed on release;
+* a final lock-file symlink is refused;
+* unlink or replacement makes `held()` false;
+* target context, exclusion domain, nonce, and acquisition identity remain exact;
+* the acquired lease validates one projection made under that exact instance; and
+* acquisition performs no installed-state read or target mutation.
+
 The immutable model suite must cover:
 
 * independent public headers;

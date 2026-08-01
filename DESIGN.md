@@ -196,6 +196,20 @@ A state backend may acquire its own narrower publication lock while the
 outer lease is held. Lock order is outer target lease first, state
 publication lock second.
 
+`libpkgapply-posix` supplies the concrete caller-owned acquisition mechanism.
+It consumes one already-selected lock-directory descriptor and derives one
+coordination filename from the exact mutation-exclusion-domain identity. The
+file is opened without following a final symlink and retained under a
+nonblocking exclusive advisory lock. Acquisition creates no wait, retry, or
+backoff policy. The immutable acquisition identity binds the exact application
+target context, exclusion domain, and a mechanism-issued nonce.
+
+The coordination file is never removed. Unlink or replacement invalidates the
+live lease observation even though the old descriptor remains locked; this
+prevents a caller from claiming exclusion after the named cooperative authority
+has split. The lock directory is caller-selected configuration authority, not
+a target discovered from pathnames or package state.
+
 The lease establishes exclusion only among cooperating actors. Filesystem
 operations must still use stable root handles, no-follow component traversal,
 and final observation because unrelated processes may ignore the protocol.

@@ -70,7 +70,11 @@ active namespace, rejected store, staging namespace, journal namespace, and
 capability profile.
 
 The caller acquires one *target_mutation_lease* and retains it through
-application and later installed-state resolution. *lease_bound_state_projection*
+application and later installed-state resolution. A
+*mutation_lease_acquisition* canonically binds one mechanism-issued nonce to the
+exact application target context and mutation-exclusion domain. The supplied
+POSIX implementation acquires that authority from an explicit lock-directory
+descriptor without choosing wait or retry policy. *lease_bound_state_projection*
 binds the selected installed snapshot, ownership inventory, path-owner closure,
 and projection evidence to that exact lease instance.
 
