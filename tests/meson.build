@@ -362,6 +362,23 @@ if get_option('tests').allowed()
   )
   test('validate canonical application records', canonical_record_test)
 
+  application_receipt_codec_header_test = executable(
+    'application-receipt-codec-header-test',
+    'application_receipt_codec_header_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test(
+    'compile application receipt codec header independently',
+    application_receipt_codec_header_test,
+  )
+
+  application_receipt_codec_test = executable(
+    'application-receipt-codec-test',
+    'application_receipt_codec_test.cpp',
+    dependencies: libpkgapply_dep,
+  )
+  test('encode durable application receipts', application_receipt_codec_test)
+
   completed_evidence_codec_header_test = executable(
     'completed-evidence-codec-header-test',
     'completed_evidence_codec_header_test.cpp',
