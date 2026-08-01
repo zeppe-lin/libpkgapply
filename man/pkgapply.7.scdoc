@@ -94,7 +94,7 @@ It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 2.0.0 does not solve dependencies, select packages, parse policy,
+Version 2.1.0 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 

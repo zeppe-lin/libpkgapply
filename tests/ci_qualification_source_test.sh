@@ -41,8 +41,8 @@ done
 
 for contract in \
   'libpkgapply-posix' \
-  'libpkgapply.so.1' \
-  'libpkgapply-posix.so.1' \
+  'libpkgapply.so.2' \
+  'libpkgapply-posix.so.2' \
   'core libpkgapply metadata is contaminated by installed state' \
   'ci-dependency-prefix'
 do

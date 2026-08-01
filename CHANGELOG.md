@@ -1,6 +1,33 @@
 libpkgapply changelog
 =====================
 
+2.1.0 - 2026-08-01
+------------------
+
+Caller-owned POSIX target exclusion
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Added a canonical mutation-lease acquisition value binding one exact
+  application target context, mutation-exclusion domain, and mechanism-issued
+  nonce to one acquisition identity.
+- Added `pkgapply::posix::target_mutation_lease`, acquired from one explicit
+  lock-directory descriptor with a deterministic domain-derived filename,
+  final-symlink refusal, and nonblocking exclusive advisory locking.
+- Kept waiting, retry, backoff, installed-state reads, target observation,
+  application execution, state publication, and cleanup outside acquisition.
+- Retained the coordination file after release and report a held lease as lost
+  if its named lock authority is unlinked or replaced.
+- Preserved API version 2, SONAME 2, all durable application schemas, and the
+  generation-2 source/build authority floors.
+
+Deliberate boundary
+~~~~~~~~~~~~~~~~~~~
+
+Version 2.1.0 provides the physical outer exclusion mechanism but does not
+construct lease-bound installed-state projections, publish installed state,
+assemble a transaction driver, choose retry policy, or expose package-manager
+mutation commands.
+
 2.0.0 - 2026-07-29
 
 ABI migration to the generation-2 source/build authority closure.

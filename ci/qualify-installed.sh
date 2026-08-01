@@ -55,8 +55,8 @@ unset PKG_CONFIG_SYSROOT_DIR
 
 for package in libpkgapply libpkgapply-posix; do
   version=$(pkg-config --modversion "$package")
-  [ "$version" = 2.0.0 ] || {
-    echo "installed $package version is '$version', expected '2.0.0'" >&2
+  [ "$version" = 2.1.0 ] || {
+    echo "installed $package version is '$version', expected '2.1.0'" >&2
     exit 1
   }
 done
@@ -130,12 +130,12 @@ case $link_mode in
       echo "installed shared application libraries are absent" >&2
       exit 1
     }
-    readelf -d "$core_library" | grep -q 'SONAME.*libpkgapply\.so\.1' || {
-      echo "core shared library SONAME is not libpkgapply.so.1" >&2
+    readelf -d "$core_library" | grep -q 'SONAME.*libpkgapply\.so\.2' || {
+      echo "core shared library SONAME is not libpkgapply.so.2" >&2
       exit 1
     }
-    readelf -d "$posix_library" | grep -q 'SONAME.*libpkgapply-posix\.so\.1' || {
-      echo "POSIX shared library SONAME is not libpkgapply-posix.so.1" >&2
+    readelf -d "$posix_library" | grep -q 'SONAME.*libpkgapply-posix\.so\.2' || {
+      echo "POSIX shared library SONAME is not libpkgapply-posix.so.2" >&2
       exit 1
     }
     readelf -d "$core_library" | grep -q 'libpkgbuild\.so\.' || {
