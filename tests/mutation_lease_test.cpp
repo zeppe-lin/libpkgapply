@@ -123,6 +123,44 @@ int
 main()
 {
   const auto context = target();
+
+  pkgapply::mutation_lease_nonce::byte_array nonce_bytes{};
+  for (std::size_t index = 0; index < nonce_bytes.size(); ++index)
+    nonce_bytes[index] = static_cast<std::uint8_t>(40 + index);
+  const auto nonce = pkgapply::mutation_lease_nonce::from_bytes(nonce_bytes);
+  const auto acquisition = pkgapply::mutation_lease_acquisition::make(
+      context.identity(), context.mutation_exclusion_domain(), nonce);
+  const auto repeated = pkgapply::mutation_lease_acquisition::make(
+      context.identity(), context.mutation_exclusion_domain(), nonce);
+  require(acquisition.schema_version() ==
+              pkgapply::mutation_lease_acquisition_schema_version,
+          "mutation lease acquisition schema was not retained");
+  require(acquisition.identity() == repeated.identity(),
+          "same mutation lease acquisition did not retain one identity");
+  require(acquisition.identity().string() ==
+              "v1:sha256:d874314b6998f90dde3218e842746467"
+              "e34a70295f9162867b062f6ea3d2aa42",
+          "mutation lease acquisition identity vector changed");
+  require(acquisition.target() == context.identity() &&
+              acquisition.exclusion_domain() ==
+                  context.mutation_exclusion_domain() &&
+              acquisition.nonce() == nonce,
+          "mutation lease acquisition authority was not retained");
+
+  auto different_nonce_bytes = nonce_bytes;
+  ++different_nonce_bytes.back();
+  const auto different_nonce = pkgapply::mutation_lease_acquisition::make(
+      context.identity(), context.mutation_exclusion_domain(),
+      pkgapply::mutation_lease_nonce::from_bytes(different_nonce_bytes));
+  require(different_nonce.identity() != acquisition.identity(),
+          "different mutation lease nonce reused an acquisition identity");
+
+  const auto different_target = pkgapply::mutation_lease_acquisition::make(
+      application_identity<pkgapply::application_target_context_identity>(90),
+      context.mutation_exclusion_domain(), nonce);
+  require(different_target.identity() != acquisition.identity(),
+          "different target context reused a mutation lease identity");
+
   const auto lease_identity =
       application_identity<pkgapply::mutation_lease_instance_identity>(30);
   const auto projection = state(lease_identity);

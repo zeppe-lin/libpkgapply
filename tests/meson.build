@@ -493,6 +493,24 @@ if get_option('tests').allowed()
   )
   test('publish immutable POSIX rejected objects', posix_rejected_store_test)
 
+  posix_mutation_lease_header_test = executable(
+    'posix-mutation-lease-header-test',
+    'posix_mutation_lease_header_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test(
+    'compile POSIX mutation lease header independently',
+    posix_mutation_lease_header_test,
+  )
+
+  posix_mutation_lease_test = executable(
+    'posix-mutation-lease-test',
+    'posix_mutation_lease_test.cpp',
+    dependencies: libpkgapply_posix_dep,
+  )
+  test('acquire caller-owned POSIX target mutation leases',
+       posix_mutation_lease_test)
+
   posix_target_observer_header_test = executable(
     'posix-target-observer-header-test',
     'posix_target_observer_header_test.cpp',
