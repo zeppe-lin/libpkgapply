@@ -17,6 +17,7 @@ for file in \
   "$root/ci/lint-manpages.sh" \
   "$root/ci/installed-core-consumer.cpp" \
   "$root/ci/installed-posix-consumer.cpp" \
+  "$root/tests/mutation_lease_scope_source_test.sh" \
   "$root/tests/posix_mutation_lease_source_test.sh"
 do
   test -s "$file" || fail "missing or empty ${file#"$root"/}"
@@ -49,6 +50,10 @@ do
   grep -F "$contract" "$root/ci/qualify-installed.sh" >/dev/null ||
     fail "installed qualification omits $contract"
 done
+
+grep -F 'validate_target_mutation_lease_scope' \
+  "$root/ci/installed-core-consumer.cpp" >/dev/null ||
+  fail 'installed core consumer omits target-scope lease validation'
 
 for contract in \
   'pkgapply::posix::target_mutation_lease' \

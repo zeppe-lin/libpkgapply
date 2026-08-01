@@ -5,5 +5,7 @@
 
 int main()
 {
+  const auto validator = &pkgapply::validate_target_mutation_lease_scope;
+  (void)validator;
   return pkgapply::version() == "2.1.0" && pkgapply::api_version == 2 ? 0 : 1;
 }

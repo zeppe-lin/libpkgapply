@@ -559,6 +559,16 @@ if get_option('tests').allowed()
   test('restore POSIX active objects', posix_active_recovery_test)
 
   test(
+    'verify target-scoped mutation lease contract',
+    sh,
+    args: [
+      join_paths(meson.current_source_dir(),
+                 'mutation_lease_scope_source_test.sh'),
+      meson.project_source_root(),
+    ],
+  )
+
+  test(
     'verify POSIX mutation lease source contract',
     sh,
     args: [

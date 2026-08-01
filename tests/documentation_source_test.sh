@@ -33,6 +33,14 @@ grep -F '`libpkgapply-posix` supplies the concrete caller-owned acquisition mech
   "$root/DESIGN.md" >/dev/null ||
   fail 'design omits the concrete outer mutation lease'
 
+grep -F '`validate_target_mutation_lease_scope()` proves that a live acquisition' \
+  "$root/DESIGN.md" >/dev/null ||
+  fail 'design omits target-scoped lease validation'
+
+grep -F '*validate_target_mutation_lease_scope()* validates only' \
+  "$root/man/libpkgapply.3.scdoc" >/dev/null ||
+  fail 'core manual omits target-scoped lease validation'
+
 grep -F '*target_mutation_lease::acquire()*' \
   "$root/man/libpkgapply-posix.3.scdoc" >/dev/null ||
   fail 'POSIX manual omits mutation lease acquisition'
