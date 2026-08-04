@@ -97,30 +97,63 @@ public:
       mutation_lease_instance_identity lease,
       mutation_backend_identity backend);
 
-  /*! \brief Return the journal-header schema version. */
+  /*!
+   * \brief Return the journal-header schema version.
+  *  \return The journal-header schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical journal identity. */
+  /*!
+   * \brief Return the canonical journal identity.
+  *  \return The canonical journal identity.
+   */
   [[nodiscard]] const application_journal_identity& identity() const noexcept;
-  /*! \brief Return the immutable operation kind. */
+  /*!
+   * \brief Return the immutable operation kind.
+  *  \return The immutable operation kind.
+   */
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
-  /*! \brief Return the application-request identity. */
+  /*!
+   * \brief Return the application-request identity.
+  *  \return The application-request identity.
+   */
   [[nodiscard]] const application_request_identity& request() const noexcept;
-  /*! \brief Return the accepted operation-plan identity. */
+  /*!
+   * \brief Return the accepted operation-plan identity.
+  *  \return The accepted operation-plan identity.
+   */
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
-  /*! \brief Return the physical application attempt. */
+  /*!
+   * \brief Return the physical application attempt.
+  *  \return The physical application attempt.
+   */
   [[nodiscard]] const application_attempt& attempt() const noexcept;
-  /*! \brief Return the exact target-context identity. */
+  /*!
+   * \brief Return the exact target-context identity.
+  *  \return The exact target-context identity.
+   */
   [[nodiscard]] const application_target_context_identity&
   target() const noexcept;
-  /*! \brief Return the execution-control identity. */
+  /*!
+   * \brief Return the execution-control identity.
+  *  \return The execution-control identity.
+   */
   [[nodiscard]] const application_execution_control_identity&
   control() const noexcept;
-  /*! \brief Return the admitted state-projection identity. */
+  /*!
+   * \brief Return the admitted state-projection identity.
+  *  \return The admitted state-projection identity.
+   */
   [[nodiscard]] const lease_bound_state_projection_identity&
   state_projection() const noexcept;
-  /*! \brief Return the mutation-lease acquisition identity. */
+  /*!
+   * \brief Return the mutation-lease acquisition identity.
+  *  \return The mutation-lease acquisition identity.
+   */
   [[nodiscard]] const mutation_lease_instance_identity& lease() const noexcept;
-  /*! \brief Return the mutation-backend identity. */
+  /*!
+   * \brief Return the mutation-backend identity.
+  *  \return The mutation-backend identity.
+   */
   [[nodiscard]] const mutation_backend_identity& backend() const noexcept;
 
 private:
@@ -165,18 +198,35 @@ public:
       application_journal_effect_kind kind,
       std::optional<pkgplan::package_path> path = std::nullopt);
 
-  /*! \brief Return the canonical effect identity. */
+  /*!
+   * \brief Return the canonical effect identity.
+  *  \return The canonical effect identity.
+   */
   [[nodiscard]] const application_journal_effect_identity&
   identity() const noexcept;
-  /*! \brief Return the zero-based effect position. */
+  /*!
+   * \brief Return the zero-based effect position.
+  *  \return The zero-based effect position.
+   */
   [[nodiscard]] std::uint64_t ordinal() const noexcept;
-  /*! \brief Return the semantic mechanism kind. */
+  /*!
+   * \brief Return the semantic mechanism kind.
+  *  \return The semantic mechanism kind.
+   */
   [[nodiscard]] application_journal_effect_kind kind() const noexcept;
-  /*! \brief Return the governed path for path-scoped effects. */
+  /*!
+   * \brief Return the governed path for path-scoped effects.
+  *  \return The governed path for path-scoped effects.
+   */
   [[nodiscard]] const std::optional<pkgplan::package_path>&
   path() const noexcept;
 
-  /*! \brief Order effects by ordinal and canonical identity. */
+  /*!
+   * \brief Order effects by ordinal and canonical identity.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_journal_effect& lhs,
                         const application_journal_effect& rhs) noexcept;
 
@@ -211,14 +261,26 @@ public:
       application_journal_effect_identity effect,
       std::vector<application_backend_evidence_identity> backend_evidence = {});
 
-  /*! \brief Return the zero-based append sequence. */
+  /*!
+   * \brief Return the zero-based append sequence.
+  *  \return The zero-based append sequence.
+   */
   [[nodiscard]] std::uint64_t sequence() const noexcept;
-  /*! \brief Return intent or terminal event kind. */
+  /*!
+   * \brief Return intent or terminal event kind.
+  *  \return Intent or terminal event kind.
+   */
   [[nodiscard]] application_journal_event_kind kind() const noexcept;
-  /*! \brief Return the governed effect identity. */
+  /*!
+   * \brief Return the governed effect identity.
+  *  \return The governed effect identity.
+   */
   [[nodiscard]] const application_journal_effect_identity&
   effect() const noexcept;
-  /*! \brief Return supporting backend evidence in canonical order. */
+  /*!
+   * \brief Return supporting backend evidence in canonical order.
+  *  \return Supporting backend evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
 
@@ -253,25 +315,49 @@ public:
       std::optional<completed_application_evidence_identity>
           completed_evidence = std::nullopt);
 
-  /*! \brief Return the journal-record schema version. */
+  /*!
+   * \brief Return the journal-record schema version.
+  *  \return The journal-record schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical journal-record identity. */
+  /*!
+   * \brief Return the canonical journal-record identity.
+  *  \return The canonical journal-record identity.
+   */
   [[nodiscard]] const application_journal_record_identity&
   identity() const noexcept;
-  /*! \brief Return fixed application-attempt authority. */
+  /*!
+   * \brief Return fixed application-attempt authority.
+  *  \return Fixed application-attempt authority.
+   */
   [[nodiscard]] const application_journal_header& header() const noexcept;
-  /*! \brief Return the durable execution phase. */
+  /*!
+   * \brief Return the durable execution phase.
+  *  \return The durable execution phase.
+   */
   [[nodiscard]] application_journal_state state() const noexcept;
-  /*! \brief Return the complete effect graph in ordinal order. */
+  /*!
+   * \brief Return the complete effect graph in ordinal order.
+  *  \return The complete effect graph in ordinal order.
+   */
   [[nodiscard]] const std::vector<application_journal_effect>&
   effects() const noexcept;
-  /*! \brief Return append-only events in sequence order. */
+  /*!
+   * \brief Return append-only events in sequence order.
+  *  \return Append-only events in sequence order.
+   */
   [[nodiscard]] const std::vector<application_journal_event>&
   events() const noexcept;
-  /*! \brief Return optional terminal receipt identity. */
+  /*!
+   * \brief Return optional terminal receipt identity.
+  *  \return Optional terminal receipt identity.
+   */
   [[nodiscard]] const std::optional<application_receipt_identity>&
   receipt() const noexcept;
-  /*! \brief Return optional successful completed-evidence identity. */
+  /*!
+   * \brief Return optional successful completed-evidence identity.
+  *  \return Optional successful completed-evidence identity.
+   */
   [[nodiscard]] const std::optional<completed_application_evidence_identity>&
   completed_evidence() const noexcept;
 

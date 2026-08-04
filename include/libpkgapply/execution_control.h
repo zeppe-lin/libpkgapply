@@ -56,35 +56,66 @@ public:
        std::optional<std::uint64_t> maximum_staging_bytes = std::nullopt,
        std::optional<std::uint64_t> maximum_recovery_bytes = std::nullopt);
 
-  /*! \brief Return the execution-control schema version. */
+  /*!
+   * \brief Return the execution-control schema version.
+  *  \return The execution-control schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
 
-  /*! \brief Return the canonical execution-control identity. */
+  /*!
+   * \brief Return the canonical execution-control identity.
+  *  \return The canonical execution-control identity.
+   */
   [[nodiscard]] const application_execution_control_identity&
   identity() const noexcept;
 
-  /*! \brief Return the required recovery guarantee. */
+  /*!
+   * \brief Return the required recovery guarantee.
+  *  \return The required recovery guarantee.
+   */
   [[nodiscard]] application_recovery_requirement recovery() const noexcept;
 
-  /*! \brief Return the required durability boundary. */
+  /*!
+   * \brief Return the required durability boundary.
+  *  \return The required durability boundary.
+   */
   [[nodiscard]] application_durability_requirement durability() const noexcept;
 
-  /*! \brief Return the cancellation policy. */
+  /*!
+   * \brief Return the cancellation policy.
+  *  \return The cancellation policy.
+   */
   [[nodiscard]] application_cancellation_policy cancellation() const noexcept;
 
-  /*! \brief Return the optional staged-payload byte ceiling. */
+  /*!
+   * \brief Return the optional staged-payload byte ceiling.
+  *  \return The optional staged-payload byte ceiling.
+   */
   [[nodiscard]] const std::optional<std::uint64_t>&
   maximum_staging_bytes() const noexcept;
 
-  /*! \brief Return the optional recovery-data byte ceiling. */
+  /*!
+   * \brief Return the optional recovery-data byte ceiling.
+  *  \return The optional recovery-data byte ceiling.
+   */
   [[nodiscard]] const std::optional<std::uint64_t>&
   maximum_recovery_bytes() const noexcept;
 
-  /*! \brief Compare complete execution controls for equality. */
+  /*!
+   * \brief Compare complete execution controls for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const application_execution_control& lhs,
                          const application_execution_control& rhs) noexcept;
 
-  /*! \brief Compare complete execution controls for inequality. */
+  /*!
+   * \brief Compare complete execution controls for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const application_execution_control& lhs,
                          const application_execution_control& rhs) noexcept;
 

@@ -36,22 +36,43 @@ public:
       pkgplan::package_path path,
       std::vector<pkgplan::installed_package_identity> owners);
 
-  /*! \brief Return the exact operated path. */
+  /*!
+   * \brief Return the exact operated path.
+  *  \return The exact operated path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
 
-  /*! \brief Return current owners in canonical order. */
+  /*!
+   * \brief Return current owners in canonical order.
+  *  \return Current owners in canonical order.
+   */
   [[nodiscard]] const std::vector<pkgplan::installed_package_identity>&
   owners() const noexcept;
 
-  /*! \brief Compare complete path-owner facts for equality. */
+  /*!
+   * \brief Compare complete path-owner facts for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const projected_path_owners& lhs,
                          const projected_path_owners& rhs) noexcept;
 
-  /*! \brief Compare complete path-owner facts for inequality. */
+  /*!
+   * \brief Compare complete path-owner facts for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const projected_path_owners& lhs,
                          const projected_path_owners& rhs) noexcept;
 
-  /*! \brief Order facts by path and then canonical owner sequence. */
+  /*!
+   * \brief Order facts by path and then canonical owner sequence.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const projected_path_owners& lhs,
                         const projected_path_owners& rhs) noexcept;
 
@@ -87,32 +108,56 @@ public:
        std::vector<projected_path_owners> paths,
        state_projection_evidence_identity evidence);
 
-  /*! \brief Return the projection schema version. */
+  /*!
+   * \brief Return the projection schema version.
+  *  \return The projection schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
 
-  /*! \brief Return the canonical projection identity. */
+  /*!
+   * \brief Return the canonical projection identity.
+  *  \return The canonical projection identity.
+   */
   [[nodiscard]] const lease_bound_state_projection_identity&
   identity() const noexcept;
 
-  /*! \brief Return the lease acquisition under which state was observed. */
+  /*!
+   * \brief Return the lease acquisition under which state was observed.
+  *  \return The lease acquisition under which state was observed.
+   */
   [[nodiscard]] const mutation_lease_instance_identity& lease() const noexcept;
 
-  /*! \brief Return the installed snapshot identity. */
+  /*!
+   * \brief Return the installed snapshot identity.
+  *  \return The installed snapshot identity.
+   */
   [[nodiscard]] const pkgplan::installed_state_snapshot_identity&
   snapshot() const noexcept;
 
-  /*! \brief Return the ownership inventory identity. */
+  /*!
+   * \brief Return the ownership inventory identity.
+  *  \return The ownership inventory identity.
+   */
   [[nodiscard]] const pkgplan::ownership_inventory_identity&
   ownership_inventory() const noexcept;
 
-  /*! \brief Return whether the projected universe is complete. */
+  /*!
+   * \brief Return whether the projected universe is complete.
+  *  \return Whether the projected universe is complete.
+   */
   [[nodiscard]] state_projection_completeness completeness() const noexcept;
 
-  /*! \brief Return path-owner facts in canonical path order. */
+  /*!
+   * \brief Return path-owner facts in canonical path order.
+  *  \return Path-owner facts in canonical path order.
+   */
   [[nodiscard]] const std::vector<projected_path_owners>&
   paths() const noexcept;
 
-  /*! \brief Return the observation-evidence identity. */
+  /*!
+   * \brief Return the observation-evidence identity.
+  *  \return The observation-evidence identity.
+   */
   [[nodiscard]] const state_projection_evidence_identity&
   evidence() const noexcept;
 

@@ -62,10 +62,16 @@ public:
   /*! \brief Destroy the polymorphic refusal. */
   ~application_admission_error() override;
 
-  /*! \brief Return the stable refusal category. */
+  /*!
+   * \brief Return the stable refusal category.
+  *  \return The stable refusal category.
+   */
   [[nodiscard]] application_admission_error_code code() const noexcept;
 
-  /*! \brief Return canonical paths implicated by the refusal. */
+  /*!
+   * \brief Return canonical paths implicated by the refusal.
+  *  \return Canonical paths implicated by the refusal.
+   */
   [[nodiscard]] const std::vector<pkgplan::package_path>&
   paths() const noexcept;
 

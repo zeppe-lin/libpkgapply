@@ -26,7 +26,10 @@ public:
   explicit old_object_capture_plan(
       std::vector<old_object_capture_request> requests);
 
-  /*! \brief Return requests in canonical path order. */
+  /*!
+   * \brief Return requests in canonical path order.
+  *  \return Requests in canonical path order.
+   */
   [[nodiscard]] const std::vector<old_object_capture_request>&
   requests() const noexcept;
 

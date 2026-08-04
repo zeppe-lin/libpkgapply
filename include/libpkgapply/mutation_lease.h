@@ -36,18 +36,36 @@ public:
    */
   [[nodiscard]] static mutation_lease_nonce from_bytes(byte_array bytes);
 
-  /*! \brief Return the exact nonce bytes. */
+  /*!
+   * \brief Return the exact nonce bytes.
+  *  \return The exact nonce bytes.
+   */
   [[nodiscard]] const byte_array& bytes() const noexcept;
 
-  /*! \brief Compare lease nonces for equality. */
+  /*!
+   * \brief Compare lease nonces for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const mutation_lease_nonce& lhs,
                          const mutation_lease_nonce& rhs) noexcept;
 
-  /*! \brief Compare lease nonces for inequality. */
+  /*!
+   * \brief Compare lease nonces for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const mutation_lease_nonce& lhs,
                          const mutation_lease_nonce& rhs) noexcept;
 
-  /*! \brief Order lease nonces lexicographically by bytes. */
+  /*!
+   * \brief Order lease nonces lexicographically by bytes.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const mutation_lease_nonce& lhs,
                         const mutation_lease_nonce& rhs) noexcept;
 
@@ -71,22 +89,37 @@ public:
       mutation_exclusion_domain_identity exclusion_domain,
       mutation_lease_nonce nonce);
 
-  /*! \brief Return the acquisition schema version. */
+  /*!
+   * \brief Return the acquisition schema version.
+  *  \return The acquisition schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
 
-  /*! \brief Return the unique acquisition identity. */
+  /*!
+   * \brief Return the unique acquisition identity.
+  *  \return The unique acquisition identity.
+   */
   [[nodiscard]] const mutation_lease_instance_identity&
   identity() const noexcept;
 
-  /*! \brief Return the protected target-context identity. */
+  /*!
+   * \brief Return the protected target-context identity.
+  *  \return The protected target-context identity.
+   */
   [[nodiscard]] const application_target_context_identity&
   target() const noexcept;
 
-  /*! \brief Return the shared mutation-exclusion domain. */
+  /*!
+   * \brief Return the shared mutation-exclusion domain.
+  *  \return The shared mutation-exclusion domain.
+   */
   [[nodiscard]] const mutation_exclusion_domain_identity&
   exclusion_domain() const noexcept;
 
-  /*! \brief Return the physical acquisition nonce. */
+  /*!
+   * \brief Return the physical acquisition nonce.
+  *  \return The physical acquisition nonce.
+   */
   [[nodiscard]] const mutation_lease_nonce& nonce() const noexcept;
 
 private:
@@ -124,7 +157,10 @@ public:
   /*! \brief Destroy the polymorphic refusal. */
   ~mutation_lease_error() override;
 
-  /*! \brief Return the stable refusal category. */
+  /*!
+   * \brief Return the stable refusal category.
+  *  \return The stable refusal category.
+   */
   [[nodiscard]] mutation_lease_error_code code() const noexcept;
 
 private:
@@ -154,19 +190,31 @@ public:
   /*! \brief Destroy the live lease interface. */
   virtual ~target_mutation_lease();
 
-  /*! \brief Return the unique acquisition identity. */
+  /*!
+   * \brief Return the unique acquisition identity.
+  *  \return The unique acquisition identity.
+   */
   [[nodiscard]] virtual const mutation_lease_instance_identity&
   identity() const noexcept = 0;
 
-  /*! \brief Return the exact target context protected. */
+  /*!
+   * \brief Return the exact target context protected.
+  *  \return The exact target context protected.
+   */
   [[nodiscard]] virtual const application_target_context_identity&
   target() const noexcept = 0;
 
-  /*! \brief Return the shared exclusion and lock-ordering domain. */
+  /*!
+   * \brief Return the shared exclusion and lock-ordering domain.
+  *  \return The shared exclusion and lock-ordering domain.
+   */
   [[nodiscard]] virtual const mutation_exclusion_domain_identity&
   exclusion_domain() const noexcept = 0;
 
-  /*! \brief Report whether the caller still holds this acquisition. */
+  /*!
+   * \brief Report whether the caller still holds this acquisition.
+  *  \return Whether the caller still holds this acquisition.
+   */
   [[nodiscard]] virtual bool held() const noexcept = 0;
 };
 

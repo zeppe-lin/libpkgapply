@@ -41,17 +41,35 @@ public:
        application_target_context target,
        application_execution_control control);
 
-  /*! \brief Return the request schema version. */
+  /*!
+   * \brief Return the request schema version.
+  *  \return The request schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical request identity. */
+  /*!
+   * \brief Return the canonical request identity.
+  *  \return The canonical request identity.
+   */
   [[nodiscard]] const application_request_identity& identity() const noexcept;
-  /*! \brief Return the retained accepted installation plan. */
+  /*!
+   * \brief Return the retained accepted installation plan.
+  *  \return The retained accepted installation plan.
+   */
   [[nodiscard]] const pkgplan::installation_plan& plan() const noexcept;
-  /*! \brief Return the retained incoming package authority. */
+  /*!
+   * \brief Return the retained incoming package authority.
+  *  \return The retained incoming package authority.
+   */
   [[nodiscard]] const incoming_package_authority& incoming() const noexcept;
-  /*! \brief Return the retained target context. */
+  /*!
+   * \brief Return the retained target context.
+  *  \return The retained target context.
+   */
   [[nodiscard]] const application_target_context& target() const noexcept;
-  /*! \brief Return the retained execution control. */
+  /*!
+   * \brief Return the retained execution control.
+  *  \return The retained execution control.
+   */
   [[nodiscard]] const application_execution_control& control() const noexcept;
 
 private:
@@ -90,17 +108,35 @@ public:
        application_target_context target,
        application_execution_control control);
 
-  /*! \brief Return the request schema version. */
+  /*!
+   * \brief Return the request schema version.
+  *  \return The request schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical request identity. */
+  /*!
+   * \brief Return the canonical request identity.
+  *  \return The canonical request identity.
+   */
   [[nodiscard]] const application_request_identity& identity() const noexcept;
-  /*! \brief Return the retained accepted upgrade plan. */
+  /*!
+   * \brief Return the retained accepted upgrade plan.
+  *  \return The retained accepted upgrade plan.
+   */
   [[nodiscard]] const pkgplan::upgrade_plan& plan() const noexcept;
-  /*! \brief Return the retained incoming package authority. */
+  /*!
+   * \brief Return the retained incoming package authority.
+  *  \return The retained incoming package authority.
+   */
   [[nodiscard]] const incoming_package_authority& incoming() const noexcept;
-  /*! \brief Return the retained target context. */
+  /*!
+   * \brief Return the retained target context.
+  *  \return The retained target context.
+   */
   [[nodiscard]] const application_target_context& target() const noexcept;
-  /*! \brief Return the retained execution control. */
+  /*!
+   * \brief Return the retained execution control.
+  *  \return The retained execution control.
+   */
   [[nodiscard]] const application_execution_control& control() const noexcept;
 
 private:
@@ -136,15 +172,30 @@ public:
        application_target_context target,
        application_execution_control control);
 
-  /*! \brief Return the request schema version. */
+  /*!
+   * \brief Return the request schema version.
+  *  \return The request schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical request identity. */
+  /*!
+   * \brief Return the canonical request identity.
+  *  \return The canonical request identity.
+   */
   [[nodiscard]] const application_request_identity& identity() const noexcept;
-  /*! \brief Return the retained accepted removal plan. */
+  /*!
+   * \brief Return the retained accepted removal plan.
+  *  \return The retained accepted removal plan.
+   */
   [[nodiscard]] const pkgplan::removal_plan& plan() const noexcept;
-  /*! \brief Return the retained target context. */
+  /*!
+   * \brief Return the retained target context.
+  *  \return The retained target context.
+   */
   [[nodiscard]] const application_target_context& target() const noexcept;
-  /*! \brief Return the retained execution control. */
+  /*!
+   * \brief Return the retained execution control.
+  *  \return The retained execution control.
+   */
   [[nodiscard]] const application_execution_control& control() const noexcept;
 
 private:
@@ -171,34 +222,73 @@ using package_application_request_body = std::variant<
 /*! \brief One immutable installation, upgrade, or removal request. */
 class package_application_request final {
 public:
-  /*! \brief Construct from an installation request body. */
+  /*!
+   * \brief Construct from an installation request body.
+  *  \param request Operation-specific request retained by this value.
+   */
   explicit package_application_request(installation_application_request request);
-  /*! \brief Construct from an upgrade request body. */
+  /*!
+   * \brief Construct from an upgrade request body.
+  *  \param request Operation-specific request retained by this value.
+   */
   explicit package_application_request(upgrade_application_request request);
-  /*! \brief Construct from a removal request body. */
+  /*!
+   * \brief Construct from a removal request body.
+  *  \param request Operation-specific request retained by this value.
+   */
   explicit package_application_request(removal_application_request request);
 
-  /*! \brief Return the operation kind of the active request body. */
+  /*!
+   * \brief Return the operation kind of the active request body.
+  *  \return The operation kind of the active request body.
+   */
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
-  /*! \brief Return the canonical application-request identity. */
+  /*!
+   * \brief Return the canonical application-request identity.
+  *  \return The canonical application-request identity.
+   */
   [[nodiscard]] const application_request_identity& identity() const noexcept;
-  /*! \brief Return the accepted operation-plan identity. */
+  /*!
+   * \brief Return the accepted operation-plan identity.
+  *  \return The accepted operation-plan identity.
+   */
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
-  /*! \brief Return incoming authority, or `nullptr` for removal. */
+  /*!
+   * \brief Return incoming authority, or `nullptr` for removal.
+  *  \return Incoming authority, or `nullptr` for removal.
+   */
   [[nodiscard]] const incoming_package_authority* incoming() const noexcept;
-  /*! \brief Return the exact target context. */
+  /*!
+   * \brief Return the exact target context.
+  *  \return The exact target context.
+   */
   [[nodiscard]] const application_target_context& target() const noexcept;
-  /*! \brief Return actuator-level execution control. */
+  /*!
+   * \brief Return actuator-level execution control.
+  *  \return Actuator-level execution control.
+   */
   [[nodiscard]] const application_execution_control& control() const noexcept;
-  /*! \brief Return the active operation-specific variant. */
+  /*!
+   * \brief Return the active operation-specific variant.
+  *  \return The active operation-specific variant.
+   */
   [[nodiscard]] const package_application_request_body& body() const noexcept;
 
-  /*! \brief Return installation body when active, otherwise `nullptr`. */
+  /*!
+   * \brief Return installation body when active, otherwise `nullptr`.
+  *  \return Installation body when active, otherwise `nullptr`.
+   */
   [[nodiscard]] const installation_application_request*
   installation() const noexcept;
-  /*! \brief Return upgrade body when active, otherwise `nullptr`. */
+  /*!
+   * \brief Return upgrade body when active, otherwise `nullptr`.
+  *  \return Upgrade body when active, otherwise `nullptr`.
+   */
   [[nodiscard]] const upgrade_application_request* upgrade() const noexcept;
-  /*! \brief Return removal body when active, otherwise `nullptr`. */
+  /*!
+   * \brief Return removal body when active, otherwise `nullptr`.
+  *  \return Removal body when active, otherwise `nullptr`.
+   */
   [[nodiscard]] const removal_application_request* removal() const noexcept;
 
 private:

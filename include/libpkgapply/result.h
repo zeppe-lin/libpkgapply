@@ -74,18 +74,39 @@ public:
   application_durability_fact(application_durability_domain domain,
                               application_durability_status status);
 
-  /*! \brief Return the qualified durability domain. */
+  /*!
+   * \brief Return the qualified durability domain.
+  *  \return The qualified durability domain.
+   */
   [[nodiscard]] application_durability_domain domain() const noexcept;
-  /*! \brief Return persistence knowledge for that domain. */
+  /*!
+   * \brief Return persistence knowledge for that domain.
+  *  \return Persistence knowledge for that domain.
+   */
   [[nodiscard]] application_durability_status status() const noexcept;
 
-  /*! \brief Compare durability facts for equality. */
+  /*!
+   * \brief Compare durability facts for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const application_durability_fact& lhs,
                          const application_durability_fact& rhs) noexcept;
-  /*! \brief Compare durability facts for inequality. */
+  /*!
+   * \brief Compare durability facts for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const application_durability_fact& lhs,
                          const application_durability_fact& rhs) noexcept;
-  /*! \brief Order durability facts by domain and then status. */
+  /*!
+   * \brief Order durability facts by domain and then status.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_durability_fact& lhs,
                         const application_durability_fact& rhs) noexcept;
 
@@ -104,7 +125,10 @@ public:
   explicit application_durability_profile(
       std::vector<application_durability_fact> facts);
 
-  /*! \brief Return all six facts in canonical domain order. */
+  /*!
+   * \brief Return all six facts in canonical domain order.
+  *  \return All six facts in canonical domain order.
+   */
   [[nodiscard]] const std::vector<application_durability_fact>&
   facts() const noexcept;
 
@@ -116,10 +140,20 @@ public:
   [[nodiscard]] application_durability_status
   status(application_durability_domain domain) const;
 
-  /*! \brief Compare durability profiles for equality. */
+  /*!
+   * \brief Compare durability profiles for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const application_durability_profile& lhs,
                          const application_durability_profile& rhs) noexcept;
-  /*! \brief Compare durability profiles for inequality. */
+  /*!
+   * \brief Compare durability profiles for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const application_durability_profile& lhs,
                          const application_durability_profile& rhs) noexcept;
 
@@ -205,37 +239,76 @@ public:
           std::vector<application_backend_evidence_identity>
               backend_evidence = {});
 
-  /*! \brief Return the completed-evidence schema version. */
+  /*!
+   * \brief Return the completed-evidence schema version.
+  *  \return The completed-evidence schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical completed-evidence identity. */
+  /*!
+   * \brief Return the canonical completed-evidence identity.
+  *  \return The canonical completed-evidence identity.
+   */
   [[nodiscard]] const completed_application_evidence_identity&
   identity() const noexcept;
-  /*! \brief Return the completed operation kind. */
+  /*!
+   * \brief Return the completed operation kind.
+  *  \return The completed operation kind.
+   */
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
-  /*! \brief Return the immutable application-request identity. */
+  /*!
+   * \brief Return the immutable application-request identity.
+  *  \return The immutable application-request identity.
+   */
   [[nodiscard]] const application_request_identity& request() const noexcept;
-  /*! \brief Return the accepted operation-plan identity. */
+  /*!
+   * \brief Return the accepted operation-plan identity.
+  *  \return The accepted operation-plan identity.
+   */
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
-  /*! \brief Return the physical application-attempt identity. */
+  /*!
+   * \brief Return the physical application-attempt identity.
+  *  \return The physical application-attempt identity.
+   */
   [[nodiscard]] const application_attempt_identity& attempt() const noexcept;
-  /*! \brief Return the exact target-context identity. */
+  /*!
+   * \brief Return the exact target-context identity.
+  *  \return The exact target-context identity.
+   */
   [[nodiscard]] const application_target_context_identity&
   target() const noexcept;
-  /*! \brief Return the execution-control identity. */
+  /*!
+   * \brief Return the execution-control identity.
+  *  \return The execution-control identity.
+   */
   [[nodiscard]] const application_execution_control_identity&
   control() const noexcept;
-  /*! \brief Return the admitted state-projection identity. */
+  /*!
+   * \brief Return the admitted state-projection identity.
+  *  \return The admitted state-projection identity.
+   */
   [[nodiscard]] const lease_bound_state_projection_identity&
   state_projection() const noexcept;
-  /*! \brief Return the durable journal identity. */
+  /*!
+   * \brief Return the durable journal identity.
+  *  \return The durable journal identity.
+   */
   [[nodiscard]] const application_journal_identity& journal() const noexcept;
-  /*! \brief Return complete consequences in canonical path order. */
+  /*!
+   * \brief Return complete consequences in canonical path order.
+  *  \return Complete consequences in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_path_consequence>&
   paths() const noexcept;
-  /*! \brief Return the complete durability profile. */
+  /*!
+   * \brief Return the complete durability profile.
+  *  \return The complete durability profile.
+   */
   [[nodiscard]] const application_durability_profile&
   durability() const noexcept;
-  /*! \brief Return supporting backend evidence in canonical order. */
+  /*!
+   * \brief Return supporting backend evidence in canonical order.
+  *  \return Supporting backend evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
 
@@ -377,44 +450,92 @@ public:
       std::vector<application_backend_evidence_identity>
           backend_evidence = {});
 
-  /*! \brief Return the application-receipt schema version. */
+  /*!
+   * \brief Return the application-receipt schema version.
+  *  \return The application-receipt schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
-  /*! \brief Return the canonical receipt identity. */
+  /*!
+   * \brief Return the canonical receipt identity.
+  *  \return The canonical receipt identity.
+   */
   [[nodiscard]] const application_receipt_identity& identity() const noexcept;
-  /*! \brief Return the attempted operation kind. */
+  /*!
+   * \brief Return the attempted operation kind.
+  *  \return The attempted operation kind.
+   */
   [[nodiscard]] pkgplan::operation_kind kind() const noexcept;
-  /*! \brief Return the immutable application-request identity. */
+  /*!
+   * \brief Return the immutable application-request identity.
+  *  \return The immutable application-request identity.
+   */
   [[nodiscard]] const application_request_identity& request() const noexcept;
-  /*! \brief Return the accepted operation-plan identity. */
+  /*!
+   * \brief Return the accepted operation-plan identity.
+  *  \return The accepted operation-plan identity.
+   */
   [[nodiscard]] const pkgplan::operation_plan_identity& plan() const noexcept;
-  /*! \brief Return the physical application-attempt identity. */
+  /*!
+   * \brief Return the physical application-attempt identity.
+  *  \return The physical application-attempt identity.
+   */
   [[nodiscard]] const application_attempt_identity& attempt() const noexcept;
-  /*! \brief Return the exact target-context identity. */
+  /*!
+   * \brief Return the exact target-context identity.
+  *  \return The exact target-context identity.
+   */
   [[nodiscard]] const application_target_context_identity&
   target() const noexcept;
-  /*! \brief Return the execution-control identity. */
+  /*!
+   * \brief Return the execution-control identity.
+  *  \return The execution-control identity.
+   */
   [[nodiscard]] const application_execution_control_identity&
   control() const noexcept;
-  /*! \brief Return the admitted state-projection identity. */
+  /*!
+   * \brief Return the admitted state-projection identity.
+  *  \return The admitted state-projection identity.
+   */
   [[nodiscard]] const lease_bound_state_projection_identity&
   state_projection() const noexcept;
-  /*! \brief Return the truthful attempt outcome. */
+  /*!
+   * \brief Return the truthful attempt outcome.
+  *  \return The truthful attempt outcome.
+   */
   [[nodiscard]] application_attempt_outcome outcome() const noexcept;
-  /*! \brief Return the truthful active-namespace recovery state. */
+  /*!
+   * \brief Return the truthful active-namespace recovery state.
+  *  \return The truthful active-namespace recovery state.
+   */
   [[nodiscard]] application_recovery_state recovery() const noexcept;
-  /*! \brief Return the complete durability profile. */
+  /*!
+   * \brief Return the complete durability profile.
+  *  \return The complete durability profile.
+   */
   [[nodiscard]] const application_durability_profile&
   durability() const noexcept;
-  /*! \brief Return known path consequences in canonical order. */
+  /*!
+   * \brief Return known path consequences in canonical order.
+  *  \return Known path consequences in canonical order.
+   */
   [[nodiscard]] const std::vector<application_path_consequence>&
   paths() const noexcept;
-  /*! \brief Return journal identity when a durable attempt exists. */
+  /*!
+   * \brief Return journal identity when a durable attempt exists.
+  *  \return Journal identity when a durable attempt exists.
+   */
   [[nodiscard]] const std::optional<application_journal_identity>&
   journal() const noexcept;
-  /*! \brief Return completed evidence only for a successful receipt. */
+  /*!
+   * \brief Return completed evidence only for a successful receipt.
+  *  \return Completed evidence only for a successful receipt.
+   */
   [[nodiscard]] const std::optional<completed_application_evidence>&
   completed_evidence() const noexcept;
-  /*! \brief Return supporting backend evidence in canonical order. */
+  /*!
+   * \brief Return supporting backend evidence in canonical order.
+  *  \return Supporting backend evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
 

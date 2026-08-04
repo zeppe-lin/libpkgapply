@@ -57,7 +57,10 @@ public:
   /*! \brief Destroy the polymorphic refusal. */
   ~application_restart_error() override;
 
-  /*! \brief Return the stable refusal category. */
+  /*!
+   * \brief Return the stable refusal category.
+  *  \return The stable refusal category.
+   */
   [[nodiscard]] application_restart_error_code code() const noexcept;
 
 private:
@@ -71,11 +74,22 @@ public:
    *  \param result Complete backend capture result.
    */
   explicit application_restart_capture(old_object_capture_result result);
-  /*! \brief Return the captured logical path. */
+  /*!
+   * \brief Return the captured logical path.
+  *  \return The captured logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the complete capture result. */
+  /*!
+   * \brief Return the complete capture result.
+  *  \return The complete capture result.
+   */
   [[nodiscard]] const old_object_capture_result& result() const noexcept;
-  /*! \brief Order restart captures by path. */
+  /*!
+   * \brief Order restart captures by path.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_restart_capture& lhs,
                         const application_restart_capture& rhs) noexcept;
 
@@ -93,12 +107,23 @@ public:
   application_restart_rejected_effect(
       pkgplan::package_path path,
       rejected_object_publication_result result);
-  /*! \brief Return the governed logical path. */
+  /*!
+   * \brief Return the governed logical path.
+  *  \return The governed logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the durable rejected-object result. */
+  /*!
+   * \brief Return the durable rejected-object result.
+  *  \return The durable rejected-object result.
+   */
   [[nodiscard]] const rejected_object_publication_result&
   result() const noexcept;
-  /*! \brief Order rejected results by path. */
+  /*!
+   * \brief Order rejected results by path.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_restart_rejected_effect& lhs,
                         const application_restart_rejected_effect& rhs) noexcept;
 
@@ -117,11 +142,22 @@ public:
   application_restart_active_effect(
       pkgplan::package_path path,
       backend_operation_result result);
-  /*! \brief Return the governed logical path. */
+  /*!
+   * \brief Return the governed logical path.
+  *  \return The governed logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the durable backend result. */
+  /*!
+   * \brief Return the durable backend result.
+  *  \return The durable backend result.
+   */
   [[nodiscard]] const backend_operation_result& result() const noexcept;
-  /*! \brief Order active results by path. */
+  /*!
+   * \brief Order active results by path.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_restart_active_effect& lhs,
                         const application_restart_active_effect& rhs) noexcept;
 
@@ -140,11 +176,22 @@ public:
   application_restart_recovery_effect(
       pkgplan::package_path path,
       backend_operation_result result);
-  /*! \brief Return the governed logical path. */
+  /*!
+   * \brief Return the governed logical path.
+  *  \return The governed logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the durable backend result. */
+  /*!
+   * \brief Return the durable backend result.
+  *  \return The durable backend result.
+   */
   [[nodiscard]] const backend_operation_result& result() const noexcept;
-  /*! \brief Order recovery results by path. */
+  /*!
+   * \brief Order recovery results by path.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_restart_recovery_effect& lhs,
                         const application_restart_recovery_effect& rhs) noexcept;
 
@@ -161,11 +208,22 @@ public:
    */
   explicit application_restart_synchronization(
       application_durability_fact result);
-  /*! \brief Return the synchronized durability domain. */
+  /*!
+   * \brief Return the synchronized durability domain.
+  *  \return The synchronized durability domain.
+   */
   [[nodiscard]] application_durability_domain domain() const noexcept;
-  /*! \brief Return the complete durability fact. */
+  /*!
+   * \brief Return the complete durability fact.
+  *  \return The complete durability fact.
+   */
   [[nodiscard]] const application_durability_fact& result() const noexcept;
-  /*! \brief Order synchronization results by durability domain. */
+  /*!
+   * \brief Order synchronization results by durability domain.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_restart_synchronization& lhs,
                         const application_restart_synchronization& rhs) noexcept;
 
@@ -211,37 +269,70 @@ public:
       std::optional<completed_application_evidence> completed_evidence =
           std::nullopt);
 
-  /*! \brief Return the reopened journal-record identity. */
+  /*!
+   * \brief Return the reopened journal-record identity.
+  *  \return The reopened journal-record identity.
+   */
   [[nodiscard]] const application_journal_record_identity&
   journal() const noexcept;
-  /*! \brief Return original admitted observations. */
+  /*!
+   * \brief Return original admitted observations.
+  *  \return Original admitted observations.
+   */
   [[nodiscard]] const backend_observation_batch&
   admitted_observations() const noexcept;
-  /*! \brief Return incoming-payload staging result, when any. */
+  /*!
+   * \brief Return incoming-payload staging result, when any.
+  *  \return Incoming-payload staging result, when any.
+   */
   [[nodiscard]] const std::optional<backend_operation_result>&
   incoming_payload() const noexcept;
-  /*! \brief Return old-object captures in canonical path order. */
+  /*!
+   * \brief Return old-object captures in canonical path order.
+  *  \return Old-object captures in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_restart_capture>&
   captures() const noexcept;
-  /*! \brief Return rejected results in canonical path order. */
+  /*!
+   * \brief Return rejected results in canonical path order.
+  *  \return Rejected results in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_restart_rejected_effect>&
   rejected_effects() const noexcept;
-  /*! \brief Return active results in canonical path order. */
+  /*!
+   * \brief Return active results in canonical path order.
+  *  \return Active results in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_restart_active_effect>&
   active_effects() const noexcept;
-  /*! \brief Return recovery results in canonical path order. */
+  /*!
+   * \brief Return recovery results in canonical path order.
+  *  \return Recovery results in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_restart_recovery_effect>&
   recovery_effects() const noexcept;
-  /*! \brief Return synchronization results in canonical domain order. */
+  /*!
+   * \brief Return synchronization results in canonical domain order.
+  *  \return Synchronization results in canonical domain order.
+   */
   [[nodiscard]] const std::vector<application_restart_synchronization>&
   synchronizations() const noexcept;
-  /*! \brief Return the complete current durability profile. */
+  /*!
+   * \brief Return the complete current durability profile.
+  *  \return The complete current durability profile.
+   */
   [[nodiscard]] const application_durability_profile&
   durability() const noexcept;
-  /*! \brief Return supporting backend evidence in canonical order. */
+  /*!
+   * \brief Return supporting backend evidence in canonical order.
+  *  \return Supporting backend evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
-  /*! \brief Return completed application evidence, when already produced. */
+  /*!
+   * \brief Return completed application evidence, when already produced.
+  *  \return Completed application evidence, when already produced.
+   */
   [[nodiscard]] const std::optional<completed_application_evidence>&
   completed_evidence() const noexcept;
 
@@ -316,14 +407,26 @@ public:
       application_journal_state state,
       application_restart_disposition disposition);
 
-  /*! \brief Return the assessed journal-record identity. */
+  /*!
+   * \brief Return the assessed journal-record identity.
+  *  \return The assessed journal-record identity.
+   */
   [[nodiscard]] const application_journal_record_identity&
   journal() const noexcept;
-  /*! \brief Return the durable journal lifecycle state. */
+  /*!
+   * \brief Return the durable journal lifecycle state.
+  *  \return The durable journal lifecycle state.
+   */
   [[nodiscard]] application_journal_state state() const noexcept;
-  /*! \brief Return the required controller action. */
+  /*!
+   * \brief Return the required controller action.
+  *  \return The required controller action.
+   */
   [[nodiscard]] application_restart_disposition disposition() const noexcept;
-  /*! \brief Return whether automatic forward or recovery replay is allowed. */
+  /*!
+   * \brief Return whether automatic forward or recovery replay is allowed.
+  *  \return Whether automatic forward or recovery replay is allowed.
+   */
   [[nodiscard]] bool resumable() const noexcept;
 
 private:

@@ -41,7 +41,10 @@ public:
   /*! \brief Destroy the polymorphic refusal. */
   ~incoming_package_error() override;
 
-  /*! \brief Return the stable refusal category. */
+  /*!
+   * \brief Return the stable refusal category.
+  *  \return The stable refusal category.
+   */
   [[nodiscard]] incoming_package_error_code code() const noexcept;
 
 private:
@@ -69,21 +72,36 @@ public:
       pkgbuild::build_result build,
       pkgimage::inspected_package_image image);
 
-  /*! \brief Return the incoming authority schema version. */
+  /*!
+   * \brief Return the incoming authority schema version.
+  *  \return The incoming authority schema version.
+   */
   [[nodiscard]] std::uint16_t schema_version() const noexcept;
 
-  /*! \brief Return the canonical incoming authority identity. */
+  /*!
+   * \brief Return the canonical incoming authority identity.
+  *  \return The canonical incoming authority identity.
+   */
   [[nodiscard]] const incoming_package_authority_identity&
   identity() const noexcept;
 
-  /*! \brief Return retained complete build authority. */
+  /*!
+   * \brief Return retained complete build authority.
+  *  \return Retained complete build authority.
+   */
   [[nodiscard]] const pkgbuild::build_result& build() const noexcept;
 
-  /*! \brief Return retained inspection evidence and normalized image. */
+  /*!
+   * \brief Return retained inspection evidence and normalized image.
+  *  \return Retained inspection evidence and normalized image.
+   */
   [[nodiscard]] const pkgimage::inspected_package_image&
   image() const noexcept;
 
-  /*! \brief Return the planner candidate derived from sealed source. */
+  /*!
+   * \brief Return the planner candidate derived from sealed source.
+  *  \return The planner candidate derived from sealed source.
+   */
   [[nodiscard]] const pkgplan::candidate_package_fact&
   candidate() const noexcept;
 

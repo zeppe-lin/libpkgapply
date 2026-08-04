@@ -74,45 +74,78 @@ public:
   [[nodiscard]] const pkgplan::target_system_context_identity&
   target() const noexcept;
 
-  /*! \brief Return the orchestrator-managed target identity. */
+  /*!
+   * \brief Return the orchestrator-managed target identity.
+  *  \return The orchestrator-managed target identity.
+   */
   [[nodiscard]] const managed_target_identity& managed_target() const noexcept;
 
-  /*! \brief Return the exact root-view identity. */
+  /*!
+   * \brief Return the exact root-view identity.
+  *  \return The exact root-view identity.
+   */
   [[nodiscard]] const root_view_identity& root_view() const noexcept;
 
-  /*! \brief Return the observation-provider identity. */
+  /*!
+   * \brief Return the observation-provider identity.
+  *  \return The observation-provider identity.
+   */
   [[nodiscard]] const observation_backend_identity&
   observation_backend() const noexcept;
 
-  /*! \brief Return the mutation-provider identity. */
+  /*!
+   * \brief Return the mutation-provider identity.
+  *  \return The mutation-provider identity.
+   */
   [[nodiscard]] const mutation_backend_identity&
   mutation_backend() const noexcept;
 
-  /*! \brief Return the shared mutation-exclusion domain. */
+  /*!
+   * \brief Return the shared mutation-exclusion domain.
+  *  \return The shared mutation-exclusion domain.
+   */
   [[nodiscard]] const mutation_exclusion_domain_identity&
   mutation_exclusion_domain() const noexcept;
 
-  /*! \brief Return the active-object namespace identity. */
+  /*!
+   * \brief Return the active-object namespace identity.
+  *  \return The active-object namespace identity.
+   */
   [[nodiscard]] const active_object_namespace_identity&
   active_namespace() const noexcept;
 
-  /*! \brief Return the rejected-object store identity. */
+  /*!
+   * \brief Return the rejected-object store identity.
+  *  \return The rejected-object store identity.
+   */
   [[nodiscard]] const rejected_object_store_identity&
   rejected_store() const noexcept;
 
-  /*! \brief Return the staging namespace identity. */
+  /*!
+   * \brief Return the staging namespace identity.
+  *  \return The staging namespace identity.
+   */
   [[nodiscard]] const staging_namespace_identity&
   staging_namespace() const noexcept;
 
-  /*! \brief Return the application-journal namespace identity. */
+  /*!
+   * \brief Return the application-journal namespace identity.
+  *  \return The application-journal namespace identity.
+   */
   [[nodiscard]] const journal_namespace_identity&
   journal_namespace() const noexcept;
 
-  /*! \brief Return the execution capability-profile identity. */
+  /*!
+   * \brief Return the execution capability-profile identity.
+  *  \return The execution capability-profile identity.
+   */
   [[nodiscard]] const execution_capability_profile_identity&
   capabilities() const noexcept;
 
-  /*! \brief Return the optional lifecycle-executor identity. */
+  /*!
+   * \brief Return the optional lifecycle-executor identity.
+  *  \return The optional lifecycle-executor identity.
+   */
   [[nodiscard]] const std::optional<lifecycle_executor_identity>&
   lifecycle_executor() const noexcept;
 

@@ -36,16 +36,31 @@ public:
       bool required_for_active,
       bool required_for_rejected);
 
-  /*! \brief Return the governed logical path. */
+  /*!
+   * \brief Return the governed logical path.
+  *  \return The governed logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the incoming image entry. */
+  /*!
+   * \brief Return the incoming image entry.
+  *  \return The incoming image entry.
+   */
   [[nodiscard]] pkgimage::entry_id image_entry() const noexcept;
-  /*! \brief Return the regular data entry to stage, when any. */
+  /*!
+   * \brief Return the regular data entry to stage, when any.
+  *  \return The regular data entry to stage, when any.
+   */
   [[nodiscard]] const std::optional<pkgimage::entry_id>&
   regular_payload_entry() const noexcept;
-  /*! \brief Return whether active publication consumes this requirement. */
+  /*!
+   * \brief Return whether active publication consumes this requirement.
+  *  \return Whether active publication consumes this requirement.
+   */
   [[nodiscard]] bool required_for_active() const noexcept;
-  /*! \brief Return whether rejected publication consumes this requirement. */
+  /*!
+   * \brief Return whether rejected publication consumes this requirement.
+  *  \return Whether rejected publication consumes this requirement.
+   */
   [[nodiscard]] bool required_for_rejected() const noexcept;
 
 private:
@@ -59,11 +74,20 @@ private:
 /*! \brief Exact regular payload closure for one install or upgrade plan. */
 class incoming_payload_plan final {
 public:
-  /*! \brief Return the package image identity governing the closure. */
+  /*!
+   * \brief Return the package image identity governing the closure.
+  *  \return The package image identity governing the closure.
+   */
   [[nodiscard]] const pkgimage::package_image_identity& image() const noexcept;
-  /*! \brief Return the deduplicated regular entry selection. */
+  /*!
+   * \brief Return the deduplicated regular entry selection.
+  *  \return The deduplicated regular entry selection.
+   */
   [[nodiscard]] const pkgimage::entry_selection& selection() const noexcept;
-  /*! \brief Return path requirements in accepted plan order. */
+  /*!
+   * \brief Return path requirements in accepted plan order.
+  *  \return Path requirements in accepted plan order.
+   */
   [[nodiscard]] const std::vector<incoming_payload_requirement>&
   requirements() const noexcept;
 

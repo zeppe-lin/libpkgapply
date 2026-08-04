@@ -51,7 +51,10 @@ public:
   /*! \brief Destroy the polymorphic refusal. */
   ~application_receipt_codec_error() override;
 
-  /*! \brief Return the stable refusal category. */
+  /*!
+   * \brief Return the stable refusal category.
+  *  \return The stable refusal category.
+   */
   [[nodiscard]] application_receipt_codec_error_code code() const noexcept;
 
 private:

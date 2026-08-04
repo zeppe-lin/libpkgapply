@@ -38,38 +38,60 @@ public:
     return qualified_fact(fact_state::known, std::move(value));
   }
 
-  /*! \brief Construct an applicable fact whose value is unknown. */
+  /*!
+   * \brief Construct an applicable fact whose value is unknown.
+  *  \return A fact in the applicable-but-unknown state.
+   */
   [[nodiscard]] static qualified_fact unknown()
   {
     return qualified_fact(fact_state::unknown, std::nullopt);
   }
 
-  /*! \brief Construct a structurally inapplicable fact. */
+  /*!
+   * \brief Construct a structurally inapplicable fact.
+  *  \return A fact in the structurally inapplicable state.
+   */
   [[nodiscard]] static qualified_fact not_applicable()
   {
     return qualified_fact(fact_state::not_applicable, std::nullopt);
   }
 
-  /*! \brief Return the explicit knowledge state. */
+  /*!
+   * \brief Return the explicit knowledge state.
+  *  \return The explicit knowledge state.
+   */
   [[nodiscard]] fact_state state() const noexcept
   {
     return state_;
   }
 
-  /*! \brief Return the value when known, otherwise an empty optional. */
+  /*!
+   * \brief Return the value when known, otherwise an empty optional.
+  *  \return The value when known, otherwise an empty optional.
+   */
   [[nodiscard]] const std::optional<Value>& value() const noexcept
   {
     return value_;
   }
 
-  /*! \brief Compare complete qualified facts for equality. */
+  /*!
+   * \brief Compare complete qualified facts for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const qualified_fact& lhs,
                          const qualified_fact& rhs) noexcept
   {
     return lhs.state_ == rhs.state_ && lhs.value_ == rhs.value_;
   }
 
-  /*! \brief Compare complete qualified facts for inequality. */
+  /*!
+   * \brief Compare complete qualified facts for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const qualified_fact& lhs,
                          const qualified_fact& rhs) noexcept
   {
@@ -105,10 +127,20 @@ struct completed_object_timestamp final {
   std::uint32_t nanoseconds; /*!< Nanoseconds in the range 0 through 999999999. */
 };
 
-/*! \brief Compare completed timestamps for equality. */
+/*!
+ * \brief Compare completed timestamps for equality.
+*  \param lhs Left operand.
+*  \param rhs Right operand.
+*  \return Whether @p lhs and @p rhs are equal.
+ */
 [[nodiscard]] bool operator==(const completed_object_timestamp& lhs,
                               const completed_object_timestamp& rhs) noexcept;
-/*! \brief Compare completed timestamps for inequality. */
+/*!
+ * \brief Compare completed timestamps for inequality.
+*  \param lhs Left operand.
+*  \param rhs Right operand.
+*  \return Whether @p lhs and @p rhs differ.
+ */
 [[nodiscard]] bool operator!=(const completed_object_timestamp& lhs,
                               const completed_object_timestamp& rhs) noexcept;
 
@@ -118,10 +150,20 @@ struct completed_device_number final {
   std::uint64_t minor; /*!< Device minor number. */
 };
 
-/*! \brief Compare completed device numbers for equality. */
+/*!
+ * \brief Compare completed device numbers for equality.
+*  \param lhs Left operand.
+*  \param rhs Right operand.
+*  \return Whether @p lhs and @p rhs are equal.
+ */
 [[nodiscard]] bool operator==(const completed_device_number& lhs,
                               const completed_device_number& rhs) noexcept;
-/*! \brief Compare completed device numbers for inequality. */
+/*!
+ * \brief Compare completed device numbers for inequality.
+*  \param lhs Left operand.
+*  \param rhs Right operand.
+*  \return Whether @p lhs and @p rhs differ.
+ */
 [[nodiscard]] bool operator!=(const completed_device_number& lhs,
                               const completed_device_number& rhs) noexcept;
 
@@ -133,13 +175,26 @@ public:
    */
   explicit completed_hardlink_relation(pkgplan::package_path anchor);
 
-  /*! \brief Return the anchor path. */
+  /*!
+   * \brief Return the anchor path.
+  *  \return The anchor path.
+   */
   [[nodiscard]] const pkgplan::package_path& anchor() const noexcept;
 
-  /*! \brief Compare hard-link relations for equality. */
+  /*!
+   * \brief Compare hard-link relations for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const completed_hardlink_relation& lhs,
                          const completed_hardlink_relation& rhs) noexcept;
-  /*! \brief Compare hard-link relations for inequality. */
+  /*!
+   * \brief Compare hard-link relations for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const completed_hardlink_relation& lhs,
                          const completed_hardlink_relation& rhs) noexcept;
 
@@ -197,42 +252,91 @@ public:
       object_fact_provenance provenance,
       object_fact_completeness completeness);
 
-  /*! \brief Return the exact logical path. */
+  /*!
+   * \brief Return the exact logical path.
+  *  \return The exact logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the established object kind. */
+  /*!
+   * \brief Return the established object kind.
+  *  \return The established object kind.
+   */
   [[nodiscard]] completed_object_kind kind() const noexcept;
-  /*! \brief Return the qualified mode fact. */
+  /*!
+   * \brief Return the qualified mode fact.
+  *  \return The qualified mode fact.
+   */
   [[nodiscard]] const qualified_fact<std::uint32_t>& mode() const noexcept;
-  /*! \brief Return the qualified user-owner fact. */
+  /*!
+   * \brief Return the qualified user-owner fact.
+  *  \return The qualified user-owner fact.
+   */
   [[nodiscard]] const qualified_fact<std::uint64_t>& uid() const noexcept;
-  /*! \brief Return the qualified group-owner fact. */
+  /*!
+   * \brief Return the qualified group-owner fact.
+  *  \return The qualified group-owner fact.
+   */
   [[nodiscard]] const qualified_fact<std::uint64_t>& gid() const noexcept;
-  /*! \brief Return the qualified regular-file size fact. */
+  /*!
+   * \brief Return the qualified regular-file size fact.
+  *  \return The qualified regular-file size fact.
+   */
   [[nodiscard]] const qualified_fact<std::uint64_t>& size() const noexcept;
-  /*! \brief Return the qualified modification-time fact. */
+  /*!
+   * \brief Return the qualified modification-time fact.
+  *  \return The qualified modification-time fact.
+   */
   [[nodiscard]] const qualified_fact<completed_object_timestamp>&
   mtime() const noexcept;
-  /*! \brief Return the qualified regular-content identity fact. */
+  /*!
+   * \brief Return the qualified regular-content identity fact.
+  *  \return The qualified regular-content identity fact.
+   */
   [[nodiscard]] const qualified_fact<completed_regular_content_identity>&
   regular_content() const noexcept;
-  /*! \brief Return the qualified symbolic-link target fact. */
+  /*!
+   * \brief Return the qualified symbolic-link target fact.
+  *  \return The qualified symbolic-link target fact.
+   */
   [[nodiscard]] const qualified_fact<std::string>&
   symlink_target() const noexcept;
-  /*! \brief Return the qualified special-device number fact. */
+  /*!
+   * \brief Return the qualified special-device number fact.
+  *  \return The qualified special-device number fact.
+   */
   [[nodiscard]] const qualified_fact<completed_device_number>&
   device() const noexcept;
-  /*! \brief Return the qualified hard-link relation fact. */
+  /*!
+   * \brief Return the qualified hard-link relation fact.
+  *  \return The qualified hard-link relation fact.
+   */
   [[nodiscard]] const qualified_fact<completed_hardlink_relation>&
   hardlink() const noexcept;
-  /*! \brief Return the authority that established this fact. */
+  /*!
+   * \brief Return the authority that established this fact.
+  *  \return The authority that established this fact.
+   */
   [[nodiscard]] object_fact_provenance provenance() const noexcept;
-  /*! \brief Return whether all required fields were established. */
+  /*!
+   * \brief Return whether all required fields were established.
+  *  \return Whether all required fields were established.
+   */
   [[nodiscard]] object_fact_completeness completeness() const noexcept;
 
-  /*! \brief Compare complete object facts for equality. */
+  /*!
+   * \brief Compare complete object facts for equality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs are equal.
+   */
   friend bool operator==(const completed_object_fact& lhs,
                          const completed_object_fact& rhs) noexcept;
-  /*! \brief Compare complete object facts for inequality. */
+  /*!
+   * \brief Compare complete object facts for inequality.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs and @p rhs differ.
+   */
   friend bool operator!=(const completed_object_fact& lhs,
                          const completed_object_fact& rhs) noexcept;
 

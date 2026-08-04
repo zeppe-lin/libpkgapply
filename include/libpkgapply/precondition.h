@@ -47,14 +47,28 @@ public:
       application_precondition_field field,
       application_precondition_failure_kind kind);
 
-  /*! \brief Return the exact failed path. */
+  /*!
+   * \brief Return the exact failed path.
+  *  \return The exact failed path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the semantic field compared. */
+  /*!
+   * \brief Return the semantic field compared.
+  *  \return The semantic field compared.
+   */
   [[nodiscard]] application_precondition_field field() const noexcept;
-  /*! \brief Return unknown or mismatch classification. */
+  /*!
+   * \brief Return unknown or mismatch classification.
+  *  \return Unknown or mismatch classification.
+   */
   [[nodiscard]] application_precondition_failure_kind kind() const noexcept;
 
-  /*! \brief Order failures by path, field, and failure kind. */
+  /*!
+   * \brief Order failures by path, field, and failure kind.
+  *  \param lhs Left operand.
+  *  \param rhs Right operand.
+  *  \return Whether @p lhs precedes @p rhs in canonical order.
+   */
   friend bool operator<(const application_precondition_failure& lhs,
                         const application_precondition_failure& rhs) noexcept;
 
@@ -78,12 +92,21 @@ public:
       const pkgplan::operation_preconditions& expected,
       backend_observation_batch observed);
 
-  /*! \brief Return whether no precondition failed. */
+  /*!
+   * \brief Return whether no precondition failed.
+  *  \return Whether no precondition failed.
+   */
   [[nodiscard]] bool satisfied() const noexcept;
-  /*! \brief Return the retained fresh observation batch. */
+  /*!
+   * \brief Return the retained fresh observation batch.
+  *  \return The retained fresh observation batch.
+   */
   [[nodiscard]] const backend_observation_batch&
   observations() const noexcept;
-  /*! \brief Return all failures in deterministic order. */
+  /*!
+   * \brief Return all failures in deterministic order.
+  *  \return All failures in deterministic order.
+   */
   [[nodiscard]] const std::vector<application_precondition_failure>&
   failures() const noexcept;
 

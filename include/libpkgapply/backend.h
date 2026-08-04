@@ -55,9 +55,15 @@ public:
       backend_operation_outcome outcome,
       std::vector<application_backend_evidence_identity> evidence = {});
 
-  /*! \brief Return the exact physical outcome. */
+  /*!
+   * \brief Return the exact physical outcome.
+  *  \return The exact physical outcome.
+   */
   [[nodiscard]] backend_operation_outcome outcome() const noexcept;
-  /*! \brief Return supporting evidence in canonical order. */
+  /*!
+   * \brief Return supporting evidence in canonical order.
+  *  \return Supporting evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   evidence() const noexcept;
 
@@ -81,12 +87,21 @@ public:
       std::optional<rejected_object_record_identity> record,
       std::vector<application_backend_evidence_identity> evidence = {});
 
-  /*! \brief Return the exact publication outcome. */
+  /*!
+   * \brief Return the exact publication outcome.
+  *  \return The exact publication outcome.
+   */
   [[nodiscard]] backend_operation_outcome outcome() const noexcept;
-  /*! \brief Return the published record identity when publication completed. */
+  /*!
+   * \brief Return the published record identity when publication completed.
+  *  \return The published record identity when publication completed.
+   */
   [[nodiscard]] const std::optional<rejected_object_record_identity>&
   record() const noexcept;
-  /*! \brief Return supporting evidence in canonical order. */
+  /*!
+   * \brief Return supporting evidence in canonical order.
+  *  \return Supporting evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   evidence() const noexcept;
 
@@ -111,12 +126,21 @@ public:
       std::optional<completed_application_evidence_identity> record,
       std::vector<application_backend_evidence_identity> evidence = {});
 
-  /*! \brief Return the exact publication outcome. */
+  /*!
+   * \brief Return the exact publication outcome.
+  *  \return The exact publication outcome.
+   */
   [[nodiscard]] backend_operation_outcome outcome() const noexcept;
-  /*! \brief Return the published evidence identity when completed. */
+  /*!
+   * \brief Return the published evidence identity when completed.
+  *  \return The published evidence identity when completed.
+   */
   [[nodiscard]] const std::optional<completed_application_evidence_identity>&
   record() const noexcept;
-  /*! \brief Return supporting evidence in canonical order. */
+  /*!
+   * \brief Return supporting evidence in canonical order.
+  *  \return Supporting evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   evidence() const noexcept;
 
@@ -142,13 +166,22 @@ public:
       std::vector<application_path_observation> observations,
       std::vector<application_backend_evidence_identity> evidence = {});
 
-  /*! \brief Return requested paths in canonical order. */
+  /*!
+   * \brief Return requested paths in canonical order.
+  *  \return Requested paths in canonical order.
+   */
   [[nodiscard]] const std::vector<pkgplan::package_path>&
   requested() const noexcept;
-  /*! \brief Return matching observations in canonical path order. */
+  /*!
+   * \brief Return matching observations in canonical path order.
+  *  \return Matching observations in canonical path order.
+   */
   [[nodiscard]] const std::vector<application_path_observation>&
   observations() const noexcept;
-  /*! \brief Return supporting evidence in canonical order. */
+  /*!
+   * \brief Return supporting evidence in canonical order.
+  *  \return Supporting evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   evidence() const noexcept;
 
@@ -183,11 +216,20 @@ public:
                              bool for_rejected_object,
                              bool for_recovery);
 
-  /*! \brief Return the logical target path. */
+  /*!
+   * \brief Return the logical target path.
+  *  \return The logical target path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return whether capture feeds rejected-object publication. */
+  /*!
+   * \brief Return whether capture feeds rejected-object publication.
+  *  \return Whether capture feeds rejected-object publication.
+   */
   [[nodiscard]] bool for_rejected_object() const noexcept;
-  /*! \brief Return whether capture feeds exact recovery. */
+  /*!
+   * \brief Return whether capture feeds exact recovery.
+  *  \return Whether capture feeds exact recovery.
+   */
   [[nodiscard]] bool for_recovery() const noexcept;
 
 private:
@@ -214,13 +256,25 @@ public:
       bool exact_recovery_possible,
       std::vector<application_backend_evidence_identity> evidence = {});
 
-  /*! \brief Return the exact physical capture outcome. */
+  /*!
+   * \brief Return the exact physical capture outcome.
+  *  \return The exact physical capture outcome.
+   */
   [[nodiscard]] backend_operation_outcome outcome() const noexcept;
-  /*! \brief Return the observation retained by the capture. */
+  /*!
+   * \brief Return the observation retained by the capture.
+  *  \return The observation retained by the capture.
+   */
   [[nodiscard]] const application_path_observation& captured() const noexcept;
-  /*! \brief Return whether exact admitted-state recovery is possible. */
+  /*!
+   * \brief Return whether exact admitted-state recovery is possible.
+  *  \return Whether exact admitted-state recovery is possible.
+   */
   [[nodiscard]] bool exact_recovery_possible() const noexcept;
-  /*! \brief Return supporting evidence in canonical order. */
+  /*!
+   * \brief Return supporting evidence in canonical order.
+  *  \return Supporting evidence in canonical order.
+   */
   [[nodiscard]] const std::vector<application_backend_evidence_identity>&
   evidence() const noexcept;
 
@@ -247,11 +301,20 @@ public:
       pkgplan::planned_active_outcome outcome,
       std::optional<pkgimage::entry_id> incoming_entry = std::nullopt);
 
-  /*! \brief Return the logical target path. */
+  /*!
+   * \brief Return the logical target path.
+  *  \return The logical target path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the exact planner-owned active outcome. */
+  /*!
+   * \brief Return the exact planner-owned active outcome.
+  *  \return The exact planner-owned active outcome.
+   */
   [[nodiscard]] pkgplan::planned_active_outcome outcome() const noexcept;
-  /*! \brief Return the incoming entry used for activation, when any. */
+  /*!
+   * \brief Return the incoming entry used for activation, when any.
+  *  \return The incoming entry used for activation, when any.
+   */
   [[nodiscard]] const std::optional<pkgimage::entry_id>&
   incoming_entry() const noexcept;
 
@@ -278,35 +341,71 @@ public:
   [[nodiscard]] static backend_rejected_effect_request
   from_plan(const pkgplan::rejected_object_plan& plan);
 
-  /*! \brief Return the logical target path. */
+  /*!
+   * \brief Return the logical target path.
+  *  \return The logical target path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the staging outcome implied by source side. */
+  /*!
+   * \brief Return the staging outcome implied by source side.
+  *  \return The staging outcome implied by source side.
+   */
   [[nodiscard]] pkgplan::planned_rejected_outcome outcome() const noexcept;
-  /*! \brief Return whether rejected bytes are incoming or previously installed. */
+  /*!
+   * \brief Return whether rejected bytes are incoming or previously installed.
+  *  \return Whether rejected bytes are incoming or previously installed.
+   */
   [[nodiscard]] pkgplan::rejected_object_source_side source_side() const noexcept;
-  /*! \brief Return the planner-owned rejection reason. */
+  /*!
+   * \brief Return the planner-owned rejection reason.
+  *  \return The planner-owned rejection reason.
+   */
   [[nodiscard]] pkgplan::rejected_object_reason reason() const noexcept;
-  /*! \brief Return package-release authority for the rejected object. */
+  /*!
+   * \brief Return package-release authority for the rejected object.
+  *  \return Package-release authority for the rejected object.
+   */
   [[nodiscard]] const pkgplan::package_release_identity& release() const noexcept;
-  /*! \brief Return incoming artifact identity when source side is incoming. */
+  /*!
+   * \brief Return incoming artifact identity when source side is incoming.
+  *  \return Incoming artifact identity when source side is incoming.
+   */
   [[nodiscard]] const std::optional<pkgplan::artifact_identity>&
   artifact() const noexcept;
-  /*! \brief Return incoming manifest identity when source side is incoming. */
+  /*!
+   * \brief Return incoming manifest identity when source side is incoming.
+  *  \return Incoming manifest identity when source side is incoming.
+   */
   [[nodiscard]] const std::optional<pkgplan::artifact_manifest_identity>&
   artifact_manifest() const noexcept;
-  /*! \brief Return incoming image identity when source side is incoming. */
+  /*!
+   * \brief Return incoming image identity when source side is incoming.
+  *  \return Incoming image identity when source side is incoming.
+   */
   [[nodiscard]] const std::optional<pkgimage::package_image_identity>&
   image() const noexcept;
-  /*! \brief Return incoming image entry when source side is incoming. */
+  /*!
+   * \brief Return incoming image entry when source side is incoming.
+  *  \return Incoming image entry when source side is incoming.
+   */
   [[nodiscard]] const std::optional<pkgimage::entry_id>&
   incoming_entry() const noexcept;
-  /*! \brief Return installed package identity when source side is old. */
+  /*!
+   * \brief Return installed package identity when source side is old.
+  *  \return Installed package identity when source side is old.
+   */
   [[nodiscard]] const std::optional<pkgplan::installed_package_identity>&
   installed_package() const noexcept;
-  /*! \brief Return installed control identity when source side is old. */
+  /*!
+   * \brief Return installed control identity when source side is old.
+  *  \return Installed control identity when source side is old.
+   */
   [[nodiscard]] const std::optional<pkgplan::installed_control_identity>&
   installed_control() const noexcept;
-  /*! \brief Return observations that justified rejected-object staging. */
+  /*!
+   * \brief Return observations that justified rejected-object staging.
+  *  \return Observations that justified rejected-object staging.
+   */
   [[nodiscard]] const pkgplan::observation_set_identity&
   observations() const noexcept;
 
@@ -351,7 +450,10 @@ public:
   /*! \brief Discard unsealed resources without claiming target rollback. */
   virtual void abandon() noexcept = 0;
 
-  /*! \brief Return whether seal() completed successfully. */
+  /*!
+   * \brief Return whether seal() completed successfully.
+  *  \return Whether seal() completed successfully.
+   */
   [[nodiscard]] virtual bool sealed() const noexcept = 0;
 };
 
@@ -376,22 +478,40 @@ public:
   /*! \brief Destroy the polymorphic transaction. */
   virtual ~application_backend_transaction();
 
-  /*! \brief Return mutation-backend identity. */
+  /*!
+   * \brief Return mutation-backend identity.
+  *  \return Mutation-backend identity.
+   */
   [[nodiscard]] virtual const mutation_backend_identity&
   backend() const noexcept = 0;
-  /*! \brief Return observation-backend identity. */
+  /*!
+   * \brief Return observation-backend identity.
+  *  \return Observation-backend identity.
+   */
   [[nodiscard]] virtual const observation_backend_identity&
   observation_backend() const noexcept = 0;
-  /*! \brief Return exact execution capability profile. */
+  /*!
+   * \brief Return exact execution capability profile.
+  *  \return Exact execution capability profile.
+   */
   [[nodiscard]] virtual const execution_capability_profile_identity&
   capabilities() const noexcept = 0;
-  /*! \brief Return exact target-context identity. */
+  /*!
+   * \brief Return exact target-context identity.
+  *  \return Exact target-context identity.
+   */
   [[nodiscard]] virtual const application_target_context_identity&
   target() const noexcept = 0;
-  /*! \brief Return exact outer mutation-lease identity. */
+  /*!
+   * \brief Return exact outer mutation-lease identity.
+  *  \return Exact outer mutation-lease identity.
+   */
   [[nodiscard]] virtual const mutation_lease_instance_identity&
   lease() const noexcept = 0;
-  /*! \brief Return provider-issued physical attempt nonce. */
+  /*!
+   * \brief Return provider-issued physical attempt nonce.
+  *  \return Provider-issued physical attempt nonce.
+   */
   [[nodiscard]] virtual const application_attempt_nonce&
   attempt_nonce() const noexcept = 0;
 
@@ -507,13 +627,22 @@ public:
   /*! \brief Destroy the polymorphic backend. */
   virtual ~application_backend();
 
-  /*! \brief Return stable mutation-backend identity. */
+  /*!
+   * \brief Return stable mutation-backend identity.
+  *  \return Stable mutation-backend identity.
+   */
   [[nodiscard]] virtual const mutation_backend_identity&
   identity() const noexcept = 0;
-  /*! \brief Return stable observation-backend identity. */
+  /*!
+   * \brief Return stable observation-backend identity.
+  *  \return Stable observation-backend identity.
+   */
   [[nodiscard]] virtual const observation_backend_identity&
   observation_identity() const noexcept = 0;
-  /*! \brief Return exact execution capability profile. */
+  /*!
+   * \brief Return exact execution capability profile.
+  *  \return Exact execution capability profile.
+   */
   [[nodiscard]] virtual const execution_capability_profile_identity&
   capabilities() const noexcept = 0;
 

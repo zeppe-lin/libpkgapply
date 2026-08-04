@@ -46,13 +46,25 @@ public:
       pkgplan::package_path path,
       std::optional<pkgimage::entry_id> incoming_entry = std::nullopt);
 
-  /*! \brief Return the zero-based schedule position. */
+  /*!
+   * \brief Return the zero-based schedule position.
+  *  \return The zero-based schedule position.
+   */
   [[nodiscard]] std::uint64_t ordinal() const noexcept;
-  /*! \brief Return the mechanism phase. */
+  /*!
+   * \brief Return the mechanism phase.
+  *  \return The mechanism phase.
+   */
   [[nodiscard]] application_effect_step_kind kind() const noexcept;
-  /*! \brief Return the governed logical path. */
+  /*!
+   * \brief Return the governed logical path.
+  *  \return The governed logical path.
+   */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
-  /*! \brief Return the incoming image entry when applicable. */
+  /*!
+   * \brief Return the incoming image entry when applicable.
+  *  \return The incoming image entry when applicable.
+   */
   [[nodiscard]] const std::optional<pkgimage::entry_id>&
   incoming_entry() const noexcept;
 
@@ -73,7 +85,10 @@ public:
   explicit application_effect_schedule(
       std::vector<application_effect_step> steps);
 
-  /*! \brief Return all steps in canonical execution order. */
+  /*!
+   * \brief Return all steps in canonical execution order.
+  *  \return All steps in canonical execution order.
+   */
   [[nodiscard]] const std::vector<application_effect_step>&
   steps() const noexcept;
 
