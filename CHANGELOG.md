@@ -11,6 +11,8 @@ Repository boundary
   libpkgsource-plan 1.0.0, and libpkgimage 0.4.0.
 - Removed fallback subproject coupling and made exact core ABI capture a
   mandatory pre-tag gate.
+- Published complete identity, attempt, target, execution-control, incoming
+  authority, request, lease, state-projection, and admission API contracts.
 
 libpkgapply changelog
 =====================
