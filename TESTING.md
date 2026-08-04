@@ -31,23 +31,6 @@ must not substitute constructor-shaped doubles for those APIs. At least one
 qualification build uses installed released `libpkgplan` and `libpkgimage`
 headers and libraries rather than local test doubles.
 
-POSIX outer-lease tests must prove:
-
-* acquisition is anchored to an already-selected directory descriptor;
-* one exclusion-domain identity maps to one deterministic coordination name;
-* a competing holder is refused without waiting;
-* the lock file is regular and is not removed on release;
-* a final lock-file symlink is refused;
-* unlink or replacement makes `held()` false;
-* target context, exclusion domain, nonce, and acquisition identity remain exact;
-* target-scope validation accepts another acquisition in the same target and
-  exclusion domain without requiring or fabricating a state projection;
-* target-scope validation rejects released, foreign-target, and foreign-domain
-  leases;
-* full validation accepts only a projection made under that exact acquisition;
-  and
-* acquisition and validation perform no installed-state read or target mutation.
-
 The immutable model suite must cover:
 
 * independent public headers;
@@ -271,16 +254,14 @@ one host implementation.
 State seam tests
 ----------------
 
-A non-installed integration adapter links released `libpkgplan`,
-`libpkgimage`, `libpkgapply`, and `libpkgstate` and proves:
+The independent `libpkgstate-apply` suite owns completed-evidence to
+installed-state projection. Core qualification proves only the semantic seam:
 
-* completed installation evidence can support an install delta;
-* completed upgrade evidence can support a replacement delta;
-* completed removal evidence can support a removal delta;
 * failed, partial, and indeterminate receipts cannot become completed evidence;
-* rich completed object facts are not destroyed by state projection;
-* current directory/non-directory state projection remains explicit; and
-* `libpkgstate` is absent from the core library and pkg-config closure.
+* completed evidence retains every request, plan, target, path, object, and
+  durability binding required by a destination adapter;
+* the application layer does not construct state-owned publication values; and
+* `libpkgstate` is absent from the core library, tests, and pkg-config closure.
 
 Compiler and linkage matrix
 ---------------------------
@@ -295,7 +276,7 @@ Clang  static
 ```
 
 Each normal build enables warnings as errors and runs all model, semantic,
-scripted-backend, journal, installed-consumer, and applicable POSIX tests.
+scripted-backend, journal, and installed-consumer tests.
 
 Additional builds include:
 

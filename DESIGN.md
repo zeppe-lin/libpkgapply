@@ -196,23 +196,15 @@ A state backend may acquire its own narrower publication lock while the
 outer lease is held. Lock order is outer target lease first, state
 publication lock second.
 
-`libpkgapply-posix` supplies the concrete caller-owned acquisition mechanism.
-It consumes one already-selected lock-directory descriptor and derives one
-coordination filename from the exact mutation-exclusion-domain identity. The
-file is opened without following a final symlink and retained under a
-nonblocking exclusive advisory lock. Acquisition creates no wait, retry, or
-backoff policy. The immutable acquisition identity binds the exact application
-target context, exclusion domain, and a mechanism-issued nonce.
+Concrete lease acquisition is mechanism-provider authority. The core accepts
+only the immutable `target_mutation_lease` capability and validates its target,
+exclusion domain, acquisition identity, and relationship to the supplied state
+projection. It does not select a lock location, open a coordination object,
+wait, retry, or define host locking policy.
 
-The coordination file is never removed. Unlink or replacement invalidates the
-live lease observation even though the old descriptor remains locked; this
-prevents a caller from claiming exclusion after the named cooperative authority
-has split. The lock directory is caller-selected configuration authority, not
-a target discovered from pathnames or package state.
-
-The lease establishes exclusion only among cooperating actors. Filesystem
-operations must still use stable root handles, no-follow component traversal,
-and final observation because unrelated processes may ignore the protocol.
+The lease establishes exclusion only among cooperating actors. Backends must
+still preserve target anchoring and report final observation because unrelated
+processes may ignore the protocol.
 
 Lease validation is capability-specific.
 `validate_target_mutation_lease_scope()` proves that a live acquisition belongs
@@ -605,13 +597,14 @@ pkgstate::state_publication_request
 pkgstate::state_publication_receipt
 ```
 
-A future destination-owned `libpkgstate-apply` adapter should consume accepted
-plan, completed application evidence, complete installed-control material,
-prior state snapshot, and target binding. It then constructs state-owned
-objects and the publication request.
+The independent, destination-owned `libpkgstate-apply` adapter consumes the
+exact operation request, completed application evidence, lease-bound state
+projection, expected state snapshot, and operation-specific state material. It
+constructs state-owned records and one compare-and-publish request without
+moving publication authority into the application core.
 
-The `libpkgapply` repository may contain a non-installed integration test for
-this seam. `libpkgstate` must remain absent from the core headers, library, and
+Qualification of that translation belongs to `libpkgstate-apply`.
+`libpkgstate` remains absent from the core headers, library, tests, and
 pkg-config dependency closure.
 
 Core and backend split
@@ -634,9 +627,10 @@ object publication; active namespace mutation and recovery; and the installed
 mechanisms to one exact request, target, borrowed lease, attempt, durability
 router, and restart view without becoming another semantic engine.
 
-The core depends publicly on `libpkgplan` and `libpkgimage`, and privately on
-its identity implementation. It has no direct archive-decoder dependency and
-no installed-state dependency.
+The core public model depends on `libpkgplan`, `libpkgbuild`,
+`libpkgsource-plan`, and `libpkgimage`. Its cryptographic provider is private.
+It has no direct archive-decoder, POSIX mechanism, or installed-state
+dependency.
 
 Concurrency and errors
 ----------------------
@@ -660,54 +654,36 @@ Hard invariants
 ---------------
 
 1. Application consumes an accepted plan and never reparses policy.
-2. The three released plan kinds remain distinct public request types.
-3. The target context must equal the target identity cited by the plan.
-4. The caller holds the outer mutation lease through state resolution.
-5. Snapshot, ownership, owner vectors, and path facts are revalidated under
-   that lease before mutation.
+2. Installation, upgrade, and removal remain distinct public request types.
+3. The target context equals the target identity cited by the accepted plan.
+4. The caller holds the outer mutation lease through application, state
+   resolution, and recovery choice.
+5. Snapshot, ownership, owner vectors, and accepted path facts are revalidated
+   under that lease before mutation.
 6. Additional fresh knowledge does not make a precondition stale; every known
    accepted fact must still match.
-7. Installation and upgrade replay only from the exact retained archive
-   authority cited by the plan.
-8. Archive pathname and filename are never replay or package authority.
-9. Replay occurs into an attempt-bound private stage before target mutation.
-10. A sealed payload stage is never reinterpreted under another attempt, image,
+7. Installation and upgrade retain exactly one successful native build,
+   independent image inspection, source-derived candidate projection, and
+   replayable archive authority.
+8. A plan from another build, image, receipt, artifact, candidate, target, or
+   state universe is rejected before mutation even when package names match.
+9. Archive pathname and filename are never replay or package authority.
+10. Replay occurs into an attempt-bound private stage before target mutation.
+11. A sealed payload stage is never reinterpreted under another attempt, image,
     or regular-entry selection.
-11. Old-object evidence is captured before destructive effects.
-12. The semantic core derives effect order; backends do not choose policy.
-13. Every destructive effect has a durable write-ahead record.
-14. A receipt records actual outcome, recovery, and durability boundaries.
-15. Completed evidence exists only after complete application success.
-16. Planned ownership, completed object evidence, durable installed ownership,
+12. Old-object evidence is captured before destructive effects.
+13. The semantic core derives effect order; backends implement mechanisms and
+    do not choose policy.
+14. Every destructive effect has a durable write-ahead record.
+15. A receipt records actual outcome, recovery, and durability boundaries.
+16. Completed evidence exists only after complete application success.
+17. Planned ownership, completed object evidence, durable installed ownership,
     and current filesystem observation remain distinct.
-17. Removal requires no current candidate, source, provider, artifact, or
-    archive.
-18. Version 0.1.0 executes no unbound lifecycle declaration.
-19. Version 2.0.0 installation and upgrade requests retain exactly one
-    successful native build, independent image inspection, and source-derived
-    candidate projection.
-20. A valid plan from another build, image, receipt, artifact, or candidate
-    universe is rejected before mutation even when package names match.
-19. `libpkgapply` does not publish installed state.
-20. `libpkgstate` is absent from the core dependency graph.
-21. No receipt or journal record invents global filesystem/state atomicity.
-
-## FD-anchored target observation
-
-`libpkgapply-posix` observes managed target objects relative to a retained root
-directory descriptor. Parent components are opened one at a time with
-`openat(2)`, `O_DIRECTORY`, and `O_NOFOLLOW`; a symbolic-link parent is an
-observation error rather than an alternate route through the host namespace.
-The leaf is inspected with no-follow metadata operations, so a leaf symbolic
-link is reported as a symbolic link and is never traversed.
-
-Regular content identities are SHA-256 digests of bytes read from an opened
-regular-file descriptor. Metadata is sampled before and after the read. A
-replacement or concurrent modification yields an unknown observation instead
-of evidence assembled from different objects. Hard-link relations are claimed
-only when the caller supplies an expected logical anchor and both paths are
-observed as the same regular inode. The observer does not infer package
-semantics from arbitrary inode aliases.
-
-This layer is observation mechanism only. It does not acquire mutation leases,
-execute active effects, capture recovery objects, or publish durable records.
+18. Removal requires no current candidate, source, provider, artifact, image,
+    inspection receipt, or archive.
+19. Lifecycle declarations are not executed unless a future schema and executor
+    contract bind them explicitly.
+20. `libpkgapply` does not publish installed state.
+21. `libpkgstate`, `libpkgapply-posix`, and host mechanism APIs are absent from
+    the core dependency graph.
+22. No receipt or journal record invents global filesystem/state atomicity.
