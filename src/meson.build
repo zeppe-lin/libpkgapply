@@ -107,5 +107,8 @@ pkgconf.generate(
     'libpkgimage >= 0.4.0',
     'libpkgplan >= 0.3.0',
   ],
-  requires_private: [libpkgsource_plan_dep, libcrypto_dep],
+  requires_private: [
+    'libpkgsource-plan >= 1.0.0',
+    libcrypto_dep,
+  ],
 )

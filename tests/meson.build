@@ -381,6 +381,15 @@ if get_option('tests').allowed()
 
 
   test(
+    'verify pkg-config metadata',
+    sh,
+    args: [
+      join_paths(meson.current_source_dir(), 'pkgconfig_metadata_test.sh'),
+      meson.project_build_root(),
+    ],
+  )
+
+  test(
     'verify durable application receipt codec contract',
     sh,
     args: [
