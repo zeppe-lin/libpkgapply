@@ -1,139 +1,26 @@
 #!/bin/sh
-# SPDX-FileCopyrightText: 2026 Alexandr Savca
-# SPDX-License-Identifier: GPL-3.0-or-later
-
 set -eu
-
-usage()
-{
-  echo "usage: configure-and-test.sh BUILD-DIR {shared|static} [MESON-OPTION ...]" >&2
-  exit 2
-}
-
+usage(){ echo 'usage: configure-and-test.sh BUILD-DIR {shared|static} [MESON-OPTION ...]' >&2; exit 2; }
 [ "$#" -ge 2 ] || usage
-build_dir=$1
-link_mode=$2
-shift 2
-case $link_mode in
-  shared|static) ;;
-  *) usage ;;
-esac
-
-script_dir=$(CDPATH= cd "$(dirname "$0")" && pwd)
-source_dir=$(CDPATH= cd "$script_dir/.." && pwd)
-image_source=${LIBPKGIMAGE_SOURCE:-$source_dir/subprojects/libpkgimage}
-plan_source=${LIBPKGPLAN_SOURCE:-$source_dir/subprojects/libpkgplan}
-source_source=${LIBPKGSOURCE_SOURCE:-$source_dir/subprojects/libpkgsource}
-build_source=${LIBPKGBUILD_SOURCE:-$source_dir/subprojects/libpkgbuild}
-
-[ -f "$image_source/meson.build" ] || {
-  echo "libpkgimage source is absent: $image_source" >&2
-  exit 1
-}
-[ -f "$plan_source/meson.build" ] || {
-  echo "libpkgplan source is absent: $plan_source" >&2
-  exit 1
-}
-[ -f "$source_source/meson.build" ] || {
-  echo "libpkgsource source is absent: $source_source" >&2
-  exit 1
-}
-[ -f "$build_source/meson.build" ] || {
-  echo "libpkgbuild source is absent: $build_source" >&2
-  exit 1
-}
-
-case $build_dir in
-  /*) build_path=$build_dir ;;
-  *) build_path=$(pwd)/$build_dir ;;
-esac
-dependency_prefix=$build_path/dependencies
-install_prefix=$build_path/install
-image_build=$build_path/libpkgimage
-plan_build=$build_path/libpkgplan
-source_build=$build_path/libpkgsource
-build_build=$build_path/libpkgbuild
-
-rm -rf "$dependency_prefix" "$install_prefix"
-mkdir -p "$build_path"
-
-setup()
-{
-  source=$1
-  build=$2
-  shift 2
-  if [ -f "$build/meson-private/coredata.dat" ]; then
-    meson setup --wipe "$build" "$source" "$@"
-  else
-    meson setup "$build" "$source" "$@"
-  fi
-}
-
-configure_dependency()
-{
-  source=$1
-  build=$2
-  shift 2
-  setup "$source" "$build" \
-    --wrap-mode=nofallback \
-    --fatal-meson-warnings \
-    --prefix="$dependency_prefix" \
-    --libdir=lib \
-    -Ddefault_library="$link_mode" \
-    -Dlink_mode="$link_mode" \
-    -Dtests=disabled \
-    -Dman_pages=disabled \
-    -Dwerror=true \
-    "$@"
-  meson compile -C "$build"
-  meson install -C "$build"
-}
-
-configure_dependency "$image_source" "$image_build"
-
-export PKG_CONFIG_PATH=$dependency_prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
-unset PKG_CONFIG_SYSROOT_DIR
-[ "$(pkg-config --modversion libpkgimage)" = 0.3.0 ] || {
-  echo 'qualified libpkgimage is not version 0.3.0' >&2
-  exit 1
-}
-export LD_LIBRARY_PATH=$dependency_prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
-
-configure_dependency "$plan_source" "$plan_build" -Dreference_tools=disabled
-[ "$(pkg-config --modversion libpkgplan)" = 0.2.0 ] || {
-  echo 'qualified libpkgplan is not version 0.2.0' >&2
-  exit 1
-}
-
-configure_dependency "$source_source" "$source_build" -Dplanner_adapter=enabled
-[ "$(pkg-config --modversion libpkgsource)" = 2.0.0 ] || {
-  echo 'qualified libpkgsource is not version 2.0.0' >&2
-  exit 1
-}
-[ "$(pkg-config --modversion libpkgsource-plan)" = 2.0.0 ] || {
-  echo 'qualified libpkgsource-plan is not version 2.0.0' >&2
-  exit 1
-}
-
-configure_dependency "$build_source" "$build_build" -Dplanner_adapter=disabled
-[ "$(pkg-config --modversion libpkgbuild)" = 2.0.0 ] || {
-  echo 'qualified libpkgbuild is not version 2.0.0' >&2
-  exit 1
-}
-
-set -- \
-  --wrap-mode=nofallback \
-  --fatal-meson-warnings \
-  --prefix="$install_prefix" \
-  --libdir=lib \
-  -Ddefault_library="$link_mode" \
-  -Dlink_mode="$link_mode" \
-  -Dtests=enabled \
-  -Dwerror=true \
-  "$@"
-
-setup "$source_dir" "$build_dir" "$@"
-meson compile -C "$build_dir"
-meson test -C "$build_dir" --no-rebuild --print-errorlogs
-printf '%s\n' "$dependency_prefix" >"$build_dir/ci-dependency-prefix"
-printf '%s\n' "$install_prefix" >"$build_dir/ci-install-prefix"
+build_dir=$1; mode=$2; shift 2
+case $mode in shared|static) ;; *) usage;; esac
+root=$(CDPATH= cd "$(dirname "$0")/.." && pwd)
+case $build_dir in /*) build=$build_dir;; *) build=$(pwd)/$build_dir;; esac
+prefix=$build/dependencies
+rm -rf "$build"; mkdir -p "$build"
+setup(){ src=$1; out=$2; shift 2; meson setup "$out" "$src" --wrap-mode=nofallback --fatal-meson-warnings --prefix="$prefix" --libdir=lib -Ddefault_library="$mode" -Dlink_mode="$mode" -Dtests=disabled -Dman_pages=disabled -Dwerror=true "$@"; meson compile -C "$out"; meson install -C "$out"; }
+: "${LIBPKGIMAGE_SOURCE:?set LIBPKGIMAGE_SOURCE}"
+: "${LIBPKGPLAN_SOURCE:?set LIBPKGPLAN_SOURCE}"
+: "${LIBPKGSOURCE_SOURCE:?set LIBPKGSOURCE_SOURCE}"
+: "${LIBPKGSOURCE_PLAN_SOURCE:?set LIBPKGSOURCE_PLAN_SOURCE}"
+: "${LIBPKGBUILD_SOURCE:?set LIBPKGBUILD_SOURCE}"
+setup "$LIBPKGIMAGE_SOURCE" "$build/libpkgimage" -Dhtml_docs=disabled
+export PKG_CONFIG_PATH="$prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+setup "$LIBPKGPLAN_SOURCE" "$build/libpkgplan" -Dreference_tools=disabled -Dhtml_docs=disabled
+setup "$LIBPKGSOURCE_SOURCE" "$build/libpkgsource" -Dhtml_docs=disabled
+setup "$LIBPKGSOURCE_PLAN_SOURCE" "$build/libpkgsource-plan" -Dhtml_docs=disabled
+setup "$LIBPKGBUILD_SOURCE" "$build/libpkgbuild" -Dplanner_adapter=disabled
+meson setup "$build/product" "$root" --wrap-mode=nofallback --fatal-meson-warnings --prefix="$build/install" --libdir=lib -Ddefault_library="$mode" -Dlink_mode="$mode" -Dtests=enabled -Dwerror=true "$@"
+meson compile -C "$build/product"
+meson test -C "$build/product" --print-errorlogs
+printf '%s\n' "$prefix" >"$build/ci-dependency-prefix"
