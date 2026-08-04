@@ -142,9 +142,13 @@ class target_mutation_lease {
 public:
   /*! \brief Construct an interface base. */
   target_mutation_lease() = default;
+  /*! \brief Lease interfaces are not copy-constructible. */
   target_mutation_lease(const target_mutation_lease&) = delete;
+  /*! \brief Lease interfaces are not copy-assignable. */
   target_mutation_lease& operator=(const target_mutation_lease&) = delete;
+  /*! \brief Lease interfaces are not move-constructible. */
   target_mutation_lease(target_mutation_lease&&) = delete;
+  /*! \brief Lease interfaces are not move-assignable. */
   target_mutation_lease& operator=(target_mutation_lease&&) = delete;
 
   /*! \brief Destroy the live lease interface. */

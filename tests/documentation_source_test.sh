@@ -6,3 +6,5 @@ for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.
 [ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
 grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
 grep -F 'Do not tag 3.0' "$root/MAINTAINING.md" >/dev/null || fail 'ABI release gate absent'
+python3 "$root/tools/check-public-documentation.py" \
+  "$root" libpkgapply libpkgapply.h

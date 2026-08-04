@@ -365,12 +365,14 @@ class application_backend_transaction {
 public:
   /*! \brief Construct an unbound implementation base. */
   application_backend_transaction() = default;
+  /*! \brief Interface objects are not copy-constructible. */
   application_backend_transaction(const application_backend_transaction&) = delete;
-  application_backend_transaction& operator=(
-      const application_backend_transaction&) = delete;
+  /*! \brief Interface objects are not copy-assignable. */
+  application_backend_transaction& operator=(const application_backend_transaction&) = delete;
+  /*! \brief Interface objects are not move-constructible. */
   application_backend_transaction(application_backend_transaction&&) = delete;
-  application_backend_transaction& operator=(
-      application_backend_transaction&&) = delete;
+  /*! \brief Interface objects are not move-assignable. */
+  application_backend_transaction& operator=(application_backend_transaction&&) = delete;
   /*! \brief Destroy the polymorphic transaction. */
   virtual ~application_backend_transaction();
 
@@ -494,9 +496,13 @@ class application_backend {
 public:
   /*! \brief Construct an unbound implementation base. */
   application_backend() = default;
+  /*! \brief Interface objects are not copy-constructible. */
   application_backend(const application_backend&) = delete;
+  /*! \brief Interface objects are not copy-assignable. */
   application_backend& operator=(const application_backend&) = delete;
+  /*! \brief Interface objects are not move-constructible. */
   application_backend(application_backend&&) = delete;
+  /*! \brief Interface objects are not move-assignable. */
   application_backend& operator=(application_backend&&) = delete;
   /*! \brief Destroy the polymorphic backend. */
   virtual ~application_backend();
