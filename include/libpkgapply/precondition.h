@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Alexandr Savca
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+/*! \file precondition.h
+ *  \brief Fresh observation comparison against planning-time preconditions.
+ */
 #pragma once
 
 #include <cstdint>
@@ -11,38 +14,47 @@
 
 namespace pkgapply {
 
-/*! \brief Semantic field whose planning-time precondition was not satisfied. */
+/*! \brief Semantic field whose planning precondition was not satisfied. */
 enum class application_precondition_field : std::uint8_t {
-  presence = 1,
-  object_kind = 2,
-  mode = 3,
-  uid = 4,
-  gid = 5,
-  size = 6,
-  mtime = 7,
-  regular_content = 8,
-  symlink_target = 9,
-  device_number = 10,
+  presence = 1, /*!< Object presence or absence. */
+  object_kind = 2, /*!< Semantic object class. */
+  mode = 3, /*!< Permission and type bits. */
+  uid = 4, /*!< Numeric user owner. */
+  gid = 5, /*!< Numeric group owner. */
+  size = 6, /*!< Regular-file byte size. */
+  mtime = 7, /*!< Modification timestamp. */
+  regular_content = 8, /*!< Decoded regular-content identity. */
+  symlink_target = 9, /*!< Symbolic-link target. */
+  device_number = 10, /*!< Special-device major and minor numbers. */
 };
 
 /*! \brief Whether a required current fact was unknown or contradicted. */
 enum class application_precondition_failure_kind : std::uint8_t {
-  unknown = 1,
-  mismatch = 2,
+  unknown = 1, /*!< Backend could not establish the required field. */
+  mismatch = 2, /*!< Backend established a different field value. */
 };
 
-/*! \brief One deterministic failed planning-time filesystem precondition. */
+/*! \brief One deterministic failed filesystem precondition. */
 class application_precondition_failure final {
 public:
+  /*! \brief Construct one field-level failure.
+   *  \param path Exact path whose precondition failed.
+   *  \param field Semantic field compared.
+   *  \param kind Unknown or mismatching current fact.
+   */
   application_precondition_failure(
       pkgplan::package_path path,
       application_precondition_field field,
       application_precondition_failure_kind kind);
 
+  /*! \brief Return the exact failed path. */
   [[nodiscard]] const pkgplan::package_path& path() const noexcept;
+  /*! \brief Return the semantic field compared. */
   [[nodiscard]] application_precondition_field field() const noexcept;
+  /*! \brief Return unknown or mismatch classification. */
   [[nodiscard]] application_precondition_failure_kind kind() const noexcept;
 
+  /*! \brief Order failures by path, field, and failure kind. */
   friend bool operator<(const application_precondition_failure& lhs,
                         const application_precondition_failure& rhs) noexcept;
 
@@ -52,19 +64,31 @@ private:
   application_precondition_failure_kind kind_;
 };
 
-/*! \brief Fresh exact observations plus all planning-precondition failures. */
+/*! \brief Fresh observations and every planning-precondition failure. */
 class application_precondition_check final {
 public:
+  /*! \brief Compare fresh backend observations with accepted preconditions.
+   *  \param expected Planner-owned operation preconditions.
+   *  \param observed Fresh exact observation batch for the same path universe.
+   *  \return Immutable observations and canonical failure list.
+   *  \throws std::invalid_argument If observed paths do not match the expected
+   *          universe or contain invalid object-kind values.
+   */
   [[nodiscard]] static application_precondition_check make(
       const pkgplan::operation_preconditions& expected,
       backend_observation_batch observed);
 
+  /*! \brief Return whether no precondition failed. */
   [[nodiscard]] bool satisfied() const noexcept;
-  [[nodiscard]] const backend_observation_batch& observations() const noexcept;
+  /*! \brief Return the retained fresh observation batch. */
+  [[nodiscard]] const backend_observation_batch&
+  observations() const noexcept;
+  /*! \brief Return all failures in deterministic order. */
   [[nodiscard]] const std::vector<application_precondition_failure>&
   failures() const noexcept;
 
 private:
+  /*! \brief Construct a completed comparison. */
   application_precondition_check(
       backend_observation_batch observations,
       std::vector<application_precondition_failure> failures);

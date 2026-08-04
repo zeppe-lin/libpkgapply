@@ -13,6 +13,8 @@ Repository boundary
   mandatory pre-tag gate.
 - Published complete identity, attempt, target, execution-control, incoming
   authority, request, lease, state-projection, and admission API contracts.
+- Published complete object-fact, path-consequence, payload, capture,
+  precondition, and deterministic mechanism-schedule contracts.
 
 libpkgapply changelog
 =====================
