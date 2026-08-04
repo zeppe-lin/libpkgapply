@@ -262,7 +262,7 @@ if get_option('tests').allowed()
   journal_codec_test = executable(
     'journal-codec-test',
     'journal_codec_test.cpp',
-    dependencies: libpkgapply_dep,
+    dependencies: [libpkgapply_dep, libcrypto_dep],
   )
   test('round-trip durable journal encodings', journal_codec_test)
 
