@@ -265,7 +265,7 @@ private:
 /*! \brief Backend-owned sink for one exact incoming regular payload closure. */
 class incoming_payload_stage : public pkgimage::payload_sink {
 public:
-  ~incoming_payload_stage() override = default;
+  ~incoming_payload_stage() override;
 
   /*! \brief Seal all consumed payloads into the transaction's private stage. */
   [[nodiscard]] virtual backend_operation_result seal() = 0;
@@ -287,7 +287,7 @@ public:
   application_backend_transaction(application_backend_transaction&&) = delete;
   application_backend_transaction& operator=(
       application_backend_transaction&&) = delete;
-  virtual ~application_backend_transaction() = default;
+  virtual ~application_backend_transaction();
 
   [[nodiscard]] virtual const mutation_backend_identity&
   backend() const noexcept = 0;
@@ -367,7 +367,7 @@ public:
   application_backend& operator=(const application_backend&) = delete;
   application_backend(application_backend&&) = delete;
   application_backend& operator=(application_backend&&) = delete;
-  virtual ~application_backend() = default;
+  virtual ~application_backend();
 
   [[nodiscard]] virtual const mutation_backend_identity&
   identity() const noexcept = 0;

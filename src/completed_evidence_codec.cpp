@@ -874,6 +874,9 @@ completed_application_evidence_codec_error(
 {
 }
 
+completed_application_evidence_codec_error::
+~completed_application_evidence_codec_error() = default;
+
 completed_application_evidence_codec_error_code
 completed_application_evidence_codec_error::code() const noexcept
 {

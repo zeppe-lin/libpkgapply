@@ -172,6 +172,8 @@ application_admission_error::application_admission_error(
   paths_.erase(std::unique(paths_.begin(), paths_.end()), paths_.end());
 }
 
+application_admission_error::~application_admission_error() = default;
+
 application_admission_error_code
 application_admission_error::code() const noexcept
 {

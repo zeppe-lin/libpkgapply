@@ -44,6 +44,8 @@ public:
   application_restart_error(application_restart_error_code code,
                             std::string message);
 
+  ~application_restart_error() override;
+
   [[nodiscard]] application_restart_error_code code() const noexcept;
 
 private:

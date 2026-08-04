@@ -156,6 +156,8 @@ incoming_package_error::incoming_package_error(
 {
 }
 
+incoming_package_error::~incoming_package_error() = default;
+
 incoming_package_error_code incoming_package_error::code() const noexcept
 {
   return code_;

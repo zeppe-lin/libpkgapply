@@ -40,6 +40,8 @@ public:
       completed_application_evidence_codec_error_code code,
       std::string message);
 
+  ~completed_application_evidence_codec_error() override;
+
   [[nodiscard]] completed_application_evidence_codec_error_code
   code() const noexcept;
 
@@ -54,35 +56,35 @@ using completed_application_evidence_encoding = std::vector<std::uint8_t>;
 encode_completed_application_evidence(
     const completed_application_evidence& evidence);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
     const installation_application_request& request);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
     const upgrade_application_request& request);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
     const removal_application_request& request);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const installation_application_request& request);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const upgrade_application_request& request);
 
-[[nodiscard]] completed_application_evidence
+  [[nodiscard]] completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const removal_application_request& request);

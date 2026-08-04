@@ -11,6 +11,10 @@ apply hidden-by-default visibility and a reviewed linker manifest, and compare
 the result with the 2.3.0 ABI. No symbol inventory is asserted here without a
 native linkable build.
 
+Public exception and abstract-interface vtables are anchored by out-of-line
+owner definitions. This prevents weak consumer-side RTTI and vtable emission
+while the complete export inventory is being qualified.
+
 Pkg-config exposes the semantic owners present in installed headers and keeps
 `libcrypto` private. Changes to public value layouts, exception hierarchies,
 virtual interfaces, dependency placement, or SONAME require explicit ABI review.

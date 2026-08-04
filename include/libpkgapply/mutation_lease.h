@@ -80,6 +80,8 @@ class mutation_lease_error final : public std::invalid_argument {
 public:
   mutation_lease_error(mutation_lease_error_code code, std::string message);
 
+  ~mutation_lease_error() override;
+
   [[nodiscard]] mutation_lease_error_code code() const noexcept;
 
 private:
@@ -100,7 +102,7 @@ public:
   target_mutation_lease& operator=(const target_mutation_lease&) = delete;
   target_mutation_lease(target_mutation_lease&&) = delete;
   target_mutation_lease& operator=(target_mutation_lease&&) = delete;
-  virtual ~target_mutation_lease() = default;
+  virtual ~target_mutation_lease();
 
   /*! \brief Return the unique identity of this acquisition instance. */
   [[nodiscard]] virtual const mutation_lease_instance_identity&

@@ -346,6 +346,8 @@ application_journal_codec_error::application_journal_codec_error(
 {
 }
 
+application_journal_codec_error::~application_journal_codec_error() = default;
+
 application_journal_codec_error_code
 application_journal_codec_error::code() const noexcept
 {
@@ -358,6 +360,8 @@ application_journal_transition_error::application_journal_transition_error(
     : std::invalid_argument(std::move(message)), code_(code)
 {
 }
+
+application_journal_transition_error::~application_journal_transition_error() = default;
 
 application_journal_transition_error_code
 application_journal_transition_error::code() const noexcept

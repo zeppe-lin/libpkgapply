@@ -435,6 +435,12 @@ if get_option('tests').allowed()
   )
 
   test(
+    'contract abi-contract',
+    sh,
+    args: [join_paths(meson.current_source_dir(), 'contracts/check_abi_contract.sh'), meson.project_source_root()],
+  )
+
+  test(
     'contract repository-contract',
     sh,
     args: [join_paths(meson.current_source_dir(), 'contracts/check_repository_contract.sh'), meson.project_source_root()],

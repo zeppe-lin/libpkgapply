@@ -9,6 +9,12 @@
 #include <utility>
 
 namespace pkgapply {
+
+incoming_payload_stage::~incoming_payload_stage() = default;
+
+application_backend_transaction::~application_backend_transaction() = default;
+
+application_backend::~application_backend() = default;
 namespace {
 
 void

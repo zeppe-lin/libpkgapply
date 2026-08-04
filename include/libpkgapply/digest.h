@@ -31,6 +31,8 @@ class digest_error final : public std::invalid_argument {
 public:
   digest_error(digest_error_code code, std::string message);
 
+  ~digest_error() override;
+
   [[nodiscard]] digest_error_code code() const noexcept;
 
 private:

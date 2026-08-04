@@ -1059,6 +1059,8 @@ application_receipt_codec_error::application_receipt_codec_error(
 {
 }
 
+application_receipt_codec_error::~application_receipt_codec_error() = default;
+
 application_receipt_codec_error_code
 application_receipt_codec_error::code() const noexcept
 {

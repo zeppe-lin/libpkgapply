@@ -35,6 +35,8 @@ public:
       application_journal_codec_error_code code,
       std::string message);
 
+  ~application_journal_codec_error() override;
+
   [[nodiscard]] application_journal_codec_error_code code() const noexcept;
 
 private:
@@ -57,6 +59,8 @@ public:
   application_journal_transition_error(
       application_journal_transition_error_code code,
       std::string message);
+
+  ~application_journal_transition_error() override;
 
   [[nodiscard]] application_journal_transition_error_code code() const noexcept;
 

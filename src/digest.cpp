@@ -32,6 +32,8 @@ digest_error::digest_error(digest_error_code code, std::string message)
 {
 }
 
+digest_error::~digest_error() = default;
+
 digest_error_code
 digest_error::code() const noexcept
 {

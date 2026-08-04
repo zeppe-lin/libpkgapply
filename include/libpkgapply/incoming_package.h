@@ -32,7 +32,10 @@ enum class incoming_package_error_code : std::uint8_t {
 class incoming_package_error final : public std::invalid_argument {
 public:
   incoming_package_error(incoming_package_error_code code, std::string message);
+  ~incoming_package_error() override;
+
   [[nodiscard]] incoming_package_error_code code() const noexcept;
+
 private:
   incoming_package_error_code code_;
 };

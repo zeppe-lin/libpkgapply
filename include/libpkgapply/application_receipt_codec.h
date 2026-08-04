@@ -39,6 +39,8 @@ public:
       application_receipt_codec_error_code code,
       std::string message);
 
+  ~application_receipt_codec_error() override;
+
   [[nodiscard]] application_receipt_codec_error_code code() const noexcept;
 
 private:
@@ -51,30 +53,30 @@ using application_receipt_encoding = std::vector<std::uint8_t>;
 [[nodiscard]] application_receipt_encoding
 encode_application_receipt(const application_receipt& receipt);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
     const installation_application_request& request);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
     const upgrade_application_request& request);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
     const removal_application_request& request);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const application_receipt_encoding& encoding,
     const installation_application_request& request);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const application_receipt_encoding& encoding,
     const upgrade_application_request& request);
 
-[[nodiscard]] application_receipt decode_application_receipt(
+  [[nodiscard]] application_receipt decode_application_receipt(
     const application_receipt_encoding& encoding,
     const removal_application_request& request);
 

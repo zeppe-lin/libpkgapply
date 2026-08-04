@@ -848,6 +848,9 @@ application_restart_checkpoint_codec_error(
 {
 }
 
+application_restart_checkpoint_codec_error::
+~application_restart_checkpoint_codec_error() = default;
+
 application_restart_checkpoint_codec_error_code
 application_restart_checkpoint_codec_error::code() const noexcept
 {

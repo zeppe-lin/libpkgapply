@@ -10,6 +10,8 @@
 
 namespace pkgapply {
 
+target_mutation_lease::~target_mutation_lease() = default;
+
 mutation_lease_nonce
 mutation_lease_nonce::from_bytes(byte_array bytes)
 {
@@ -115,6 +117,8 @@ mutation_lease_error::mutation_lease_error(
     : std::invalid_argument(std::move(message)), code_(code)
 {
 }
+
+mutation_lease_error::~mutation_lease_error() = default;
 
 mutation_lease_error_code
 mutation_lease_error::code() const noexcept

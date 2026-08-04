@@ -549,6 +549,8 @@ application_restart_error::application_restart_error(
 {
 }
 
+application_restart_error::~application_restart_error() = default;
+
 application_restart_error_code
 application_restart_error::code() const noexcept
 {

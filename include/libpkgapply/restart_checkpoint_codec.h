@@ -37,6 +37,8 @@ public:
       application_restart_checkpoint_codec_error_code code,
       std::string message);
 
+  ~application_restart_checkpoint_codec_error() override;
+
   [[nodiscard]] application_restart_checkpoint_codec_error_code
   code() const noexcept;
 
@@ -75,19 +77,19 @@ decode_application_restart_checkpoint(
     const application_journal_record& journal,
     const removal_application_request& request);
 
-[[nodiscard]] application_restart_checkpoint
+  [[nodiscard]] application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,
     const installation_application_request& request);
 
-[[nodiscard]] application_restart_checkpoint
+  [[nodiscard]] application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,
     const upgrade_application_request& request);
 
-[[nodiscard]] application_restart_checkpoint
+  [[nodiscard]] application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,

@@ -51,6 +51,8 @@ public:
       std::string message,
       std::vector<pkgplan::package_path> paths = {});
 
+  ~application_admission_error() override;
+
   [[nodiscard]] application_admission_error_code code() const noexcept;
   [[nodiscard]] const std::vector<pkgplan::package_path>& paths() const noexcept;
 
