@@ -86,11 +86,32 @@ if [ "$mode" = shared ]; then
     echo 'installed shared library not found' >&2
     exit 1
   }
-  readelf -d "$library" | grep -F \
-    'Library soname: [libpkgapply.so.2]' >/dev/null
+  "$(dirname "$0")/audit-shared-boundary.sh" "$library"
 else
   [ -f "$prefix/lib/libpkgapply.a" ] || {
     echo 'installed static archive not found' >&2
     exit 1
   }
 fi
+
+for document in \
+  README.md DESIGN.md TESTING.md CHANGELOG.md CONTRIBUTING.md MAINTAINING.md \
+  architecture.md integration.md abi.md testing.md code-style.md \
+  3.0-posix-extraction.md
+do
+  installed=$prefix/share/doc/libpkgapply/$document
+  [ -s "$installed" ] || {
+    echo "installed documentation is absent: $document" >&2
+    exit 1
+  }
+done
+
+for page in "$build"/product/man/*.[137]; do
+  [ -e "$page" ] || continue
+  section=${page##*.}
+  installed=$prefix/share/man/man$section/$(basename "$page")
+  [ -s "$installed" ] || {
+    echo "installed manual is absent: $installed" >&2
+    exit 1
+  }
+done
