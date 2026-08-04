@@ -267,29 +267,6 @@ if get_option('tests').allowed()
   test('round-trip durable journal encodings', journal_codec_test)
 
 
-  posix_public_header_test = executable(
-    'posix-public-header-test',
-    'posix_public_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('compile POSIX public umbrella header', posix_public_header_test)
-
-  posix_journal_store_header_test = executable(
-    'posix-journal-store-header-test',
-    'posix_journal_store_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX journal store header independently',
-    posix_journal_store_header_test,
-  )
-
-  posix_journal_store_test = executable(
-    'posix-journal-store-test',
-    'posix_journal_store_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('persist POSIX journal snapshots atomically', posix_journal_store_test)
 
   journal_header_test = executable(
     'journal-header-test',
@@ -402,178 +379,6 @@ if get_option('tests').allowed()
   )
   test('encode durable restart checkpoints', restart_checkpoint_codec_test)
 
-  posix_backend_header_test = executable(
-    'posix-backend-header-test',
-    'posix_backend_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('compile POSIX backend header independently', posix_backend_header_test)
-
-  posix_backend_test = executable(
-    'posix-backend-test',
-    'posix_backend_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('compose the complete POSIX application backend', posix_backend_test)
-
-
-  posix_backend_routes_test = executable(
-    'posix-backend-routes-test',
-    'posix_backend_routes_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('exercise POSIX backend authority routes', posix_backend_routes_test)
-
-  posix_capture_store_header_test = executable(
-    'posix-capture-store-header-test',
-    'posix_capture_store_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX capture store header independently',
-    posix_capture_store_header_test,
-  )
-
-  posix_capture_store_test = executable(
-    'posix-capture-store-test',
-    'posix_capture_store_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('capture private POSIX old objects', posix_capture_store_test)
-
-
-  posix_completed_evidence_store_header_test = executable(
-    'posix-completed-evidence-store-header-test',
-    'posix_completed_evidence_store_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX completed evidence store header independently',
-    posix_completed_evidence_store_header_test,
-  )
-
-  posix_completed_evidence_store_test = executable(
-    'posix-completed-evidence-store-test',
-    'posix_completed_evidence_store_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'publish immutable POSIX completed evidence',
-    posix_completed_evidence_store_test,
-  )
-
-  posix_checkpoint_store_header_test = executable(
-    'posix-checkpoint-store-header-test',
-    'posix_checkpoint_store_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('compile POSIX checkpoint store header independently', posix_checkpoint_store_header_test)
-
-  posix_checkpoint_store_test = executable(
-    'posix-checkpoint-store-test',
-    'posix_checkpoint_store_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('persist durable restart checkpoints', posix_checkpoint_store_test)
-
-  posix_payload_stage_header_test = executable(
-    'posix-payload-stage-header-test',
-    'posix_payload_stage_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX payload stage header independently',
-    posix_payload_stage_header_test,
-  )
-
-  posix_payload_stage_test = executable(
-    'posix-payload-stage-test',
-    'posix_payload_stage_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('stage private POSIX incoming payloads', posix_payload_stage_test)
-
-  posix_rejected_store_header_test = executable(
-    'posix-rejected-store-header-test',
-    'posix_rejected_store_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX rejected store header independently',
-    posix_rejected_store_header_test,
-  )
-
-  posix_rejected_store_test = executable(
-    'posix-rejected-store-test',
-    'posix_rejected_store_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('publish immutable POSIX rejected objects', posix_rejected_store_test)
-
-  posix_mutation_lease_header_test = executable(
-    'posix-mutation-lease-header-test',
-    'posix_mutation_lease_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test(
-    'compile POSIX mutation lease header independently',
-    posix_mutation_lease_header_test,
-  )
-
-  posix_mutation_lease_test = executable(
-    'posix-mutation-lease-test',
-    'posix_mutation_lease_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('acquire caller-owned POSIX target mutation leases',
-       posix_mutation_lease_test)
-
-  posix_target_observer_header_test = executable(
-    'posix-target-observer-header-test',
-    'posix_target_observer_header_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('compile POSIX target observer header independently', posix_target_observer_header_test)
-
-  posix_target_observer_test = executable(
-    'posix-target-observer-test',
-    'posix_target_observer_test.cpp',
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('observe FD-anchored POSIX target objects', posix_target_observer_test)
-
-  posix_active_workspace_test = executable(
-    'posix-active-workspace-test',
-    'posix_active_workspace_test.cpp',
-    include_directories: include_directories('../posix'),
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('classify attempt-bound POSIX active workspaces',
-       posix_active_workspace_test)
-
-  posix_active_incoming_test = executable(
-    'posix-active-incoming-test',
-    'posix_active_incoming_test.cpp',
-    include_directories: include_directories('../posix'),
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('publish incoming POSIX active objects', posix_active_incoming_test)
-
-  posix_active_removal_test = executable(
-    'posix-active-removal-test',
-    'posix_active_removal_test.cpp',
-    include_directories: include_directories('../posix'),
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('remove POSIX active objects', posix_active_removal_test)
-
-  posix_active_recovery_test = executable(
-    'posix-active-recovery-test',
-    'posix_active_recovery_test.cpp',
-    include_directories: include_directories('../posix'),
-    dependencies: libpkgapply_posix_dep,
-  )
-  test('restore POSIX active objects', posix_active_recovery_test)
 
   test(
     'verify durable application receipt codec contract',
@@ -595,15 +400,6 @@ if get_option('tests').allowed()
     ],
   )
 
-  test(
-    'verify POSIX mutation lease source contract',
-    sh,
-    args: [
-      join_paths(meson.current_source_dir(),
-                 'posix_mutation_lease_source_test.sh'),
-      meson.project_source_root(),
-    ],
-  )
 
   test(
     'verify documentation source contracts',
@@ -630,6 +426,24 @@ if get_option('tests').allowed()
       join_paths(meson.current_source_dir(), 'release_metadata_test.sh'),
       meson.project_source_root(),
     ],
+  )
+
+  test(
+    'contract architecture-contract',
+    sh,
+    args: [join_paths(meson.current_source_dir(), 'contracts/check_architecture_contract.sh'), meson.project_source_root()],
+  )
+
+  test(
+    'contract repository-contract',
+    sh,
+    args: [join_paths(meson.current_source_dir(), 'contracts/check_repository_contract.sh'), meson.project_source_root()],
+  )
+
+  test(
+    'contract style-contract',
+    sh,
+    args: [join_paths(meson.current_source_dir(), 'contracts/check_style_contract.sh'), meson.project_source_root()],
   )
 
 endif

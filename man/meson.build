@@ -8,7 +8,7 @@ if not man_pages.disabled()
 
   if scdoc.found()
     foreach section, pages : {
-      '3': ['libpkgapply', 'libpkgapply-posix'],
+      '3': ['libpkgapply'],
       '7': ['pkgapply'],
     }
       foreach page : pages

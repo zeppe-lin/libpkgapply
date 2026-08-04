@@ -1,3 +1,17 @@
+3.0.0 - unreleased
+------------------
+
+Repository boundary
+
+- Extracted the existing `libpkgapply-posix.so.2` product into the independent
+  `libpkgapply-posix` repository.
+- Kept semantic application policy, evidence, restart, recovery, and abstract
+  backend contracts in `libpkgapply`.
+- Corrected dependency floors to libpkgplan 0.3.0, libpkgbuild 2.0.0,
+  libpkgsource-plan 1.0.0, and libpkgimage 0.4.0.
+- Removed fallback subproject coupling and made exact core ABI capture a
+  mandatory pre-tag gate.
+
 libpkgapply changelog
 =====================
 

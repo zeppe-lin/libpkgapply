@@ -1,5 +1,5 @@
 PROJECT_NAME           = libpkgapply
-PROJECT_NUMBER         = 2.3.0
+PROJECT_NUMBER         = 3.0.0
 PROJECT_BRIEF          = "Package operation application library"
 OUTPUT_DIRECTORY       = build/docs
 OUTPUT_LANGUAGE        = English
@@ -17,8 +17,7 @@ WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = YES
 WARN_AS_ERROR          = FAIL_ON_WARNINGS
-INPUT                   = include/libpkgapply include/libpkgapply-posix \
-                          README.md DESIGN.md TESTING.md CHANGELOG.md
+INPUT                  = include/libpkgapply README.md DESIGN.md TESTING.md CHANGELOG.md
 FILE_PATTERNS           = *.h *.md
 RECURSIVE               = YES
 USE_MDFILE_AS_MAINPAGE  = README.md
