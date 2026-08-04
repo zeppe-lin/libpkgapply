@@ -15,6 +15,8 @@ Repository boundary
   authority, request, lease, state-projection, and admission API contracts.
 - Published complete object-fact, path-consequence, payload, capture,
   precondition, and deterministic mechanism-schedule contracts.
+- Published complete journal, durability, completed-evidence, terminal-receipt,
+  restart-checkpoint, codec, monotonic-transition, and durable-replay contracts.
 
 libpkgapply changelog
 =====================
