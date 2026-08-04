@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Alexandr Savca
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+/*! \file libpkgapply.h
+ *  \brief Complete public semantic application API.
+ */
 #pragma once
 
 #include <libpkgapply/digest.h>

@@ -17,6 +17,9 @@ Repository boundary
   precondition, and deterministic mechanism-schedule contracts.
 - Published complete journal, durability, completed-evidence, terminal-receipt,
   restart-checkpoint, codec, monotonic-transition, and durable-replay contracts.
+- Published the complete backend command, transaction, provider, terminal apply,
+  umbrella, and version contracts without moving physical mechanism policy into
+  the semantic owner.
 
 libpkgapply changelog
 =====================
