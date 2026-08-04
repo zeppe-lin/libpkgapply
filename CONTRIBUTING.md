@@ -1,33 +1,15 @@
-Contributing to libpkgapply
-===========================
+# Contributing
 
-Changes are reviewed as authority and failure-boundary changes, not merely as
-filesystem code.
+Preserve the semantic application boundary in `docs/architecture.md`.
 
-Before proposing a patch:
+Core changes may define immutable requests, evidence, scheduling, journals,
+restart policy, recovery obligations, and abstract backend contracts. They must
+not open host paths, call filesystem mutation APIs, choose storage layouts,
+acquire operating-system locks, publish installed state, or execute lifecycle
+programs.
 
-* identify the immutable input authority;
-* state the exact effect or evidence produced;
-* identify every mutation and durability boundary;
-* state what happens on failure before and after each boundary;
-* preserve planner, application, state, and orchestration separation;
-* add direct success, refusal, failure-injection, and identity tests; and
-* update the relevant design and manual contracts.
-
-Do not add hidden discovery of configuration, package state, archives, source
-trees, lifecycle programs, or target facts. Do not broaden a backend primitive
-until the non-virtual semantic engine can constrain it.
-
-Public headers use C++17, compile independently, and include their direct
-dependencies. Source and build files carry REUSE-compatible SPDX headers.
-
-Commit messages use a terse subsystem prefix, for example:
-
-```text
-model: add typed application outcomes
-apply: revalidate path preconditions
-journal: record write-ahead effect boundaries
-```
-
-Keep each commit buildable and testable. A behavioral implementation commit
-contains the tests that establish its invariant.
+For every semantic change, identify authority inputs, accepted/refused states,
+write-ahead transitions, active-mutation boundary, recovery consequence,
+terminal evidence, identity/codec effects, ABI consequences, and tests.
+Diagnostic strings are not control flow. Keep patches single-purpose and pass
+`git diff --check`.
