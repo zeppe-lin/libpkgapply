@@ -1,0 +1,143 @@
+% LIBPKGAPPLY(3) libpkgapply | Version 3.0.0
+
+<!-- Generated from libpkgapply.3.scdoc; do not edit. -->
+
+
+# NAME
+
+libpkgapply - apply one accepted package-operation plan
+
+# SYNOPSIS
+
+```
+#include <libpkgapply/libpkgapply.h>
+
+pkgapply::application_receipt
+pkgapply::apply(
+    const pkgapply::installation_application_request& request,
+    const pkgapply::lease_bound_state_projection& state,
+    pkgapply::target_mutation_lease& lease,
+    pkgapply::application_backend& backend,
+    const pkgimage::package_archive& archive);
+```
+
+Equivalent overloads accept an upgrade request with an archive or a removal
+request without archive authority.
+
+# DESCRIPTION
+
+**libpkgapply** is a C++17 library for applying one immutable, accepted
+**libpkgplan** installation, upgrade, or removal plan to one managed target.
+Installation and upgrade requests retain one complete successful
+**libpkgbuild** result, an independently inspected **libpkgimage** value, and the
+**libpkgsource-plan** candidate projection derived from the build request's
+sealed source snapshot. The library revalidates this incoming authority, the
+accepted plan, target, lease, installed-state projection, filesystem
+observations, and replay archive before mutation.
+
+The semantic engine owns mechanism order. It stages selected regular payloads,
+captures old objects needed for rejected publication or recovery, publishes
+rejected objects before destructive active effects, writes restartable journal
+snapshots, observes the final target, publishes completed application evidence,
+and returns one immutable receipt.
+
+The library does not select packages, parse package-manager configuration,
+reinterpret planner policy, discover archives by pathname, execute lifecycle
+declarations, construct installed-state objects, or publish installed state.
+
+# APPLICATION REQUESTS
+
+**installation_application_request**, **upgrade_application_request**, and
+**removal_application_request** are distinct immutable types. Each retains the
+exact accepted operation plan, application target context, and execution
+control. The closed **package_application_request** envelope is used only at
+backend composition boundaries; it does not erase operation-specific
+semantics.
+
+Installation and upgrade requests require an
+**incoming_package_authority**. It is admitted only when a complete successful
+build result and independent image inspection agree on the artifact digest and
+every ordered payload entry. Request construction additionally proves that the
+accepted plan names the same source-derived candidate control, release,
+artifact, manifest, image, inspection receipt, and archive precondition.
+
+The complete call also borrows the exact replayable package archive. Removal
+has no incoming build, archive, image, candidate, artifact, or current source
+authority.
+
+# TARGET AND LEASE
+
+**application_target_context** binds planner target identity to the managed
+target, root view, observation backend, mutation backend, exclusion domain,
+active namespace, rejected store, staging namespace, journal namespace, and
+capability profile.
+
+The caller acquires one **target_mutation_lease** and retains it through
+application and later installed-state resolution. A
+**mutation_lease_acquisition** canonically binds one mechanism-issued nonce to the
+exact application target context and mutation-exclusion domain. The supplied
+POSIX implementation acquires that authority from an explicit lock-directory
+descriptor without choosing wait or retry policy. **lease_bound_state_projection**
+binds the selected installed snapshot, ownership inventory, path-owner closure,
+and projection evidence to that exact lease instance.
+
+**validate_target_mutation_lease_scope()** validates only that one live lease
+belongs to the exact target context and mutation-exclusion domain. It is for
+observation-only recovery and finalization paths where canonical state may have
+already advanced and no truthful old-state projection exists.
+**validate_target_mutation_lease()** additionally validates that the supplied
+state projection belongs to the same acquisition and remains the required gate
+before application or state-publication actuation.
+
+# BACKEND CONTRACT
+
+**application_backend** opens one **application_backend_transaction**. A fresh
+transaction supplies one unpredictable attempt nonce and performs no effect
+merely by being constructed. A resumed transaction retains the original
+attempt nonce and exact durable journal identity.
+
+The transaction exposes constrained operations for observation, payload
+staging, old-object capture, rejected publication, active effects, recovery,
+six-domain durability synchronization, journal publication, restart
+checkpoint retrieval, and completed-evidence publication. The core invokes
+those operations in semantic order; a backend does not choose policy.
+
+# RESULTS
+
+**application_receipt** records operation kind, request, plan, attempt, target,
+execution control, state projection, outcome, recovery state, six-domain
+durability, normalized path consequences, optional journal, optional completed
+evidence, and backend evidence.
+
+**completed_application_evidence** exists only after every selected effect,
+required synchronization, and final observation has succeeded. Failed,
+partially recovered, durability-unconfirmed, or indeterminate attempts cannot
+be converted into completed evidence.
+
+**encode_application_receipt()** emits one checksummed canonical record for a
+validated terminal receipt. **decode_application_receipt()** requires the exact
+immutable installation, upgrade, or removal request and rebuilds the receipt
+through the public factories. Completed receipts embed the existing completed-
+evidence record. Decoding performs no journal access, target observation,
+application replay, recovery, or state publication.
+
+Expected stale or physical outcomes are values. Invalid construction, corrupt
+canonical records, backend contract violations, and early I/O failures that
+prevent truthful receipt construction are exceptions.
+
+# THREAD SAFETY
+
+Immutable public values support concurrent read access. One application
+transaction is single-threaded unless its concrete backend documents stronger
+behavior. The abstract **pkgimage::package_archive** contract does not promise
+concurrent replay.
+
+# VERSION
+
+Version 3.0.0 exposes API version 2. Canonical application, journal,
+checkpoint, completed-evidence, and mechanism-storage schema versions are
+independent of the project version and shared-library SONAME.
+
+# SEE ALSO
+
+**libpkgapply-posix**(3), **pkgapply**(7), **libpkgbuild**(3), **libpkgplan**(3)

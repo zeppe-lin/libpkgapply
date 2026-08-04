@@ -8,3 +8,8 @@ grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null 
 grep -F 'Do not tag 3.0' "$root/MAINTAINING.md" >/dev/null || fail 'ABI release gate absent'
 python3 "$root/tools/check-public-documentation.py" \
   "$root" libpkgapply libpkgapply.h
+
+python3 "$root/tools/check-man-markdown.py" \
+  --root "$root" --project libpkgapply --version 3.0.0
+python3 "$root/tools/check-html-manifest.py" \
+  --root "$root" --project libpkgapply

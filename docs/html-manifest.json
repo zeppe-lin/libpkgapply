@@ -1,0 +1,85 @@
+{
+  "project": "libpkgapply",
+  "documents": [
+    {
+      "source": "README.md",
+      "output": "index.html",
+      "title": "libpkgapply"
+    },
+    {
+      "source": "CHANGELOG.md",
+      "output": "changelog.html",
+      "title": "libpkgapply"
+    },
+    {
+      "source": "CONTRIBUTING.md",
+      "output": "contributing.html",
+      "title": "Contributing"
+    },
+    {
+      "source": "DESIGN.md",
+      "output": "design.html",
+      "title": "libpkgapply"
+    },
+    {
+      "source": "MAINTAINING.md",
+      "output": "maintaining.html",
+      "title": "Maintaining libpkgapply"
+    },
+    {
+      "source": "TESTING.md",
+      "output": "test-doctrine.html",
+      "title": "libpkgapply"
+    },
+    {
+      "source": "docs/abi.md",
+      "output": "abi.html",
+      "title": "ABI policy"
+    },
+    {
+      "source": "docs/architecture.md",
+      "output": "architecture.html",
+      "title": "Architecture"
+    },
+    {
+      "source": "docs/code-style.md",
+      "output": "code-style.html",
+      "title": "Code style"
+    },
+    {
+      "source": "docs/history/3.0-posix-extraction.md",
+      "output": "history/3.0-posix-extraction.html",
+      "title": "POSIX extraction in 3.0"
+    },
+    {
+      "source": "docs/html.md",
+      "output": "html-documentation.html",
+      "title": "HTML documentation"
+    },
+    {
+      "source": "docs/integration.md",
+      "output": "integration.html",
+      "title": "Integration"
+    },
+    {
+      "source": "docs/man/libpkgapply.3.md",
+      "output": "manual/libpkgapply.3.html",
+      "title": "LIBPKGAPPLY(3) libpkgapply"
+    },
+    {
+      "source": "docs/man/pkgapply.7.md",
+      "output": "manual/pkgapply.7.html",
+      "title": "PKGAPPLY(7) libpkgapply"
+    },
+    {
+      "source": "docs/manpage-markdown.md",
+      "output": "manpage-markdown.html",
+      "title": "Manual-page Markdown"
+    },
+    {
+      "source": "docs/testing.md",
+      "output": "testing.html",
+      "title": "Testing"
+    }
+  ]
+}

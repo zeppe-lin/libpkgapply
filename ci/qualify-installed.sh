@@ -94,17 +94,7 @@ else
   }
 fi
 
-for document in \
-  README.md DESIGN.md TESTING.md CHANGELOG.md CONTRIBUTING.md MAINTAINING.md \
-  architecture.md integration.md abi.md testing.md code-style.md \
-  3.0-posix-extraction.md
-do
-  installed=$prefix/share/doc/libpkgapply/$document
-  [ -s "$installed" ] || {
-    echo "installed documentation is absent: $document" >&2
-    exit 1
-  }
-done
+python3 ci/qualify-installed-documentation.py "$prefix" libpkgapply
 
 for page in "$build"/product/man/*.[137]; do
   [ -e "$page" ] || continue
