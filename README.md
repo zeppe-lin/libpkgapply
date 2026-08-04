@@ -59,14 +59,17 @@ requests after application returns.
 
 ## Version 3.0
 
-Release 3.0 separates the already distinct POSIX product and corrects dependency
-floors to the current authority graph:
+Release 3.0 separates the already distinct POSIX product and corrects
+dependency placement against the current authority graph. Installed headers
+require:
 
 - `libpkgplan >= 0.3.0`;
-- `libpkgbuild >= 2.0.0`;
-- `libpkgsource-plan >= 1.0.0`;
-- `libpkgimage >= 0.4.0`; and
-- private OpenSSL `libcrypto`.
+- `libpkgbuild >= 2.0.0`; and
+- `libpkgimage >= 0.4.0`.
+
+`libpkgsource-plan >= 1.0.0` and OpenSSL `libcrypto` are private
+implementation requirements. They remain direct shared-library dependencies
+where used and enter consumer flags only for static linkage.
 
 Fallback subprojects are intentionally unsupported. Shared and static closures
 must be built separately.

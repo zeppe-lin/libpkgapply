@@ -10,6 +10,7 @@ publication. `libpkgstate-apply` separately combines completed evidence with a
 lease-bound state snapshot and constructs one stale-safe state publication
 request.
 
-Current public dependency floors are `libpkgplan >= 0.3.0`, `libpkgbuild >=
-2.0.0`, `libpkgsource-plan >= 1.0.0`, and `libpkgimage >= 0.4.0`. OpenSSL is a
-private implementation provider.
+Current installed-header dependency floors are `libpkgplan >= 0.3.0`,
+`libpkgbuild >= 2.0.0`, and `libpkgimage >= 0.4.0`.
+`libpkgsource-plan >= 1.0.0` and OpenSSL are private implementation
+requirements and enter consumer flags only for static linkage.

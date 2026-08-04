@@ -48,16 +48,20 @@ libpkgapply = library(
   soversion: '2',
 )
 
+libpkgapply_consumer_deps = [
+  libpkgbuild_dep,
+  libpkgimage_dep,
+  libpkgplan_dep,
+]
+if want_static
+  libpkgapply_consumer_deps += [libpkgsource_plan_dep, libcrypto_dep]
+endif
+
 libpkgapply_dep = declare_dependency(
   link_with: libpkgapply,
   include_directories: public_inc,
-  dependencies: [
-    libcrypto_dep,
-    libpkgbuild_dep,
-    libpkgimage_dep,
-    libpkgplan_dep,
-    libpkgsource_plan_dep,
-  ],
+  dependencies: libpkgapply_consumer_deps,
+  version: meson.project_version(),
 )
 
 meson.override_dependency('libpkgapply', libpkgapply_dep)
@@ -102,7 +106,6 @@ pkgconf.generate(
     'libpkgbuild >= 2.0.0',
     'libpkgimage >= 0.4.0',
     'libpkgplan >= 0.3.0',
-    'libpkgsource-plan >= 1.0.0',
   ],
-  requires_private: [libcrypto_dep],
+  requires_private: [libpkgsource_plan_dep, libcrypto_dep],
 )
