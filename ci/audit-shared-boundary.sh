@@ -21,9 +21,22 @@ printf '%s\n' "$output" | grep -F \
   exit 1
 }
 needed=$(printf '%s\n' "$output" | grep 'Shared library:' || true)
+for required in \
+  libpkgbuild-plan.so.1 \
+  libpkgbuild-image.so.1 \
+  libpkgsource-plan.so.1 \
+  libpkgsource.so.3 \
+  libpkgimage.so.1 \
+  libpkgplan.so.1
+do
+  printf '%s\n' "$needed" | grep -F "[$required]" >/dev/null || {
+    echo "shared-boundary-audit: missing implementation dependency: $required" >&2
+    exit 1
+  }
+done
 if printf '%s\n' "$needed" | grep -E \
-  'libpkgapply-posix|libpkgstate|libpkgexec|libyaml|libarchive' >/dev/null
+  'libpkgapply-posix|libpkgstate|libpkgexec|libyaml|libarchive|libpkgresolve|libpkgcatalog' >/dev/null
 then
-  echo 'shared-boundary-audit: mechanism or orchestration dependency is present' >&2
+  echo 'shared-boundary-audit: mechanism, state, resolver, or catalog dependency is present' >&2
   exit 1
 fi

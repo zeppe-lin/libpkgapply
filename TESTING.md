@@ -22,14 +22,14 @@ Model tests
 -----------
 
 Plan-bearing tests construct accepted plans only through the released
-`libpkgplan` request and planner APIs. Installation and upgrade fixtures derive
-candidate control through released `libpkgsource-plan` and carry complete
-released `libpkgbuild` results; manually invented candidate-control values are
-not valid incoming authority. Tests must not instantiate planner-private
-plan, decision, precondition, publication, or ownership-transition values, and
-must not substitute constructor-shaped doubles for those APIs. At least one
-qualification build uses installed released `libpkgplan` and `libpkgimage`
-headers and libraries rather than local test doubles.
+`libpkgplan` request and planner APIs. Installation and upgrade fixtures import
+one complete released `libpkgbuild-plan` artifact projection; manually invented
+candidate, artifact, build, image, or manifest bindings are not valid incoming
+authority. Tests must not instantiate planner-private plan, decision,
+precondition, publication, or ownership-transition values, and must not
+substitute constructor-shaped doubles for those APIs. At least one
+qualification build uses installed released `libpkgbuild-plan` and
+`libpkgplan` headers and libraries rather than local test doubles.
 
 The immutable model suite must cover:
 
@@ -37,11 +37,10 @@ The immutable model suite must cover:
 * strict typed identity parsing and domain separation;
 * fixed canonical identity vectors;
 * request and operation-kind separation;
-* successful native build and independent image admission;
-* build artifact digest versus inspected archive binding;
-* complete ordered payload versus normalized image equality;
-* source-derived candidate identity and control;
-* rejection of same-name but foreign build, image, receipt, and plan facts;
+* planner-projection retention and opaque copy/move behavior;
+* exact candidate, release, artifact, manifest, archive, image, and receipt
+  agreement with the accepted plan;
+* rejection of same-name but foreign projections and plan facts;
 * target context normalization;
 * lease-bound state projection completeness;
 * known, unknown, and not-applicable object facts;
@@ -87,7 +86,8 @@ Precondition qualification must cover:
 Archive staging and schedule tests
 ----------------------------------
 
-Composition with `libpkgimage` and deterministic mechanism scheduling must
+Composition with planner-ready build authority and deterministic mechanism
+scheduling must
 cover:
 
 * exact archive, image, and inspection-receipt binding;

@@ -21,37 +21,38 @@ Authority graph
 ---------------
 
 ```text
-sealed source snapshot              independently inspected artifact
-          |                                      ^
-          v                                      |
-      libpkgbuild -------------------------------+
-          | successful result + exact payload
-          v
-  incoming_package_authority ----> source-derived candidate control
-          |                                      |
-          +------------------+-------------------+
-                             v
-                        libpkgplan
-                             |
-                             v
-                accepted package-operation plan
-                             |
-                             v
-                       libpkgapply
-                              |
-              +---------------+---------------+
-              |                               |
-              v                               v
-     application receipt         completed application evidence
-                                              |
-                                              v
-                                libpkgstate-side projection
-                                              |
-                                              v
-                                  state-publication request
-                                              |
-                                              v
-                                         libpkgstate
+successful build result        independently inspected image
+          |                                  |
+          +----------------+-----------------+
+                           v
+                  libpkgbuild-image
+             admitted build/image authority
+                           |
+                           v
+                  libpkgbuild-plan
+       source candidate + planner artifact projection
+                           |
+                           v
+              incoming_package_authority
+                           |
+                    accepted libpkgplan
+                           |
+                           v
+                      libpkgapply
+                           |
+             +-------------+-------------+
+             |                           |
+             v                           v
+    application receipt      completed application evidence
+                                         |
+                                         v
+                           libpkgstate-side projection
+                                         |
+                                         v
+                             state-publication request
+                                         |
+                                         v
+                                    libpkgstate
 ```
 
 The package manager remains the composition root. It acquires the outer
@@ -62,30 +63,29 @@ complete transaction result.
 Incoming package authority
 --------------------------
 
-Installation and upgrade do not accept an archive, candidate-control value, or
-build-provenance token independently. `incoming_package_authority::admit()`
-requires one complete successful `libpkgbuild` result and one independently
-inspected `libpkgimage` value. Admission proves:
+Installation and upgrade do not accept an archive, candidate-control value,
+build result, or inspected image independently. `incoming_package_authority`
+imports one complete `libpkgbuild-plan::artifact_projection` into application
+vocabulary.
+
+The projection already retains:
 
 ```text
-build request source snapshot is sealed
-build result is successful and complete
-sealed artifact digest == inspected archive digest
-ordered build payload == ordered normalized image
-candidate control == libpkgsource-plan projection of build source
+libpkgbuild-image admission of one successful build and matching image
+libpkgsource-plan projection of the sealed build subject
+libpkgplan artifact fact derived from those same authorities
 ```
 
-The admitted value retains all three authorities rather than flattening them
-into strings. Its identity binds the build result and request, source snapshot,
-payload, artifact, artifact binding, source-derived candidate, archive digest,
-normalized image, and inspection receipt.
+`libpkgapply` does not repeat payload/image equality or source projection. Its
+incoming identity binds the complete upstream projection, source, candidate,
+artifact, manifest, and release authorities.
 
 An installation or upgrade request can be constructed only when its accepted
-plan names the same release, candidate identity and control, artifact, image,
-inspection receipt, artifact manifest, archive precondition, and publication
-control. This is a pre-mutation structural invariant. The later admission gate
-revalidates the replayed archive against both the request-bound incoming
-package and the plan.
+plan names the same release, candidate identity and control, artifact,
+artifact manifest, archive, image, inspection receipt, archive precondition,
+and publication control. This is a pre-mutation structural invariant. The
+later admission gate revalidates the replayed archive against both the
+request-bound incoming package and the accepted plan.
 
 Removal has no incoming package authority. It cannot smuggle an incoming
 archive precondition into the application layer.
@@ -627,10 +627,12 @@ object publication; active namespace mutation and recovery; and the installed
 mechanisms to one exact request, target, borrowed lease, attempt, durability
 router, and restart view without becoming another semantic engine.
 
-The core public model depends on `libpkgplan`, `libpkgbuild`,
-`libpkgsource-plan`, and `libpkgimage`. Its cryptographic provider is private.
-It has no direct archive-decoder, POSIX mechanism, or installed-state
-dependency.
+The core public model depends on `libpkgbuild-plan` and `libpkgplan`. Its
+cryptographic provider is private. Build/image admission, source projection,
+and their transitive authorities remain upstream implementation needs exposed
+through the opaque planner projection; they are not public pkg-config edges.
+The core has no direct archive-decoder, POSIX mechanism, resolver, catalog, or
+installed-state dependency.
 
 Concurrency and errors
 ----------------------

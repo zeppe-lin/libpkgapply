@@ -76,10 +76,10 @@ void validate_incoming(const Plan& plan,
                        const incoming_package_authority& incoming)
 {
   const auto& candidate = incoming.candidate();
+  const auto& artifact = incoming.artifact();
   const auto& inputs = plan.inputs();
   const auto& publication = plan.publication();
   const auto& image = incoming.image();
-  const auto& build = incoming.build();
 
   require_plan_binding(
       inputs.candidate_release() == candidate.release().identity() &&
@@ -95,19 +95,17 @@ void validate_incoming(const Plan& plan,
           publication.installed_control() == candidate.control_projection(),
       "accepted plan candidate control differs from sealed build source");
 
-  const std::string archive = image.receipt().archive_digest().string();
   require_plan_binding(
-      inputs.artifact().string() == archive &&
-          publication.artifact() == inputs.artifact() &&
+      inputs.artifact() == artifact.artifact() &&
+          publication.artifact() == artifact.artifact() &&
+          inputs.artifact_manifest() == artifact.manifest() &&
+          publication.artifact_manifest() == artifact.manifest() &&
           inputs.expected_archive() == image.receipt().archive_digest() &&
           inputs.observed_archive() == image.receipt().archive_digest() &&
           inputs.image() == image.image().identity() &&
           inputs.inspection_receipt() == image.receipt().identity(),
       "accepted plan artifact facts differ from verified build image");
 
-  require_plan_binding(
-      publication.artifact_manifest() == inputs.artifact_manifest(),
-      "accepted plan publication manifest differs from admitted plan inputs");
 
   const auto& archive_precondition = plan.preconditions().incoming_archive();
   require_plan_binding(
@@ -118,11 +116,6 @@ void validate_incoming(const Plan& plan,
               image.receipt().identity(),
       "accepted plan precondition differs from verified build image");
 
-  require_plan_binding(
-      build.outcome() == pkgbuild::build_outcome::succeeded &&
-          build.payload().has_value() && build.artifact().has_value() &&
-          build.artifact_binding().has_value(),
-      "incoming package authority lost complete successful build evidence");
 }
 
 } // namespace

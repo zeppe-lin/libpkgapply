@@ -15,6 +15,10 @@ Public exception and abstract-interface vtables are anchored by out-of-line
 owner definitions. This prevents weak consumer-side RTTI and vtable emission
 while the complete export inventory is being qualified.
 
-Pkg-config exposes the semantic owners present in installed headers and keeps
-`libcrypto` private. Changes to public value layouts, exception hierarchies,
-virtual interfaces, dependency placement, or SONAME require explicit ABI review.
+Pkg-config exposes only the semantic owners present in installed headers:
+`libpkgbuild-plan` and `libpkgplan`. It keeps `libcrypto` private. Transitive
+build, build-image, source-projection, source, and image libraries may remain
+direct ELF needs of the implementation where opaque projection accessors are
+called; they are not public compile dependencies. Changes to public value
+layouts, exception hierarchies, virtual interfaces, dependency placement, or
+SONAME require explicit ABI review.

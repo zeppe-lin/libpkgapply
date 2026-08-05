@@ -1,25 +1,30 @@
 3.0.0 - unreleased
 ------------------
 
+Authority correction
+
+- Replaced direct build, image, and source-projection admission with one opaque
+  `libpkgbuild-plan` artifact projection.
+- Delegated exact build/image agreement to `libpkgbuild-image` and candidate plus
+  artifact projection to `libpkgbuild-plan`; application no longer reimplements
+  either proof.
+- Bound installation and upgrade requests to the exact upstream candidate,
+  release, artifact, manifest, archive, image, inspection receipt, precondition,
+  and publication named by the accepted plan.
+- Collapsed the undeployed application-request and restart-checkpoint protocols
+  to their first actual generation.
+- Exposed only `libpkgbuild-plan` and `libpkgplan` through installed pkg-config
+  metadata; retained OpenSSL as the private cryptographic requirement.
+
 Repository boundary
 
-- Extracted the existing `libpkgapply-posix.so.2` product into the independent
+- Extracted the existing POSIX mechanism product into the independent
   `libpkgapply-posix` repository.
 - Kept semantic application policy, evidence, restart, recovery, and abstract
   backend contracts in `libpkgapply`.
-- Corrected dependency floors to libpkgplan 0.3.0, libpkgbuild 2.0.0,
-  libpkgsource-plan 1.0.0, and libpkgimage 0.4.0.
-- Removed fallback subproject coupling and made exact core ABI capture a
-  mandatory pre-tag gate.
-- Published complete identity, attempt, target, execution-control, incoming
-  authority, request, lease, state-projection, and admission API contracts.
-- Published complete object-fact, path-consequence, payload, capture,
-  precondition, and deterministic mechanism-schedule contracts.
-- Published complete journal, durability, completed-evidence, terminal-receipt,
-  restart-checkpoint, codec, monotonic-transition, and durable-replay contracts.
-- Published the complete backend command, transaction, provider, terminal apply,
-  umbrella, and version contracts without moving physical mechanism policy into
-  the semantic owner.
+- Removed fallback subproject coupling and made the public compile closure and
+  implementation ELF closure separately auditable.
+- Kept exact core ABI capture as a mandatory pre-tag gate.
 
 libpkgapply changelog
 =====================

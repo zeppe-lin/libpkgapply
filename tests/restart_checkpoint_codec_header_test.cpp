@@ -5,6 +5,6 @@
 
 int main()
 {
-  static_assert(pkgapply::application_restart_checkpoint_encoding_version == 2);
+  static_assert(pkgapply::application_restart_checkpoint_encoding_version == 1);
   return 0;
 }

@@ -2,8 +2,10 @@
 
 `libpkgapply` owns semantic application, not host mutation mechanics.
 
-The input boundary is an accepted operation plan plus exact build, source, and
-image authority. The output boundary is typed application evidence: completed,
+The input boundary is an accepted operation plan plus one exact
+`libpkgbuild-plan` artifact projection. Upstream `libpkgbuild-image` owns
+build/image agreement and `libpkgbuild-plan` owns candidate and artifact
+projection. The output boundary is typed application evidence: completed,
 precondition-refused, failed before active mutation, recovery-required,
 recovered, or durability-unconfirmed.
 

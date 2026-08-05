@@ -32,14 +32,29 @@ if grep -F 'fallback:' "$root/meson.build" >/dev/null; then
   fail 'fallback coupling remains'
 fi
 
-grep -F \
-  'requires_private: [libpkgsource_plan_dep, libcrypto_dep]' \
-  "$root/src/meson.build" >/dev/null || \
-  fail 'private source projection or crypto metadata absent'
+for forbidden in libpkgbuild libpkgbuild-image libpkgsource libpkgsource-plan libpkgimage; do
+  if grep -F "dependency('$forbidden'" "$root/meson.build" >/dev/null; then
+    fail "foreign upstream dependency leaked into core root: $forbidden"
+  fi
+done
+
+grep -F "dependency(" "$root/meson.build" >/dev/null || fail 'dependency declarations absent'
+grep -F "'libpkgbuild-plan'," "$root/meson.build" >/dev/null || \
+  fail 'planner-ready build authority dependency absent'
+grep -F "'libpkgplan'," "$root/meson.build" >/dev/null || \
+  fail 'accepted-plan dependency absent'
+
+grep -F 'requires_private: [libcrypto_dep]' "$root/src/meson.build" >/dev/null || \
+  fail 'private crypto metadata absent'
 
 public_block=$(sed -n '/requires: \[/,/^  \],/p' "$root/src/meson.build")
+for required in 'libpkgbuild-plan >= 1.0.0' 'libpkgbuild-plan < 2.0.0' \
+                'libpkgplan >= 0.3.0' 'libpkgplan < 1.0.0'; do
+  printf '%s\n' "$public_block" | grep -F "$required" >/dev/null || \
+    fail "missing public requirement: $required"
+done
 if printf '%s\n' "$public_block" | grep -E \
-  'libpkgsource|libcrypto|libpkgstate' >/dev/null
+  'libpkgsource|libpkgbuild([^-]|$)|libpkgbuild-image|libpkgimage|libcrypto|libpkgstate' >/dev/null
 then
-  fail 'private or foreign dependency leaked into public metadata'
+  fail 'private, transitive, or foreign dependency leaked into public metadata'
 fi

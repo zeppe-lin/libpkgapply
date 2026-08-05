@@ -28,12 +28,13 @@ request without archive authority.
 
 **libpkgapply** is a C++17 library for applying one immutable, accepted
 **libpkgplan** installation, upgrade, or removal plan to one managed target.
-Installation and upgrade requests retain one complete successful
-**libpkgbuild** result, an independently inspected **libpkgimage** value, and the
-**libpkgsource-plan** candidate projection derived from the build request's
-sealed source snapshot. The library revalidates this incoming authority, the
-accepted plan, target, lease, installed-state projection, filesystem
-observations, and replay archive before mutation.
+Installation and upgrade requests retain one complete
+**libpkgbuild-plan** artifact projection. That upstream value already retains a
+**libpkgbuild-image** admission proving agreement between the successful build
+and independently inspected image, plus the source-derived candidate and
+planner artifact facts. The library binds this incoming authority to the
+accepted plan, then revalidates the target, lease, installed-state projection,
+filesystem observations, and replay archive before mutation.
 
 The semantic engine owns mechanism order. It stages selected regular payloads,
 captures old objects needed for rejected publication or recovery, publishes
@@ -55,11 +56,11 @@ backend composition boundaries; it does not erase operation-specific
 semantics.
 
 Installation and upgrade requests require an
-**incoming_package_authority**. It is admitted only when a complete successful
-build result and independent image inspection agree on the artifact digest and
-every ordered payload entry. Request construction additionally proves that the
-accepted plan names the same source-derived candidate control, release,
-artifact, manifest, image, inspection receipt, and archive precondition.
+**incoming_package_authority**. It imports one complete planner artifact
+projection without repeating upstream build/image or source-projection logic.
+Request construction proves that the accepted plan names the same candidate
+control, release, artifact, manifest, archive, image, inspection receipt, and
+archive precondition.
 
 The complete call also borrows the exact replayable package archive. Removal
 has no incoming build, archive, image, candidate, artifact, or current source
@@ -135,9 +136,10 @@ concurrent replay.
 # VERSION
 
 Version 3.0.0 exposes API version 2. Canonical application, journal,
-checkpoint, completed-evidence, and mechanism-storage schema versions are
-independent of the project version and shared-library SONAME.
+checkpoint, completed-evidence, and mechanism-storage protocols remain their
+first actual generation. Protocol generation is independent of the project
+version and shared-library SONAME.
 
 # SEE ALSO
 
-**libpkgapply-posix**(3), **pkgapply**(7), **libpkgbuild**(3), **libpkgplan**(3)
+**libpkgapply-posix**(3), **pkgapply**(7), **libpkgbuild-plan**(3), **libpkgbuild-image**(3), **libpkgplan**(3)

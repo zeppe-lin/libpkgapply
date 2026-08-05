@@ -48,24 +48,44 @@ setup_dependency()
   meson install -C "$output_dir"
 }
 
-: "${LIBPKGIMAGE_SOURCE:?set LIBPKGIMAGE_SOURCE}"
-: "${LIBPKGPLAN_SOURCE:?set LIBPKGPLAN_SOURCE}"
-: "${LIBPKGSOURCE_SOURCE:?set LIBPKGSOURCE_SOURCE}"
-: "${LIBPKGSOURCE_PLAN_SOURCE:?set LIBPKGSOURCE_PLAN_SOURCE}"
-: "${LIBPKGBUILD_SOURCE:?set LIBPKGBUILD_SOURCE}"
+for variable in \
+  LIBPKGSOURCE_SOURCE \
+  LIBPKGSTATE_SOURCE \
+  LIBPKGCATALOG_SOURCE \
+  LIBPKGRESOLVE_SOURCE \
+  LIBPKGBUILD_SOURCE \
+  LIBPKGIMAGE_SOURCE \
+  LIBPKGPLAN_SOURCE \
+  LIBPKGBUILD_IMAGE_SOURCE \
+  LIBPKGSOURCE_PLAN_SOURCE \
+  LIBPKGBUILD_PLAN_SOURCE
+do
+  eval "value=\${$variable-}"
+  [ -n "$value" ] || {
+    echo "configure-and-test: set $variable" >&2
+    exit 2
+  }
+done
 
-setup_dependency "$LIBPKGIMAGE_SOURCE" "$build/libpkgimage" \
-  -Dhtml_docs=disabled
 export PKG_CONFIG_PATH="$dependency_prefix/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export LD_LIBRARY_PATH="$dependency_prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-setup_dependency "$LIBPKGPLAN_SOURCE" "$build/libpkgplan" \
-  -Dreference_tools=disabled -Dhtml_docs=disabled
+
 setup_dependency "$LIBPKGSOURCE_SOURCE" "$build/libpkgsource" \
   -Dhtml_docs=disabled
+setup_dependency "$LIBPKGSTATE_SOURCE" "$build/libpkgstate" \
+  -Dhtml_docs=disabled
+setup_dependency "$LIBPKGCATALOG_SOURCE" "$build/libpkgcatalog" \
+  -Dhtml_docs=disabled
+setup_dependency "$LIBPKGRESOLVE_SOURCE" "$build/libpkgresolve"
+setup_dependency "$LIBPKGBUILD_SOURCE" "$build/libpkgbuild"
+setup_dependency "$LIBPKGIMAGE_SOURCE" "$build/libpkgimage" \
+  -Dhtml_docs=disabled
+setup_dependency "$LIBPKGPLAN_SOURCE" "$build/libpkgplan" \
+  -Dreference_tools=disabled -Dhtml_docs=disabled
+setup_dependency "$LIBPKGBUILD_IMAGE_SOURCE" "$build/libpkgbuild-image"
 setup_dependency "$LIBPKGSOURCE_PLAN_SOURCE" "$build/libpkgsource-plan" \
   -Dhtml_docs=disabled
-setup_dependency "$LIBPKGBUILD_SOURCE" "$build/libpkgbuild" \
-  -Dplanner_adapter=disabled
+setup_dependency "$LIBPKGBUILD_PLAN_SOURCE" "$build/libpkgbuild-plan"
 
 meson setup "$build/product" "$root" \
   --wrap-mode=nofallback \

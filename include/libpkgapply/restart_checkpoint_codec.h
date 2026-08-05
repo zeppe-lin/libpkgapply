@@ -17,7 +17,7 @@
 namespace pkgapply {
 
 /*! \brief Wire-format version of an application restart checkpoint. */
-inline constexpr std::uint16_t application_restart_checkpoint_encoding_version = 2;
+inline constexpr std::uint16_t application_restart_checkpoint_encoding_version = 1;
 
 /*! \brief Maximum accepted byte length of an application restart checkpoint. */
 inline constexpr std::size_t maximum_application_restart_checkpoint_encoding_size =

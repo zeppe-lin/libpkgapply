@@ -12,30 +12,35 @@ private=$(sed -n 's/^Requires\.private:[[:space:]]*//p' "$pc")
 private_libs=$(sed -n 's/^Libs\.private:[[:space:]]*//p' "$pc")
 has_requirement() {
   printf '%s\n' "$1" | tr ',' '\n' | awk \
-    -v package="$2" -v version="$3" '
-      $1 == package && $2 == ">=" && $3 == version { found = 1 }
+    -v package="$2" -v relation="$3" -v version="$4" '
+      $1 == package && $2 == relation && $3 == version { found = 1 }
       END { exit found ? 0 : 1 }
     '
 }
 for requirement in \
-  'libpkgbuild 2.0.0' \
-  'libpkgimage 0.4.0' \
-  'libpkgplan 0.3.0'
+  'libpkgbuild-plan >= 1.0.0' \
+  'libpkgbuild-plan < 2.0.0' \
+  'libpkgplan >= 0.3.0' \
+  'libpkgplan < 1.0.0'
 do
   set -- $requirement
-  has_requirement "$public" "$1" "$2" || {
-    echo "pkgconfig-metadata: missing public $1 >= $2" >&2
+  has_requirement "$public" "$1" "$2" "$3" || {
+    echo "pkgconfig-metadata: missing public $1 $2 $3" >&2
     exit 1
   }
 done
-if printf '%s\n' "$public" | grep -E 'libpkgsource-plan|libcrypto|libpkgstate' >/dev/null; then
-  echo 'pkgconfig-metadata: private or foreign edge leaked publicly' >&2
+if printf '%s\n' "$public" | grep -E \
+  'libpkgsource|libpkgbuild([^-]|$)|libpkgbuild-image|libpkgimage|libcrypto|libpkgstate' >/dev/null
+then
+  echo 'pkgconfig-metadata: private, transitive, or foreign edge leaked publicly' >&2
   exit 1
 fi
-has_requirement "$private" libpkgsource-plan 1.0.0 || {
-  echo 'pkgconfig-metadata: missing private libpkgsource-plan >= 1.0.0' >&2
+if printf '%s\n' "$private" | grep -E \
+  'libpkgsource|libpkgbuild|libpkgimage|libpkgplan|libpkgstate' >/dev/null
+then
+  echo 'pkgconfig-metadata: semantic authority leaked into private metadata' >&2
   exit 1
-}
+fi
 printf '%s\n%s\n' "$private" "$private_libs" | grep -F libcrypto >/dev/null || {
   echo 'pkgconfig-metadata: missing private libcrypto' >&2
   exit 1

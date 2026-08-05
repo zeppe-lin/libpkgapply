@@ -20,7 +20,7 @@
 namespace pkgapply {
 
 /*! \brief Schema version shared by all application request bodies. */
-inline constexpr std::uint16_t application_request_schema_version = 2;
+inline constexpr std::uint16_t application_request_schema_version = 1;
 
 /*! \brief Application request for one accepted installation plan. */
 class installation_application_request final {

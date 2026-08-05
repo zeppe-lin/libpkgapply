@@ -68,55 +68,16 @@ int main()
   const auto first = ordinary_installation_incoming();
   const auto second = ordinary_installation_incoming();
   assert(first.identity() == second.identity());
+  assert(first.schema_version() == 1);
+  assert(first.authority().identity() == first.projection().authority().identity());
   assert(first.build().outcome() == pkgbuild::build_outcome::succeeded);
   assert(first.image().image().entries().size() == 1);
   assert(first.candidate().release().name() == "tool");
+  assert(first.artifact().release() == first.candidate().release());
 
-  reject([] {
-    const auto source = build_request("1.0");
-    const auto failure = pkgbuild::build_result::failed(
-        source,
-        pkgbuild::execution_evidence_identity::from_sha256(
-            std::string(64, '8')),
-        pkgbuild::failure_evidence_identity::from_sha256(
-            std::string(64, '9')));
-    (void)pkgapply::incoming_package_authority::admit(
-        failure,
-        inspected_image({regular_entry("tool", 7)}));
-  }, pkgapply::incoming_package_error_code::build_result);
-
-  reject([] {
-    const auto entries = std::vector<pkgimage::package_entry>{
-        regular_entry("tool", 7)};
-    auto build = pkgbuild::build_result::succeeded(
-        build_request("1.0"), build_payload(entries),
-        pkgbuild::sealed_artifact::make(
-            pkgbuild::artifact_encoding::package_tar_v1,
-            pkgbuild::artifact_compression::none, 4096,
-            pkgbuild::sha256_digest(std::string(64, '1'))),
-        pkgbuild::execution_evidence_identity::from_sha256(
-            std::string(64, '8')));
-    (void)pkgapply::incoming_package_authority::admit(
-        std::move(build), inspected_image(entries, archive_digest(50)));
-  }, pkgapply::incoming_package_error_code::artifact_binding);
-
-  reject([] {
-    const auto expected = std::vector<pkgimage::package_entry>{
-        regular_entry("tool", 7)};
-    const auto observed = std::vector<pkgimage::package_entry>{
-        regular_entry("tool", 8)};
-    const auto digest = archive_digest();
-    auto build = pkgbuild::build_result::succeeded(
-        build_request("1.0"), build_payload(expected),
-        pkgbuild::sealed_artifact::make(
-            pkgbuild::artifact_encoding::package_tar_v1,
-            pkgbuild::artifact_compression::none, 4096,
-            pkgbuild::sha256_digest(sha256_hex(digest.string()))),
-        pkgbuild::execution_evidence_identity::from_sha256(
-            std::string(64, '8')));
-    (void)pkgapply::incoming_package_authority::admit(
-        std::move(build), inspected_image(observed, digest));
-  }, pkgapply::incoming_package_error_code::payload_mismatch);
+  auto copied = first;
+  auto moved = std::move(copied);
+  assert(moved.identity() == first.identity());
 
   const auto context = target();
   const planning_authorities authorities(context.target());

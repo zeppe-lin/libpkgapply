@@ -14,12 +14,14 @@ Package application is the physical transition between one accepted
 chain is:
 
 ```
-libpkgsource  sealed package declaration and source identity
-libpkgbuild   successful build and exact artifact authority
-libpkgplan    immutable intended transition
-libpkgapply   observed application effects and recovery evidence
-libpkgstate   durable installed truth and state publication
-pkgctl        transaction composition and final resolution
+libpkgsource       sealed package declaration and source identity
+libpkgbuild        successful build and exact artifact authority
+libpkgbuild-image  admitted build and inspected-image agreement
+libpkgbuild-plan   planner-ready candidate and artifact projection
+libpkgplan         immutable intended transition
+libpkgapply        observed application effects and recovery evidence
+libpkgstate        durable installed truth and state publication
+pkgctl             transaction composition and final resolution
 ```
 
 No layer may silently absorb the authority of another.
@@ -41,13 +43,13 @@ stronger validator binding that same live acquisition to an exact state
 projection. A stale pre-publication projection is never reconstructed after the
 canonical state has advanced.
 
-Installation and upgrade additionally require one admitted incoming package:
-a complete successful **libpkgbuild** result, an independent **libpkgimage**
-inspection, and source-derived candidate control. The build artifact digest,
-ordered payload, archive digest, image, receipt, release, candidate control,
-manifest, plan precondition, and publication must agree before mutation. An
-archive pathname or package filename is never authority. Removal requires no
-current source, build result, or incoming archive.
+Installation and upgrade additionally require one admitted incoming package
+imported from **libpkgbuild-plan**. Upstream **libpkgbuild-image** has already
+proved build/image agreement, and the planner adapter has already projected the
+source-derived candidate and artifact facts. The accepted plan must name the
+same archive, image, receipt, release, candidate, artifact, manifest,
+precondition, and publication before mutation. An archive pathname or package
+filename is never authority. Removal requires no incoming package or archive.
 
 A stale fact returns a precondition-refused receipt before payload staging,
 journal publication, capture, rejected publication, active mutation, or
@@ -115,4 +117,4 @@ claim global filesystem/state atomicity.
 
 # SEE ALSO
 
-**libpkgapply**(3), **libpkgapply-posix**(3), **libpkgbuild**(3), **libpkgplan**(3)
+**libpkgapply**(3), **libpkgapply-posix**(3), **libpkgbuild-plan**(3), **libpkgbuild-image**(3), **libpkgplan**(3)

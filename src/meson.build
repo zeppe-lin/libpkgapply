@@ -38,10 +38,8 @@ libpkgapply = library(
   include_directories: public_inc,
   dependencies: [
     libcrypto_dep,
-    libpkgbuild_dep,
-    libpkgimage_dep,
+    libpkgbuild_plan_dep,
     libpkgplan_dep,
-    libpkgsource_plan_dep,
   ],
   install: true,
   version: meson.project_version(),
@@ -49,12 +47,11 @@ libpkgapply = library(
 )
 
 libpkgapply_consumer_deps = [
-  libpkgbuild_dep,
-  libpkgimage_dep,
+  libpkgbuild_plan_dep,
   libpkgplan_dep,
 ]
 if want_static
-  libpkgapply_consumer_deps += [libpkgsource_plan_dep, libcrypto_dep]
+  libpkgapply_consumer_deps += [libcrypto_dep]
 endif
 
 libpkgapply_dep = declare_dependency(
@@ -103,12 +100,10 @@ pkgconf.generate(
   description: 'Package operation application library',
   subdirs: '.',
   requires: [
-    'libpkgbuild >= 2.0.0',
-    'libpkgimage >= 0.4.0',
+    'libpkgbuild-plan >= 1.0.0',
+    'libpkgbuild-plan < 2.0.0',
     'libpkgplan >= 0.3.0',
+    'libpkgplan < 1.0.0',
   ],
-  requires_private: [
-    'libpkgsource-plan >= 1.0.0',
-    libcrypto_dep,
-  ],
+  requires_private: [libcrypto_dep],
 )

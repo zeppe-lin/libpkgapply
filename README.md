@@ -38,7 +38,11 @@ storage, active namespace mutation and recovery, and concrete backend
 composition.
 
 ```text
-libpkgplan + libpkgbuild + libpkgsource-plan + libpkgimage
+libpkgbuild-image + libpkgsource-plan + libpkgplan
+                         |
+                         v
+                   libpkgbuild-plan
+             planner-ready built package authority
                          |
                          v
                     libpkgapply
@@ -60,16 +64,17 @@ requests after application returns.
 ## Version 3.0
 
 Release 3.0 separates the already distinct POSIX product and corrects
-dependency placement against the current authority graph. Installed headers
+application admission against the current authority graph. Installed headers
 require:
 
-- `libpkgplan >= 0.3.0`;
-- `libpkgbuild >= 2.0.0`; and
-- `libpkgimage >= 0.4.0`.
+- `libpkgbuild-plan >= 1.0.0, < 2.0.0`; and
+- `libpkgplan >= 0.3.0, < 1.0.0`.
 
-`libpkgsource-plan >= 1.0.0` and OpenSSL `libcrypto` are private
-implementation requirements. They remain direct shared-library dependencies
-where used and enter consumer flags only for static linkage.
+Build/image agreement and source-to-planner projection are upstream statements
+retained through `libpkgbuild-plan`; they are not reconstructed by
+`libpkgapply`. OpenSSL `libcrypto` is the only private pkg-config requirement.
+Transitive authority libraries remain legitimate implementation ELF needs where
+opaque accessors are used and enter consumer flags only for static linkage.
 
 Fallback subprojects are intentionally unsupported. Shared and static closures
 must be built separately.
