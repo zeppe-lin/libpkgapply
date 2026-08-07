@@ -300,3 +300,7 @@ filesystems, foreign architectures, or allocator fault injection.
 A missing environment is not permission to omit the semantic failure test.
 The scripted backend remains responsible for deterministic qualification of
 the contract.
+
+Public-header documentation parsing receives the include roots of the exact
+public dependencies resolved by Meson. It must not become green merely because
+compatible zoo headers are installed in an ambient compiler search path.

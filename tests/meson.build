@@ -409,13 +409,20 @@ if get_option('tests').allowed()
     ],
   )
 
-
+  libpkgbuild_plan_public_include = libpkgbuild_plan_dep.get_variable(
+    pkgconfig: 'includedir',
+  )
+  libpkgplan_public_include = libpkgplan_dep.get_variable(
+    pkgconfig: 'includedir',
+  )
   test(
     'verify documentation source contracts',
     sh,
     args: [
       join_paths(meson.current_source_dir(), 'documentation_source_test.sh'),
       meson.project_source_root(),
+      libpkgbuild_plan_public_include,
+      libpkgplan_public_include,
     ],
   )
 

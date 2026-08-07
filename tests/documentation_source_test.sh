@@ -2,6 +2,26 @@
 set -eu
 root=$1
 fail(){ echo "documentation-source-test: $*" >&2; exit 1; }
+build_plan_include=${2:-}
+plan_include=${3:-}
+
+resolve_include()
+{
+  package=$1
+  value=$2
+  if [ -n "$value" ]; then
+    printf '%s\n' "$value"
+    return
+  fi
+  command -v pkg-config >/dev/null 2>&1 ||
+    fail "$package include root is unavailable"
+  pkg-config --exists "$package" ||
+    fail "$package include root is unavailable"
+  pkg-config --variable=includedir "$package"
+}
+
+build_plan_include=$(resolve_include libpkgbuild-plan "$build_plan_include")
+plan_include=$(resolve_include libpkgplan "$plan_include")
 for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.scdoc man/pkgapply.7.scdoc docs/architecture.md docs/integration.md docs/abi.md docs/testing.md docs/history/3.0-posix-extraction.md; do [ -s "$root/$f" ] || fail "missing $f"; done
 [ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
 grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
@@ -11,6 +31,8 @@ python3 "$root/tools/check-public-documentation.py" \
 if command -v clang++ >/dev/null 2>&1; then
   python3 "$root/tools/check-doxygen-contract.py" \
     --root "$root" --include-subdir libpkgapply \
+    --include-root "$build_plan_include" \
+    --include-root "$plan_include" \
     --namespace pkgapply --clang "$(command -v clang++)"
 fi
 
