@@ -211,10 +211,10 @@ enum class object_fact_provenance : std::uint8_t {
   rejected_capture = 5, /*!< Material retained in the rejected-object store. */
 };
 
-/*! \brief Whether every object field required by its kind was established. */
+/*! \brief Whether every object fact required for publication was established. */
 enum class object_fact_completeness : std::uint8_t {
-  complete = 1, /*!< Every required fact is known. */
-  partial = 2, /*!< At least one applicable fact remains unknown. */
+  complete = 1, /*!< Every publication-required object fact is established. */
+  partial = 2, /*!< At least one publication-required object fact is unknown. */
 };
 
 /*! \brief Completed object evidence independent of installed-state authority. */
@@ -233,7 +233,7 @@ public:
    *  \param device Qualified special-device number.
    *  \param hardlink Qualified hard-link relation.
    *  \param provenance Authority that established the fact.
-   *  \param completeness Whether every required field is known.
+   *  \param completeness Whether every publication-required fact is established.
    *  \throws std::invalid_argument If field applicability contradicts `kind`
    *          or known nanoseconds are outside the normalized range.
    */
@@ -318,8 +318,8 @@ public:
    */
   [[nodiscard]] object_fact_provenance provenance() const noexcept;
   /*!
-   * \brief Return whether all required fields were established.
-  *  \return Whether all required fields were established.
+   * \brief Return whether all publication-required facts were established.
+   * \return Whether all publication-required facts were established.
    */
   [[nodiscard]] object_fact_completeness completeness() const noexcept;
 

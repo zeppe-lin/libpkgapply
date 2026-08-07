@@ -39,6 +39,30 @@ int main()
   require(regular.hardlink().state() == pkgapply::fact_state::unknown,
           "unknown hard-link relation was promoted");
 
+  const pkgapply::completed_object_fact complete_regular(
+      path,
+      pkgapply::completed_object_kind::regular,
+      pkgapply::qualified_fact<std::uint32_t>::known(0755),
+      pkgapply::qualified_fact<std::uint64_t>::known(0),
+      pkgapply::qualified_fact<std::uint64_t>::known(0),
+      pkgapply::qualified_fact<std::uint64_t>::known(4),
+      pkgapply::qualified_fact<pkgapply::completed_object_timestamp>::known(
+          {10, 0}),
+      pkgapply::qualified_fact<
+          pkgapply::completed_regular_content_identity>::known(content),
+      pkgapply::qualified_fact<std::string>::not_applicable(),
+      pkgapply::qualified_fact<
+          pkgapply::completed_device_number>::not_applicable(),
+      pkgapply::qualified_fact<
+          pkgapply::completed_hardlink_relation>::unknown(),
+      pkgapply::object_fact_provenance::application_observation,
+      pkgapply::object_fact_completeness::complete);
+  require(complete_regular.hardlink().state() == pkgapply::fact_state::unknown,
+          "complete regular fact invented a hard-link peer");
+  require(complete_regular.completeness() ==
+              pkgapply::object_fact_completeness::complete,
+          "unknown regular hard-link relation forced partial completeness");
+
   bool rejected = false;
   try {
     static_cast<void>(pkgapply::completed_object_fact(

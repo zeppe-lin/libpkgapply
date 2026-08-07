@@ -338,6 +338,12 @@ unknown
 not applicable
 ```
 
+For regular objects, the hard-link relation is an optional topology qualifier.
+`unknown` means that no peer anchor relation is asserted; it does not by itself
+make an otherwise publication-complete regular object partial. Completeness is
+therefore about the facts required to publish that object, not about forcing
+every applicable qualifier to `known(value)`.
+
 Unknown is never silently promoted to known. Inode numbers and temporary
 pathnames may support backend observation but do not enter canonical
 application evidence.
