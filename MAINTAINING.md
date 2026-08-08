@@ -6,10 +6,10 @@ Before tagging:
    remains in the core repository;
 2. build the exact published dependency chain in GCC and Clang shared/static,
    release, and ASan/UBSan configurations;
-3. run all model, engine, restart, recovery, codec, public-header, and installed-
-   consumer tests;
-4. inspect pkg-config and `DT_NEEDED` against the four semantic owners and
-   private `libcrypto`;
+3. run all unit, integration, protocol, header, contract, and installed-
+   consumer qualification;
+4. inspect pkg-config against the public semantic owners and `DT_NEEDED` against
+   the reviewed implementation dependency closure plus private `libcrypto`;
 5. complete the core export-annotation and exact ABI-manifest gate documented in
    `docs/abi.md`;
 6. lint manuals and strict Doxygen, and stage-install all documentation;

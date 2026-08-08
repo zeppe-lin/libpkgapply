@@ -18,6 +18,23 @@ Every behavioral addition requires:
 
 No test class may be disabled merely to obtain a release build.
 
+Qualification roles
+-------------------
+
+Meson suites are evidence roles, not synonyms for source directories:
+
+* `unit` contains local semantic/value invariants;
+* `integration` contains real public-boundary composition and the final scripted
+  application vertical;
+* `protocol` contains durable codecs and corruption/refusal cases;
+* `header` compiles each installed header independently; and
+* `contract` checks source architecture, release metadata, public documentation,
+  ABI, repository shape, and test layout.
+
+The final application vertical intentionally remains composed. Focused tests
+must pin every owner boundary needed to diagnose it; the vertical proves only
+that those boundaries still compose in one application lifecycle.
+
 Model tests
 -----------
 
@@ -56,6 +73,9 @@ The internal non-virtual engine gate must prove:
 
 * static authority failure opens no backend transaction;
 * transaction binding failure performs no target observation;
+* the provider is revalidated before its transaction is accepted;
+* transaction backend, observation-backend, and capability evidence equal the
+  immutable request target context rather than fresh provider callbacks;
 * one backend transaction supplies one durable attempt nonce;
 * the caller-held lease is revalidated after transaction creation;
 * fresh path facts are observed exactly once;
@@ -190,6 +210,11 @@ unsupported objects, metadata, and unknown facts.
 
 Journal and recovery tests
 --------------------------
+
+Durable protocol qualification separately round-trips completed installation,
+upgrade, and removal evidence and attacks corruption, truncation, trailing bytes,
+and foreign request authority. Application-receipt codec tests do not count as a
+substitute for this direct subordinate-record qualification.
 
 Journal tests cover:
 

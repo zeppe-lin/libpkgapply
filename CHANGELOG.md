@@ -20,6 +20,8 @@ Authority correction
   observation, or capability authority with later callback values.
 - Revalidated the selected backend before accepting its transaction and derive
   attempt/journal backend identities from request-bound target authority.
+- Split qualification into unit, integration, protocol, header, and contract
+  roles and added direct completed-evidence codec and backend-drift regressions.
 
 Repository boundary
 
