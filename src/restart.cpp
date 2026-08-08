@@ -24,7 +24,6 @@ template<class Request>
 void
 validate_journal_bindings(const Request& request,
                           pkgplan::operation_kind kind,
-                          const application_backend& backend,
                           const application_journal_record& journal)
 {
   const auto assessment = assess_application_restart(journal);
@@ -48,7 +47,7 @@ validate_journal_bindings(const Request& request,
   if (header.control() != request.control().identity())
     refuse(application_restart_error_code::journal_control_mismatch,
            "application journal belongs to another execution control");
-  if (header.backend() != backend.identity())
+  if (header.backend() != request.target().mutation_backend())
     refuse(application_restart_error_code::journal_backend_mismatch,
            "application journal belongs to another backend");
 }
@@ -568,7 +567,7 @@ validate_application_restart(
 {
   validate_application_admission(request, state, lease, backend, archive);
   validate_journal_bindings(
-      request, pkgplan::operation_kind::install, backend, journal);
+      request, pkgplan::operation_kind::install, journal);
 }
 
 void
@@ -582,7 +581,7 @@ validate_application_restart(
 {
   validate_application_admission(request, state, lease, backend, archive);
   validate_journal_bindings(
-      request, pkgplan::operation_kind::upgrade, backend, journal);
+      request, pkgplan::operation_kind::upgrade, journal);
 }
 
 void
@@ -595,7 +594,7 @@ validate_application_restart(
 {
   validate_application_admission(request, state, lease, backend);
   validate_journal_bindings(
-      request, pkgplan::operation_kind::remove, backend, journal);
+      request, pkgplan::operation_kind::remove, journal);
 }
 
 application_receipt

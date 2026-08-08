@@ -234,14 +234,20 @@ validate_backend_transaction(
     const application_backend& backend,
     const application_backend_transaction& transaction)
 {
-  if (transaction.backend() != backend.identity())
+  // The immutable target context is the admitted backend authority.  Recheck
+  // the selected provider before accepting a transaction, then bind the
+  // transaction directly to that target authority rather than to a second
+  // snapshot of provider-reported values.
+  validate_backend(target, backend);
+
+  if (transaction.backend() != target.mutation_backend())
     refuse(application_admission_error_code::transaction_backend_mismatch,
            "backend transaction reports another mutation backend");
-  if (transaction.observation_backend() != backend.observation_identity())
+  if (transaction.observation_backend() != target.observation_backend())
     refuse(
         application_admission_error_code::transaction_observation_backend_mismatch,
         "backend transaction reports another observation backend");
-  if (transaction.capabilities() != backend.capabilities())
+  if (transaction.capabilities() != target.capabilities())
     refuse(application_admission_error_code::transaction_capability_mismatch,
            "backend transaction reports another capability profile");
   if (transaction.target() != target.identity())

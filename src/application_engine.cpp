@@ -81,7 +81,7 @@ finish_restart(const Request& request,
   application_attempt attempt = application_attempt::make(
       request.identity(),
       request.target().identity(),
-      backend.identity(),
+      request.target().mutation_backend(),
       transaction->attempt_nonce());
   if (attempt.identity() != journal.header().attempt().identity()) {
     throw std::logic_error(
@@ -123,7 +123,7 @@ finish_admission(const Request& request,
   application_attempt attempt = application_attempt::make(
       request.identity(),
       request.target().identity(),
-      backend.identity(),
+      request.target().mutation_backend(),
       transaction->attempt_nonce());
 
   application_precondition_check preconditions =
@@ -505,7 +505,7 @@ journal_header(const Request& request,
   return application_journal_header::make(
       request.plan().kind(), request.identity(), request.plan().identity(),
       admitted.attempt(), request.target().identity(), request.control().identity(),
-      state.identity(), lease.identity(), admitted.transaction().backend());
+      state.identity(), lease.identity(), request.target().mutation_backend());
 }
 
 template<class Request>

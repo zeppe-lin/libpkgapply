@@ -18,3 +18,15 @@ Forbidden core dependencies include `libpkgstate`, `libpkgstate-*`, POSIX
 headers, filesystem APIs, lock-file conventions, and backend storage layouts.
 `libpkgapply-posix` is the reference mechanism provider and depends inward on
 the core; the core does not depend outward on it.
+
+Backend authority
+-----------------
+
+The immutable `application_target_context` is the admitted backend authority for
+one application request.  A provider is revalidated when its transaction is
+accepted, and transaction mutation identity, observation identity, and
+capability evidence must equal the identities and capability profile already
+sealed into that target context.  Restart journal backend identity is compared
+to the same request-bound target authority, never to a fresh provider callback.
+A provider therefore cannot change the meaning of an admitted request by
+reporting a different identity or capability profile later in the call.

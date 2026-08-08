@@ -15,6 +15,11 @@ Authority correction
   to their first actual generation.
 - Exposed only `libpkgbuild-plan` and `libpkgplan` through installed pkg-config
   metadata; retained OpenSSL as the private cryptographic requirement.
+- Rebound fresh backend-transaction and restart-journal evidence to the immutable
+  request target context; a provider cannot replace admitted mutation,
+  observation, or capability authority with later callback values.
+- Revalidated the selected backend before accepting its transaction and derive
+  attempt/journal backend identities from request-bound target authority.
 
 Repository boundary
 
