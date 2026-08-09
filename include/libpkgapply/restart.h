@@ -505,7 +505,12 @@ void validate_application_restart(
  *  \param backend Backend owning the durable attempt.
  *  \param journal Durable journal snapshot to resume.
  *  \param archive Exact incoming archive retained by the caller.
- *  \return Truthful terminal application receipt.
+ *  \return Truthful terminal application receipt bound to @p state.
+ *
+ *  The durable journal header retains the projection admitted by the original
+ *  process. A restart occurs under a newly acquired lease and therefore a new
+ *  current projection; terminal receipt and completed evidence bind to that
+ *  current projection after restart validation succeeds.
  */
 [[nodiscard]] application_receipt
 resume_application(
@@ -523,7 +528,11 @@ resume_application(
  *  \param backend Backend owning the durable attempt.
  *  \param journal Durable journal snapshot to resume.
  *  \param archive Exact incoming archive retained by the caller.
- *  \return Truthful terminal application receipt.
+ *  \return Truthful terminal application receipt bound to @p state.
+ *
+ *  The original journal-header projection remains historical admission
+ *  evidence; successful continuation binds terminal evidence to the current
+ *  lease-bound projection supplied for this restart.
  */
 [[nodiscard]] application_receipt
 resume_application(
@@ -540,7 +549,11 @@ resume_application(
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Backend owning the durable attempt.
  *  \param journal Durable journal snapshot to resume.
- *  \return Truthful terminal application receipt.
+ *  \return Truthful terminal application receipt bound to @p state.
+ *
+ *  The original journal-header projection remains historical admission
+ *  evidence; successful continuation binds terminal evidence to the current
+ *  lease-bound projection supplied for this restart.
  */
 [[nodiscard]] application_receipt
 resume_application(

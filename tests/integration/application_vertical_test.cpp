@@ -2307,6 +2307,9 @@ main()
       pkgapply::application_path_observation::present(
           observed_incoming(install_archive.image().entries().front())),
   });
+  require(restart_state.identity() !=
+              effects_visible_restart.header().state_projection(),
+          "restart fixture did not establish a new lease-bound projection");
   backend_state->clear_events();
   {
     const auto receipt = pkgapply::resume_application(
@@ -2317,6 +2320,9 @@ main()
                 pkgapply::application_attempt_outcome::completed &&
                 !effects_visible_restart.completed_evidence().has_value() &&
                 receipt.completed_evidence().has_value() &&
+                receipt.state_projection() == restart_state.identity() &&
+                receipt.completed_evidence()->state_projection() ==
+                    restart_state.identity() &&
                 durable.has_value() &&
                 durable->completed_evidence() ==
                     receipt.completed_evidence()->identity() &&

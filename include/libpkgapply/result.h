@@ -165,8 +165,10 @@ private:
  *
  *  Completed evidence binds every path consequence and required durability
  *  fact to one immutable request, physical attempt, admitted state projection,
- *  and durable journal. It is evidence for a state-publication adapter; it does
- *  not publish installed state itself.
+ *  and durable journal. After restart, this is the current projection validated
+ *  under the newly acquired lease; the journal header continues to retain the
+ *  original process's admission projection. It is evidence for a
+ *  state-publication adapter; it does not publish installed state itself.
  */
 class completed_application_evidence final {
 public:
