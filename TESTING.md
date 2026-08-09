@@ -251,7 +251,10 @@ Restart admission and replay tests separately prove:
 * private staging and synchronization retries remain within the same attempt;
 * final observation may be repeated and must still match the accepted plan;
 * completed evidence and receipt sealing resume without inventing another
-  attempt or duplicate seal intent; and
+  attempt or duplicate seal intent;
+* a crash after completed-evidence durability but before receipt sealing
+  validates the historical record, republishes current-projection evidence,
+  reconfirms its durability, and does not replay active target effects; and
 * receipt-bearing journals are terminal even when their physical state remains
   visible or indeterminate.
 

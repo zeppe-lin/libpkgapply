@@ -100,6 +100,13 @@ six-domain durability synchronization, journal publication, restart
 checkpoint retrieval, and completed-evidence publication. The core invokes
 those operations in semantic order; a backend does not choose policy.
 
+Completed-evidence publication is immutable and idempotent. If restart reopens
+a crash after the historical completed-evidence record became durable but
+before receipt sealing, the core validates that record, publishes equivalent
+evidence bound to the newly acquired lease projection, and reconfirms the
+completed-evidence durability domain before sealing. This does not replay an
+active or rejected application effect.
+
 # RESULTS
 
 *application_receipt* records operation kind, request, plan, attempt, target,

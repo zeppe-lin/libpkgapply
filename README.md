@@ -30,7 +30,7 @@ Those mechanisms are supplied by an independent backend product.
 
 ## Repository boundary
 
-`libpkgapply-posix` 3.0.0 owns the extracted descriptor-anchored POSIX
+`libpkgapply-posix` owns the extracted descriptor-anchored POSIX
 implementation formerly shipped in this repository. It implements target
 observation, target mutation leases, private payload and capture stores,
 rejected-object publication, journal and checkpoint storage, completed-evidence

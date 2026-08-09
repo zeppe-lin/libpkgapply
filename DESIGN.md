@@ -163,8 +163,9 @@ execution-capability-profile identity
 optional lifecycle-executor identity
 ```
 
-The lifecycle-executor identity is explicitly absent in schema version 1.
-Version 0.1.0 executes no package lifecycle declaration.
+The optional lifecycle-executor identity is target-context authority for
+orchestration that coordinates lifecycle work around application. It does not
+grant `libpkgapply` authority to execute lifecycle declarations itself.
 
 The context contains no installed-snapshot identity and no root pathname.
 Concrete handles and locators belong to the call-scoped backend resources.
@@ -509,25 +510,24 @@ It executes from the accepted removal plan and current target authorities.
 Conditional directory cleanup is non-recursive: a non-empty directory remains
 and is reported as the completed conditional outcome.
 
-Lifecycle exclusion in version 0.1
-----------------------------------
+Lifecycle authority remains outside application
+-----------------------------------------------
 
-The released plan schema does not bind exact lifecycle declaration material,
-phase selection, executor identity, execution policy, target execution
-context, or ordering relative to application and state publication.
+`libpkgplan` may retain exact lifecycle declarations for downstream
+orchestration, and the target context may retain the identity of the selected
+lifecycle executor. Neither fact turns lifecycle execution into an application
+effect. `libpkgapply` applies the accepted filesystem operation plan only.
 
-Version 0.1.0 therefore executes no lifecycle declaration. Supplying arbitrary
-executable material beside an accepted plan would create a second controller
-input not authorized by planning.
-
-A later lifecycle surface requires an accepted plan or transaction plan that
-binds the declaration, exact material, selected phase, executor, target
-context, execution policy, and ordering.
+Lifecycle phase selection, execution ordering, restart policy, and invocation
+belong to the transaction/controller layer that composes application with the
+selected lifecycle executor. Supplying executable material directly to
+`libpkgapply` would create a second unplanned controller input and is therefore
+outside this boundary.
 
 Journal and crash recovery
 --------------------------
 
-A durable write-ahead journal is part of version 0.1.0.
+A durable write-ahead journal is part of the application contract.
 
 Before each destructive effect:
 
@@ -558,8 +558,17 @@ semantics. Unstarted forward effects may continue in frozen schedule order.
 Final observation may be repeated because it is read-only. Private incoming
 staging, old-object capture, and durability synchronization may be retried
 under the same attempt because they do not repeat a managed-target actuator
-command and remain backend-idempotent by attempt identity. Terminal journals
-are never silently reopened as new attempts.
+command and remain backend-idempotent by attempt identity.
+
+A crash can occur after completed evidence is durably published but before the
+terminal receipt is sealed. That retained evidence remains historical proof of
+the original process and is validated unchanged. Restart under a newly acquired
+outer lease then republishes equivalent completed application truth bound to
+the current lease-bound state projection and reconfirms completed-evidence
+durability before sealing the receipt. This projection refresh is immutable and
+idempotent evidence publication; it does not repeat an active or rejected
+application effect and does not rewrite the historical journal header.
+Terminal journals are never silently reopened as new attempts.
 
 The core owns the versioned journal wire format because journal field order,
 enum tags, digest domains, and identity verification are semantic protocol.
@@ -689,8 +698,9 @@ Hard invariants
     and current filesystem observation remain distinct.
 18. Removal requires no current candidate, source, provider, artifact, image,
     inspection receipt, or archive.
-19. Lifecycle declarations are not executed unless a future schema and executor
-    contract bind them explicitly.
+19. Lifecycle declarations are not application effects; orchestration owns
+    their executor, phase ordering, and restart policy even when declarations
+    and executor identity are already bound upstream.
 20. `libpkgapply` does not publish installed state.
 21. `libpkgstate`, `libpkgapply-posix`, and host mechanism APIs are absent from
     the core dependency graph.

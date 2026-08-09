@@ -42,6 +42,20 @@ for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.
 [ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
 grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
 grep -F 'Do not tag 3.0' "$root/MAINTAINING.md" >/dev/null || fail 'ABI release gate absent'
+
+if grep -F 'The lifecycle-executor identity is explicitly absent in schema version 1.' \
+    "$root/DESIGN.md" >/dev/null; then
+  fail 'stale lifecycle-executor schema claim remains'
+fi
+if grep -F 'Lifecycle exclusion in version 0.1' "$root/DESIGN.md" >/dev/null; then
+  fail 'obsolete lifecycle-exclusion section remains'
+fi
+grep -F 'Restart under a newly acquired' "$root/DESIGN.md" >/dev/null ||
+  fail 'restart completed-evidence projection refresh is undocumented'
+grep -F 'Completed-evidence publication is immutable and idempotent.' \
+    "$root/man/libpkgapply.3.scdoc" >/dev/null ||
+  fail 'public manual omits completed-evidence restart refresh'
+
 python3 "$root/tools/check-public-documentation.py" \
   "$root" libpkgapply libpkgapply.h
 if command -v clang++ >/dev/null 2>&1; then

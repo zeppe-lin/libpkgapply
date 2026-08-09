@@ -22,6 +22,10 @@ Authority correction
   attempt/journal backend identities from request-bound target authority.
 - Split qualification into unit, integration, protocol, header, and contract
   roles and added direct completed-evidence codec and backend-drift regressions.
+- Rebind already-durable completed evidence to the current lease-bound state
+  projection when restart occurs after evidence publication but before terminal
+  receipt sealing; republish and reconfirm only immutable evidence without
+  replaying target effects.
 
 Repository boundary
 
