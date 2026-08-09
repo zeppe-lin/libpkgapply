@@ -572,6 +572,15 @@ public:
       const backend_rejected_effect_request& request) = 0;
 
   /*! \brief Publish completed evidence before terminal receipt sealing.
+   *
+   *  Publication is immutable and idempotent by evidence identity. Restart may
+   *  invoke this operation again after an older completed-evidence record is
+   *  already durable when the current outer lease requires the same completed
+   *  application truth to be rebound to a new lease-bound state projection.
+   *  Providers validate request, attempt, target, and journal authority, but
+   *  must not force the evidence projection to equal the historical journal
+   *  header projection.
+   *
    *  \param evidence Exact semantic evidence to publish unchanged.
    *  \return Publication result and record identity when completed.
    */

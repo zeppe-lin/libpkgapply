@@ -2349,6 +2349,133 @@ main()
   }
   backend_state->clear_events();
 
+  // A crash after completed evidence is durable but before receipt sealing
+  // retains historical evidence bound to the original lease projection. A
+  // later restart must validate that evidence, republish an equivalent proof
+  // bound to the newly acquired projection, and reconfirm its durability
+  // before the terminal receipt can become state-publication authority.
+  backend_state->set_observations(
+      matching_observations(install_request.plan().preconditions()));
+  const auto completed_before_seal_restart = [&] {
+    auto admission = pkgapply::detail::admit_application_engine(
+        install_request, install_state, lease, backend, install_archive);
+    auto journaled = pkgapply::detail::journal_application_engine(
+        std::move(*admission.admitted()), install_request, install_state,
+        lease, install_archive.image());
+    auto preparation = pkgapply::detail::prepare_application_engine(
+        std::move(journaled), install_request, install_state, lease,
+        install_archive);
+    auto publication = pkgapply::detail::publish_rejected_application_engine(
+        std::move(*preparation.prepared()), install_request, install_state,
+        lease);
+    auto active = pkgapply::detail::execute_active_application_engine(
+        std::move(*publication.published()), install_request, install_state,
+        lease);
+    require(active.is_complete(),
+            "completed-evidence restart fixture did not reach active visibility");
+
+    backend_state->set_observations({
+        pkgapply::application_path_observation::present(
+            observed_incoming(install_archive.image().entries().front())),
+    });
+    auto completion = pkgapply::detail::complete_application_engine(
+        std::move(*active.complete()), install_request, install_state, lease,
+        install_archive.image());
+    require(completion.has_receipt() && completion.receipt() != nullptr &&
+                completion.receipt()->completed_evidence().has_value() &&
+                backend_state->published_completed_evidence().has_value() &&
+                backend_state->published_journal().has_value(),
+            "completed-evidence restart fixture did not publish terminal proof");
+
+    const auto& sealed = *backend_state->published_journal();
+    const auto seal = std::find_if(
+        sealed.effects().begin(), sealed.effects().end(),
+        [](const auto& effect) {
+          return effect.kind() ==
+              pkgapply::application_journal_effect_kind::seal_receipt;
+        });
+    require(seal != sealed.effects().end(),
+            "completed-evidence restart fixture lacks receipt seal effect");
+    std::vector<pkgapply::application_journal_event> events;
+    events.reserve(sealed.events().size());
+    for (const auto& event : sealed.events()) {
+      if (event.effect() != seal->identity())
+        events.push_back(event);
+    }
+    return pkgapply::application_journal_record::make(
+        sealed.header(), pkgapply::application_journal_state::result_observed,
+        sealed.effects(), std::move(events));
+  }();
+  const auto historical_completed_evidence =
+      *backend_state->published_completed_evidence();
+  require(
+      !completed_before_seal_restart.receipt().has_value() &&
+          !completed_before_seal_restart.completed_evidence().has_value() &&
+          historical_completed_evidence.state_projection() ==
+              install_state.identity(),
+      "completed-evidence restart fixture did not preserve the crash window");
+
+  fake_lease evidence_restart_lease(
+      application_identity<pkgapply::mutation_lease_instance_identity>(22),
+      context.identity(), context.mutation_exclusion_domain());
+  const auto evidence_restart_state = state(
+      evidence_restart_lease, install_request.plan().preconditions());
+  require(evidence_restart_state.identity() !=
+              historical_completed_evidence.state_projection(),
+          "completed-evidence restart fixture reused the old projection");
+  backend_state->set_observations({
+      pkgapply::application_path_observation::present(
+          observed_incoming(install_archive.image().entries().front())),
+  });
+  backend_state->clear_events();
+  {
+    const auto receipt = pkgapply::resume_application(
+        install_request, evidence_restart_state, evidence_restart_lease,
+        backend, completed_before_seal_restart, install_archive);
+    const auto& rebound = backend_state->published_completed_evidence();
+    const auto& durable = backend_state->published_journal();
+    require(receipt.outcome() ==
+                pkgapply::application_attempt_outcome::completed &&
+                receipt.completed_evidence().has_value() &&
+                receipt.state_projection() == evidence_restart_state.identity() &&
+                receipt.completed_evidence()->state_projection() ==
+                    evidence_restart_state.identity() &&
+                receipt.completed_evidence()->identity() !=
+                    historical_completed_evidence.identity() &&
+                rebound.has_value() &&
+                rebound->identity() == receipt.completed_evidence()->identity() &&
+                durable.has_value() &&
+                durable->completed_evidence() ==
+                    receipt.completed_evidence()->identity() &&
+                count_boundary(backend_state->events(),
+                               boundary::publish_completed_evidence) == 1 &&
+                count_boundary(backend_state->events(), boundary::execute_active) ==
+                    0 &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::
+                        publish_completed_evidence,
+                    pkgapply::application_journal_event_kind::completed) == 1 &&
+                count_journal_events(
+                    *durable,
+                    pkgapply::application_journal_effect_kind::
+                        synchronize_completed_evidence,
+                    pkgapply::application_journal_event_kind::completed) == 1,
+            "restart retained historical completed evidence across a new lease");
+    require(
+        static_cast<std::size_t>(std::count_if(
+            backend_state->events().begin(), backend_state->events().end(),
+            [](const auto& event) {
+              return event.boundary == boundary::synchronize &&
+                  event.durability_domain.has_value() &&
+                  *event.durability_domain ==
+                      pkgapply::application_durability_domain::
+                          completed_evidence;
+            })) == 1,
+        "restart did not reconfirm rebound completed-evidence durability");
+  }
+  backend_state->clear_events();
+
   // An unresolved active intent is never repeated. Restart treats it as
   // physically indeterminate and enters recovery using the original attempt.
   backend_state->set_observations(

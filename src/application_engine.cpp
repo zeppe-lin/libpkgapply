@@ -5678,6 +5678,7 @@ resume_completion(
           active.durability(), application_durability_status::confirmed);
   completed_application_evidence completed = make_completed_evidence(
       request, active, state, paths, completed_durability, evidence);
+  bool refresh_completed_evidence = false;
   if (checkpoint.completed_evidence()) {
     const auto& retained = *checkpoint.completed_evidence();
     if (retained.kind() != request.plan().kind() ||
@@ -5717,7 +5718,10 @@ resume_completion(
     if (expected.identity() != retained.identity())
       throw std::logic_error(
           "restart checkpoint completed evidence contradicts observations");
-    completed = retained;
+    if (retained.state_projection() == state.identity())
+      completed = retained;
+    else
+      refresh_completed_evidence = true;
   }
 
   const auto publish = find_effect(
@@ -5729,22 +5733,27 @@ resume_completion(
   if (publish_state.terminal) {
     if (*publish_state.terminal != application_journal_event_kind::completed ||
         !checkpoint.completed_evidence() ||
-        checkpoint.completed_evidence()->identity() != completed.identity())
+        (!refresh_completed_evidence &&
+         checkpoint.completed_evidence()->identity() != completed.identity()))
     {
       throw std::logic_error(
           "restart completed-evidence checkpoint contradicts journal");
     }
   }
-  else {
-    restart_publish_intent(
-        journaled, application_journal_state::result_observed, publish);
+
+  if (!publish_state.terminal || refresh_completed_evidence) {
+    if (!publish_state.terminal)
+      restart_publish_intent(
+          journaled, application_journal_state::result_observed, publish);
     completed_evidence_publication_result publication =
         journaled.admitted().transaction().publish_completed_evidence(
             completed);
     append_unique_evidence(evidence, publication.evidence());
-    restart_publish_terminal(
-        journaled, application_journal_state::result_observed, publish,
-        terminal_event(publication.outcome()), publication.evidence());
+    if (!publish_state.terminal) {
+      restart_publish_terminal(
+          journaled, application_journal_state::result_observed, publish,
+          terminal_event(publication.outcome()), publication.evidence());
+    }
     if (publication.outcome() != backend_operation_outcome::completed) {
       const bool uncertain = publication.outcome() ==
           backend_operation_outcome::indeterminate;
@@ -5785,13 +5794,15 @@ resume_completion(
   const auto synchronize_progress = restart_progress(journaled.journal());
   const auto& synchronize_state = restart_progress_for(
       journaled.journal(), synchronize_progress, synchronize);
-  if (synchronize_state.terminal) {
+  if (synchronize_state.terminal && !refresh_completed_evidence) {
     completed_status = checkpoint.durability().status(
         application_durability_domain::completed_evidence);
   }
   else {
-    restart_publish_intent(
-        journaled, application_journal_state::result_observed, synchronize);
+    if (!synchronize_state.terminal) {
+      restart_publish_intent(
+          journaled, application_journal_state::result_observed, synchronize);
+    }
     const application_durability_fact fact =
         journaled.admitted().transaction().synchronize(
             application_durability_domain::completed_evidence);
@@ -5799,9 +5810,11 @@ resume_completion(
       throw std::logic_error(
           "restart synchronized another completed-evidence domain");
     completed_status = fact.status();
-    restart_publish_terminal(
-        journaled, application_journal_state::result_observed, synchronize,
-        terminal_event(completed_status));
+    if (!synchronize_state.terminal) {
+      restart_publish_terminal(
+          journaled, application_journal_state::result_observed, synchronize,
+          terminal_event(completed_status));
+    }
   }
 
   if (completed_status != application_durability_status::confirmed) {
