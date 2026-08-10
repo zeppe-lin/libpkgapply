@@ -45,8 +45,26 @@ done
 
 [ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
 [ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
-[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 594 ] ||
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 729 ] ||
   fail 'reviewed ELF ABI manifest count changed without review'
+for signature in \
+  '16canonical_domainEv' \
+  '5parseESt17basic_string_viewIcSt11char_traitsIcEE' \
+  '9algorithmEv' \
+  '6stringB5cxx11Ev' \
+  '5bytesEv'
+do
+  [ "$(grep -c "typed_digest.*${signature}$" "$root/abi/libpkgapply.exports")" -eq 27 ] ||
+    fail "public typed-digest ABI member is not exported for all domains: $signature"
+done
+[ "$(grep -c '^struct PKGAPPLY_API .*_identity_domain final {' "$root/include/libpkgapply/digest.h")" -eq 27 ] ||
+  fail 'public typed-digest domain visibility is incomplete'
+if grep -F '_ZN8pkgapply6detail16canonical_record' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'private canonical-record implementation leaked into public ABI'
+fi
+if grep -F '_ZN8pkgapply6detail24admit_application_engine' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'private application engine leaked into public ABI'
+fi
 [ -x "$root/tools/generate-elf-export-script.sh" ] || fail 'ELF export-script generator is absent'
 grep -F "soversion: '3'" "$root/src/meson.build" >/dev/null || fail 'core SONAME is not generation 3'
 grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fail 'public API is not generation 3'
@@ -55,4 +73,12 @@ grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || f
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
 grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/CHANGELOG.md" >/dev/null ||
   fail '3.0 ABI generation transition is undocumented'
-grep -F '594 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+grep -F '729 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+
+
+grep -F "'../src/canonical_record.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'canonical-record protocol test does not link its private implementation'
+grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'canonical-record protocol test does not link its private digest provider'
+grep -F "'../src/application_engine.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'application vertical does not link its private engine implementation'

@@ -18,5 +18,9 @@ grep -F -- '-Dhtml_docs=' "$root/.github/workflows/ci.yml" >/dev/null || fail 'H
 grep -F 'qualify-html-docs.sh' "$root/.github/workflows/ci.yml" >/dev/null || fail 'installed HTML qualification is absent'
 
 grep -F 'application_target_context::make' "$root/ci/installed-core-consumer.cpp" >/dev/null || fail 'installed consumer does not execute core semantics'
+for token in 'canonical_domain()' '.algorithm()' '.string()' '.bytes()'; do
+  grep -F "$token" "$root/ci/installed-core-consumer.cpp" >/dev/null ||
+    fail "installed consumer does not exercise public typed-digest ABI: $token"
+done
 grep -F 'projection_error dependency_probe' "$root/ci/installed-core-consumer.cpp" >/dev/null || fail 'installed consumer does not force public libpkgbuild-plan closure'
 if grep -F 'auto* volatile' "$root/ci/installed-core-consumer.cpp" >/dev/null; then fail 'installed consumer regressed to address-only linkage'; fi

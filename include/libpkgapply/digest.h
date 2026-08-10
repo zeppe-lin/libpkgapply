@@ -65,7 +65,7 @@ namespace detail {
 class identity_factory;
 
 /*! \brief Domain tag for the identity of managed target selected by orchestration. */
-struct managed_target_identity_domain final {
+struct PKGAPPLY_API managed_target_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -76,7 +76,7 @@ struct managed_target_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of root view through which a target is observed and mutated. */
-struct root_view_identity_domain final {
+struct PKGAPPLY_API root_view_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -87,7 +87,7 @@ struct root_view_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of observation backend implementation and schema. */
-struct observation_backend_identity_domain final {
+struct PKGAPPLY_API observation_backend_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -98,7 +98,7 @@ struct observation_backend_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of mutation backend implementation and schema. */
-struct mutation_backend_identity_domain final {
+struct PKGAPPLY_API mutation_backend_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -109,7 +109,7 @@ struct mutation_backend_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of mutation-exclusion domain. */
-struct mutation_exclusion_domain_identity_domain final {
+struct PKGAPPLY_API mutation_exclusion_domain_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -120,7 +120,7 @@ struct mutation_exclusion_domain_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of active target object namespace. */
-struct active_object_namespace_identity_domain final {
+struct PKGAPPLY_API active_object_namespace_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -131,7 +131,7 @@ struct active_object_namespace_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of rejected-object evidence store. */
-struct rejected_object_store_identity_domain final {
+struct PKGAPPLY_API rejected_object_store_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -142,7 +142,7 @@ struct rejected_object_store_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of incoming payload staging namespace. */
-struct staging_namespace_identity_domain final {
+struct PKGAPPLY_API staging_namespace_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -153,7 +153,7 @@ struct staging_namespace_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of application journal namespace. */
-struct journal_namespace_identity_domain final {
+struct PKGAPPLY_API journal_namespace_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -164,7 +164,7 @@ struct journal_namespace_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of backend execution capability profile. */
-struct execution_capability_profile_identity_domain final {
+struct PKGAPPLY_API execution_capability_profile_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -175,7 +175,7 @@ struct execution_capability_profile_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of lifecycle executor implementation and schema. */
-struct lifecycle_executor_identity_domain final {
+struct PKGAPPLY_API lifecycle_executor_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -186,7 +186,7 @@ struct lifecycle_executor_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one acquired mutation lease instance. */
-struct mutation_lease_instance_identity_domain final {
+struct PKGAPPLY_API mutation_lease_instance_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -197,7 +197,7 @@ struct mutation_lease_instance_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of evidence supporting one state projection. */
-struct state_projection_evidence_identity_domain final {
+struct PKGAPPLY_API state_projection_evidence_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -208,7 +208,7 @@ struct state_projection_evidence_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of state projection bound to one mutation lease. */
-struct lease_bound_state_projection_identity_domain final {
+struct PKGAPPLY_API lease_bound_state_projection_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -219,7 +219,7 @@ struct lease_bound_state_projection_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one physical application attempt. */
-struct application_attempt_identity_domain final {
+struct PKGAPPLY_API application_attempt_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -230,7 +230,7 @@ struct application_attempt_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one complete application target context. */
-struct application_target_context_identity_domain final {
+struct PKGAPPLY_API application_target_context_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -241,7 +241,7 @@ struct application_target_context_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one normalized execution-control policy. */
-struct application_execution_control_identity_domain final {
+struct PKGAPPLY_API application_execution_control_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -252,7 +252,7 @@ struct application_execution_control_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one admitted incoming package authority. */
-struct incoming_package_authority_identity_domain final {
+struct PKGAPPLY_API incoming_package_authority_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -263,7 +263,7 @@ struct incoming_package_authority_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one complete package application request. */
-struct application_request_identity_domain final {
+struct PKGAPPLY_API application_request_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -274,7 +274,7 @@ struct application_request_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one complete application journal. */
-struct application_journal_identity_domain final {
+struct PKGAPPLY_API application_journal_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -285,7 +285,7 @@ struct application_journal_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one durable application journal effect. */
-struct application_journal_effect_identity_domain final {
+struct PKGAPPLY_API application_journal_effect_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -296,7 +296,7 @@ struct application_journal_effect_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one immutable journal record. */
-struct application_journal_record_identity_domain final {
+struct PKGAPPLY_API application_journal_record_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -307,7 +307,7 @@ struct application_journal_record_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one completed application receipt. */
-struct application_receipt_identity_domain final {
+struct PKGAPPLY_API application_receipt_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -318,7 +318,7 @@ struct application_receipt_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one complete successful application evidence set. */
-struct completed_application_evidence_identity_domain final {
+struct PKGAPPLY_API completed_application_evidence_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -329,7 +329,7 @@ struct completed_application_evidence_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of decoded bytes of one completed regular object. */
-struct completed_regular_content_identity_domain final {
+struct PKGAPPLY_API completed_regular_content_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -340,7 +340,7 @@ struct completed_regular_content_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of one durably retained rejected object. */
-struct rejected_object_record_identity_domain final {
+struct PKGAPPLY_API rejected_object_record_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */
@@ -351,7 +351,7 @@ struct rejected_object_record_identity_domain final {
 };
 
 /*! \brief Domain tag for the identity of opaque evidence issued by an application backend. */
-struct application_backend_evidence_identity_domain final {
+struct PKGAPPLY_API application_backend_evidence_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
    *  \return Process-lifetime protocol string.
    */

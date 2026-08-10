@@ -49,6 +49,7 @@ if get_option('tests').allowed()
     ['application-vertical', [
       'integration/application_vertical_test.cpp',
       'support/scripted_backend.cpp',
+      '../src/application_engine.cpp',
     ]],
   ]
     target = executable(
@@ -61,8 +62,20 @@ if get_option('tests').allowed()
     test(case[0], target, suite: 'integration')
   endforeach
 
+  canonical_record_target = executable(
+    'canonical-record-test',
+    [
+      'protocol/canonical_record_test.cpp',
+      '../src/canonical_record.cpp',
+      '../src/sha256.cpp',
+    ],
+    include_directories: [test_inc, core_inc],
+    dependencies: [libpkgapply_dep, libcrypto_dep],
+    install: false,
+  )
+  test('canonical-record', canonical_record_target, suite: 'protocol')
+
   foreach case : [
-    ['canonical-record', 'protocol/canonical_record_test.cpp'],
     ['journal-codec', 'protocol/journal_codec_test.cpp'],
     ['application-receipt-codec', 'protocol/application_receipt_codec_test.cpp'],
     ['completed-evidence-codec', 'protocol/completed_evidence_codec_test.cpp'],

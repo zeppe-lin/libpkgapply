@@ -24,9 +24,16 @@ Identity identity(std::uint8_t byte)
 int main()
 {
   const auto target = identity<pkgplan::target_system_context_identity>(1);
+  const auto managed = identity<pkgapply::managed_target_identity>(2);
+  const bool identity_api =
+      pkgapply::managed_target_identity::canonical_domain() ==
+          "pkgapply/managed-target-reference/v1" &&
+      managed.algorithm() == pkgapply::digest_algorithm::sha256 &&
+      managed.string().size() == 74 && managed.bytes()[0] == 2;
+
   const auto context = pkgapply::application_target_context::make(
       target,
-      identity<pkgapply::managed_target_identity>(2),
+      managed,
       identity<pkgapply::root_view_identity>(3),
       identity<pkgapply::observation_backend_identity>(4),
       identity<pkgapply::mutation_backend_identity>(5),
@@ -41,7 +48,7 @@ int main()
       pkgbuild::plan_adapter::projection_error_code::planner_fact,
       "installed consumer dependency probe");
 
-  return context.target() == target &&
+  return identity_api && context.target() == target &&
                  dependency_probe.code() ==
                      pkgbuild::plan_adapter::projection_error_code::planner_fact &&
                  pkgapply::version() == "3.0.0" &&
