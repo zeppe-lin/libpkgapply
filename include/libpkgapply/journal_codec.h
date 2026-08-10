@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -35,7 +37,7 @@ enum class application_journal_codec_error_code : std::uint8_t {
 };
 
 /*! \brief Malformed, unsupported, or self-contradictory journal encoding. */
-class application_journal_codec_error final : public std::invalid_argument {
+class PKGAPPLY_API application_journal_codec_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a journal codec refusal.
    *  \param code Stable refusal category.
@@ -69,7 +71,7 @@ enum class application_journal_transition_error_code : std::uint8_t {
 };
 
 /*! \brief Non-monotonic replacement of a durable journal snapshot. */
-class application_journal_transition_error final : public std::invalid_argument {
+class PKGAPPLY_API application_journal_transition_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a journal-transition refusal.
    *  \param code Stable refusal category.
@@ -101,7 +103,7 @@ using application_journal_encoding = std::vector<std::uint8_t>;
  *  \throws application_journal_codec_error If the encoded record exceeds the
  *          protocol ceiling.
  */
-[[nodiscard]] application_journal_encoding
+[[nodiscard]] PKGAPPLY_API application_journal_encoding
 encode_application_journal(const application_journal_record& record);
 
 /*! \brief Decode and revalidate one complete journal byte stream.
@@ -111,7 +113,7 @@ encode_application_journal(const application_journal_record& record);
  *  \throws application_journal_codec_error For malformed, unsupported,
  *          oversized, trailing, or identity-inconsistent bytes.
  */
-[[nodiscard]] application_journal_record
+[[nodiscard]] PKGAPPLY_API application_journal_record
 decode_application_journal(const std::uint8_t* data, std::size_t size);
 
 /*! \brief Decode and revalidate one complete journal vector.
@@ -120,7 +122,7 @@ decode_application_journal(const std::uint8_t* data, std::size_t size);
  *  \throws application_journal_codec_error For malformed, unsupported,
  *          oversized, trailing, or identity-inconsistent bytes.
  */
-[[nodiscard]] application_journal_record
+[[nodiscard]] PKGAPPLY_API application_journal_record
 decode_application_journal(const application_journal_encoding& encoding);
 
 /*! \brief Require a snapshot to extend durable history monotonically.
@@ -130,7 +132,7 @@ decode_application_journal(const application_journal_encoding& encoding);
  *          event prefix, resolution, terminal evidence, or lifecycle state
  *          regresses or is rewritten.
  */
-void validate_application_journal_successor(
+PKGAPPLY_API void validate_application_journal_successor(
     const application_journal_record& previous,
     const application_journal_record& next);
 

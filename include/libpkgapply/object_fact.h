@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -80,7 +82,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const qualified_fact& lhs,
+  friend PKGAPPLY_API bool operator==(const qualified_fact& lhs,
                          const qualified_fact& rhs) noexcept
   {
     return lhs.state_ == rhs.state_ && lhs.value_ == rhs.value_;
@@ -92,7 +94,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const qualified_fact& lhs,
+  friend PKGAPPLY_API bool operator!=(const qualified_fact& lhs,
                          const qualified_fact& rhs) noexcept
   {
     return !(lhs == rhs);
@@ -122,7 +124,7 @@ enum class completed_object_kind : std::uint8_t {
 };
 
 /*! \brief Seconds and normalized nanoseconds established for one object. */
-struct completed_object_timestamp final {
+struct PKGAPPLY_API completed_object_timestamp final {
   std::int64_t seconds; /*!< Whole seconds in the backend's timestamp domain. */
   std::uint32_t nanoseconds; /*!< Nanoseconds in the range 0 through 999999999. */
 };
@@ -133,7 +135,7 @@ struct completed_object_timestamp final {
 *  \param rhs Right operand.
 *  \return Whether @p lhs and @p rhs are equal.
  */
-[[nodiscard]] bool operator==(const completed_object_timestamp& lhs,
+[[nodiscard]] PKGAPPLY_API bool operator==(const completed_object_timestamp& lhs,
                               const completed_object_timestamp& rhs) noexcept;
 /*!
  * \brief Compare completed timestamps for inequality.
@@ -141,11 +143,11 @@ struct completed_object_timestamp final {
 *  \param rhs Right operand.
 *  \return Whether @p lhs and @p rhs differ.
  */
-[[nodiscard]] bool operator!=(const completed_object_timestamp& lhs,
+[[nodiscard]] PKGAPPLY_API bool operator!=(const completed_object_timestamp& lhs,
                               const completed_object_timestamp& rhs) noexcept;
 
 /*! \brief Device identifiers established for one special object. */
-struct completed_device_number final {
+struct PKGAPPLY_API completed_device_number final {
   std::uint64_t major; /*!< Device major number. */
   std::uint64_t minor; /*!< Device minor number. */
 };
@@ -156,7 +158,7 @@ struct completed_device_number final {
 *  \param rhs Right operand.
 *  \return Whether @p lhs and @p rhs are equal.
  */
-[[nodiscard]] bool operator==(const completed_device_number& lhs,
+[[nodiscard]] PKGAPPLY_API bool operator==(const completed_device_number& lhs,
                               const completed_device_number& rhs) noexcept;
 /*!
  * \brief Compare completed device numbers for inequality.
@@ -164,11 +166,11 @@ struct completed_device_number final {
 *  \param rhs Right operand.
 *  \return Whether @p lhs and @p rhs differ.
  */
-[[nodiscard]] bool operator!=(const completed_device_number& lhs,
+[[nodiscard]] PKGAPPLY_API bool operator!=(const completed_device_number& lhs,
                               const completed_device_number& rhs) noexcept;
 
 /*! \brief Established relation from one regular path to a hard-link anchor. */
-class completed_hardlink_relation final {
+class PKGAPPLY_API completed_hardlink_relation final {
 public:
   /*! \brief Construct a hard-link relation.
    *  \param anchor Existing regular path anchoring the relation.
@@ -187,7 +189,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const completed_hardlink_relation& lhs,
+  friend PKGAPPLY_API bool operator==(const completed_hardlink_relation& lhs,
                          const completed_hardlink_relation& rhs) noexcept;
   /*!
    * \brief Compare hard-link relations for inequality.
@@ -195,7 +197,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const completed_hardlink_relation& lhs,
+  friend PKGAPPLY_API bool operator!=(const completed_hardlink_relation& lhs,
                          const completed_hardlink_relation& rhs) noexcept;
 
 private:
@@ -218,7 +220,7 @@ enum class object_fact_completeness : std::uint8_t {
 };
 
 /*! \brief Completed object evidence independent of installed-state authority. */
-class completed_object_fact final {
+class PKGAPPLY_API completed_object_fact final {
 public:
   /*! \brief Validate and construct one completed object fact.
    *  \param path Exact logical package path.
@@ -234,8 +236,9 @@ public:
    *  \param hardlink Qualified hard-link relation.
    *  \param provenance Authority that established the fact.
    *  \param completeness Whether every publication-required fact is established.
-   *  \throws std::invalid_argument If field applicability contradicts `kind`
-   *          or known nanoseconds are outside the normalized range.
+   *  \throws std::invalid_argument If an enum value is unknown, field
+   *          applicability contradicts `kind`, or known nanoseconds are
+   *          outside the normalized range.
    */
   completed_object_fact(
       pkgplan::package_path path,
@@ -329,7 +332,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const completed_object_fact& lhs,
+  friend PKGAPPLY_API bool operator==(const completed_object_fact& lhs,
                          const completed_object_fact& rhs) noexcept;
   /*!
    * \brief Compare complete object facts for inequality.
@@ -337,7 +340,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const completed_object_fact& lhs,
+  friend PKGAPPLY_API bool operator!=(const completed_object_fact& lhs,
                          const completed_object_fact& rhs) noexcept;
 
 private:

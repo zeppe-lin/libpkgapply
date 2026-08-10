@@ -3,6 +3,21 @@
 
 public_inc = include_directories('../include')
 
+elf_export_generator = find_program(
+  meson.project_source_root() / 'tools/generate-elf-export-script.sh',
+)
+elf_export_script_name = 'libpkgapply.exports.map'
+elf_export_script_path = meson.current_build_dir() / elf_export_script_name
+elf_export_script = configure_file(
+  input: '../abi/libpkgapply.exports',
+  output: elf_export_script_name,
+  command: [elf_export_generator, '@INPUT@'],
+  capture: true,
+)
+
+library_link_args = ['-Wl,--version-script=' + elf_export_script_path]
+library_link_depends = [elf_export_script]
+
 libpkgapply = library(
   'pkgapply',
   [
@@ -35,6 +50,10 @@ libpkgapply = library(
     'result.cpp',
     'schedule.cpp',
   ],
+  cpp_args: visibility_cpp_args + ['-DPKGAPPLY_BUILDING_LIBRARY'],
+  gnu_symbol_visibility: 'hidden',
+  link_args: library_link_args,
+  link_depends: library_link_depends,
   include_directories: public_inc,
   dependencies: [
     libcrypto_dep,
@@ -43,7 +62,7 @@ libpkgapply = library(
   ],
   install: true,
   version: meson.project_version(),
-  soversion: '2',
+  soversion: '3',
 )
 
 libpkgapply_consumer_deps = [
@@ -65,6 +84,7 @@ meson.override_dependency('libpkgapply', libpkgapply_dep)
 
 install_headers(
   '../include/libpkgapply/libpkgapply.h',
+  '../include/libpkgapply/export.h',
   '../include/libpkgapply/digest.h',
   '../include/libpkgapply/attempt.h',
   '../include/libpkgapply/apply.h',

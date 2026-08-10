@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -21,7 +23,7 @@ inline constexpr std::uint16_t application_attempt_schema_version = 1;
 inline constexpr std::size_t application_attempt_nonce_size = 32;
 
 /*! \brief Backend-issued durable nonce distinguishing physical attempts. */
-class application_attempt_nonce final {
+class PKGAPPLY_API application_attempt_nonce final {
 public:
   /*! \brief Fixed-size byte representation of an attempt nonce. */
   using byte_array =
@@ -43,7 +45,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when every nonce byte is equal.
    */
-  friend bool operator==(const application_attempt_nonce& lhs,
+  friend PKGAPPLY_API bool operator==(const application_attempt_nonce& lhs,
                          const application_attempt_nonce& rhs) noexcept;
 
   /*! \brief Compare attempt nonces for inequality.
@@ -51,7 +53,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when any nonce byte differs.
    */
-  friend bool operator!=(const application_attempt_nonce& lhs,
+  friend PKGAPPLY_API bool operator!=(const application_attempt_nonce& lhs,
                          const application_attempt_nonce& rhs) noexcept;
 
   /*! \brief Order attempt nonces lexicographically by bytes.
@@ -59,7 +61,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when `lhs` precedes `rhs`.
    */
-  friend bool operator<(const application_attempt_nonce& lhs,
+  friend PKGAPPLY_API bool operator<(const application_attempt_nonce& lhs,
                         const application_attempt_nonce& rhs) noexcept;
 
 private:
@@ -75,7 +77,7 @@ private:
  *  backend-issued nonce so journal and recovery evidence cannot be replayed
  *  across physical attempts.
  */
-class application_attempt final {
+class PKGAPPLY_API application_attempt final {
 public:
   /*! \brief Identify one physical application attempt.
    *  \param request Complete semantic application-request identity.

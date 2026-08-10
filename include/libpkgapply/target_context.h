@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 
@@ -24,7 +26,7 @@ inline constexpr std::uint16_t application_target_context_schema_version = 1;
  *  capability profile, and optional lifecycle executor selected by
  *  orchestration. It identifies authority; it does not acquire resources.
  */
-class application_target_context final {
+class PKGAPPLY_API application_target_context final {
 public:
   /*! \brief Validate, identify, and construct one target context.
    *  \param target Planner-owned managed target identity.
@@ -154,7 +156,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when every bound authority is equal.
    */
-  friend bool operator==(const application_target_context& lhs,
+  friend PKGAPPLY_API bool operator==(const application_target_context& lhs,
                          const application_target_context& rhs) noexcept;
 
   /*! \brief Compare complete target contexts for inequality.
@@ -162,7 +164,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when any bound authority differs.
    */
-  friend bool operator!=(const application_target_context& lhs,
+  friend PKGAPPLY_API bool operator!=(const application_target_context& lhs,
                          const application_target_context& rhs) noexcept;
 
 private:

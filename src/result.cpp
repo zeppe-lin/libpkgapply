@@ -30,11 +30,29 @@ std::uint8_t tag(pkgplan::operation_kind value)
 
 std::uint8_t tag(application_attempt_outcome value)
 {
-  return static_cast<std::uint8_t>(value);
+  switch (value) {
+    case application_attempt_outcome::precondition_refused: return 1;
+    case application_attempt_outcome::failed_before_target_mutation: return 2;
+    case application_attempt_outcome::completed: return 3;
+    case application_attempt_outcome::failed_fully_recovered: return 4;
+    case application_attempt_outcome::failed_with_partial_effects: return 5;
+    case application_attempt_outcome::effects_visible_durability_unconfirmed:
+      return 6;
+    case application_attempt_outcome::indeterminate: return 7;
+  }
+  throw std::invalid_argument("invalid application attempt outcome");
 }
 std::uint8_t tag(application_recovery_state value)
 {
-  return static_cast<std::uint8_t>(value);
+  switch (value) {
+    case application_recovery_state::unchanged: return 1;
+    case application_recovery_state::exact_prior_state_restored: return 2;
+    case application_recovery_state::recovery_assets_retained: return 3;
+    case application_recovery_state::known_residual_effects: return 4;
+    case application_recovery_state::recovery_not_representable: return 5;
+    case application_recovery_state::requires_authoritative_observation: return 6;
+  }
+  throw std::invalid_argument("invalid application recovery state");
 }
 std::uint8_t tag(application_durability_domain value)
 {
@@ -496,6 +514,9 @@ void validate_failed_outcome(application_attempt_outcome outcome,
                              const std::optional<application_journal_identity>& journal,
                              const application_durability_profile& durability)
 {
+  static_cast<void>(tag(outcome));
+  static_cast<void>(tag(recovery));
+
   if (outcome == application_attempt_outcome::completed)
     throw std::invalid_argument("failed receipt cannot report completed outcome");
 

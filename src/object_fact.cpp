@@ -10,6 +10,48 @@
 namespace pkgapply {
 namespace {
 
+bool
+valid_kind(completed_object_kind value) noexcept
+{
+  switch (value) {
+    case completed_object_kind::regular:
+    case completed_object_kind::directory:
+    case completed_object_kind::symlink:
+    case completed_object_kind::fifo:
+    case completed_object_kind::character_device:
+    case completed_object_kind::block_device:
+    case completed_object_kind::socket:
+    case completed_object_kind::other:
+      return true;
+  }
+  return false;
+}
+
+bool
+valid_provenance(object_fact_provenance value) noexcept
+{
+  switch (value) {
+    case object_fact_provenance::incoming_image:
+    case object_fact_provenance::planning_observation:
+    case object_fact_provenance::application_observation:
+    case object_fact_provenance::recovery_capture:
+    case object_fact_provenance::rejected_capture:
+      return true;
+  }
+  return false;
+}
+
+bool
+valid_completeness(object_fact_completeness value) noexcept
+{
+  switch (value) {
+    case object_fact_completeness::complete:
+    case object_fact_completeness::partial:
+      return true;
+  }
+  return false;
+}
+
 template<class Value>
 bool
 is_not_applicable(const qualified_fact<Value>& value)
@@ -138,6 +180,13 @@ completed_object_fact::completed_object_fact(
       provenance_(provenance),
       completeness_(completeness)
 {
+  if (!valid_kind(kind_))
+    throw std::invalid_argument("invalid completed object kind");
+  if (!valid_provenance(provenance_))
+    throw std::invalid_argument("invalid completed object provenance");
+  if (!valid_completeness(completeness_))
+    throw std::invalid_argument("invalid completed object completeness");
+
   if (mtime_.state() == fact_state::known &&
       mtime_.value()->nanoseconds >= 1000000000U)
   {

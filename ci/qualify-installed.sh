@@ -32,9 +32,10 @@ unset PKG_CONFIG_SYSROOT_DIR
 
 public=$(pkg-config --print-requires libpkgapply)
 for requirement in \
-  'libpkgbuild >= 2.0.0' \
-  'libpkgimage >= 0.4.0' \
-  'libpkgplan >= 0.3.0'
+  'libpkgbuild-plan >= 1.0.0' \
+  'libpkgbuild-plan < 2.0.0' \
+  'libpkgplan >= 0.3.0' \
+  'libpkgplan < 1.0.0'
 do
   printf '%s\n' "$public" | grep -F "$requirement" >/dev/null || {
     echo "missing public requirement: $requirement" >&2
@@ -42,18 +43,19 @@ do
   }
 done
 if printf '%s\n' "$public" | grep -E \
-  'libpkgsource-plan|libcrypto|libpkgstate' >/dev/null
+  'libpkgsource|libpkgbuild([^-]|$)|libpkgbuild-image|libpkgimage|libcrypto|libpkgstate' >/dev/null
 then
-  echo 'private or foreign dependency leaked into Requires' >&2
+  echo 'private, transitive, or foreign dependency leaked into Requires' >&2
   exit 1
 fi
 
 private=$(pkg-config --print-requires-private libpkgapply)
-printf '%s\n' "$private" | grep -F \
-  'libpkgsource-plan >= 1.0.0' >/dev/null || {
-  echo 'missing private libpkgsource-plan requirement' >&2
+if printf '%s\n' "$private" | grep -E \
+  'libpkgsource|libpkgbuild|libpkgimage|libpkgplan|libpkgstate' >/dev/null
+then
+  echo 'semantic authority leaked into private metadata' >&2
   exit 1
-}
+fi
 printf '%s\n' "$private" | grep -F libcrypto >/dev/null || {
   echo 'missing private libcrypto requirement' >&2
   exit 1

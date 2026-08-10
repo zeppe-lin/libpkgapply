@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -36,7 +38,7 @@ enum class application_restart_checkpoint_codec_error_code : std::uint8_t {
 };
 
 /*! \brief Malformed, corrupt, or cross-bound restart-checkpoint bytes. */
-class application_restart_checkpoint_codec_error final : public std::invalid_argument {
+class PKGAPPLY_API application_restart_checkpoint_codec_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a codec refusal.
    *  \param code Stable refusal category.
@@ -66,7 +68,7 @@ using application_restart_checkpoint_encoding = std::vector<std::uint8_t>;
  *  \return Canonical versioned bytes with integrity framing.
  *  \throws application_restart_checkpoint_codec_error If bytes exceed the ceiling.
  */
-[[nodiscard]] application_restart_checkpoint_encoding
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint_encoding
 encode_application_restart_checkpoint(const application_restart_checkpoint& value);
 
 /*! \brief Decode restart-checkpoint bytes for an immutable installation request.
@@ -78,7 +80,7 @@ encode_application_restart_checkpoint(const application_restart_checkpoint& valu
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const std::uint8_t* data,
     std::size_t size,
@@ -93,7 +95,7 @@ decode_application_restart_checkpoint(
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,
@@ -108,7 +110,7 @@ decode_application_restart_checkpoint(
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const std::uint8_t* data,
     std::size_t size,
@@ -123,7 +125,7 @@ decode_application_restart_checkpoint(
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,
@@ -138,7 +140,7 @@ decode_application_restart_checkpoint(
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const std::uint8_t* data,
     std::size_t size,
@@ -153,7 +155,7 @@ decode_application_restart_checkpoint(
  *  \throws application_restart_checkpoint_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_restart_checkpoint
+[[nodiscard]] PKGAPPLY_API application_restart_checkpoint
 decode_application_restart_checkpoint(
     const application_restart_checkpoint_encoding& encoding,
     const application_journal_record& journal,

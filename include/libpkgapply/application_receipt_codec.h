@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -39,7 +41,7 @@ enum class application_receipt_codec_error_code : std::uint8_t {
 };
 
 /*! \brief Malformed, corrupt, or cross-bound application-receipt bytes. */
-class application_receipt_codec_error final : public std::invalid_argument {
+class PKGAPPLY_API application_receipt_codec_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a codec refusal.
    *  \param code Stable refusal category.
@@ -69,7 +71,7 @@ using application_receipt_encoding = std::vector<std::uint8_t>;
  *  \return Canonical versioned bytes with integrity framing.
  *  \throws application_receipt_codec_error If bytes exceed the ceiling.
  */
-[[nodiscard]] application_receipt_encoding
+[[nodiscard]] PKGAPPLY_API application_receipt_encoding
 encode_application_receipt(const application_receipt& value);
 
 /*! \brief Decode application-receipt bytes for an immutable installation request.
@@ -80,7 +82,7 @@ encode_application_receipt(const application_receipt& value);
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
@@ -93,7 +95,7 @@ decode_application_receipt(
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const application_receipt_encoding& encoding,
     const installation_application_request& request);
@@ -106,7 +108,7 @@ decode_application_receipt(
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
@@ -119,7 +121,7 @@ decode_application_receipt(
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const application_receipt_encoding& encoding,
     const upgrade_application_request& request);
@@ -132,7 +134,7 @@ decode_application_receipt(
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const std::uint8_t* data,
     std::size_t size,
@@ -145,7 +147,7 @@ decode_application_receipt(
  *  \throws application_receipt_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 decode_application_receipt(
     const application_receipt_encoding& encoding,
     const removal_application_request& request);

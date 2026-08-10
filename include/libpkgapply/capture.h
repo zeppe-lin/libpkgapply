@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <vector>
 
 #include <libpkgapply/backend.h>
@@ -17,7 +19,7 @@
 namespace pkgapply {
 
 /*! \brief Complete canonical old-object capture set before mutation. */
-class old_object_capture_plan final {
+class PKGAPPLY_API old_object_capture_plan final {
 public:
   /*! \brief Normalize and construct a capture plan.
    *  \param requests Path-scoped capture requests.
@@ -51,7 +53,7 @@ private:
  *  \throws std::invalid_argument If a decision lacks its precondition or asks
  *          to stage an old object that planning observed as absent.
  */
-[[nodiscard]] old_object_capture_plan prepare_old_object_captures(
+[[nodiscard]] PKGAPPLY_API old_object_capture_plan prepare_old_object_captures(
     const pkgplan::installation_plan& plan,
     const application_execution_control& control);
 
@@ -62,7 +64,7 @@ private:
  *  \throws std::invalid_argument If a decision lacks its precondition or asks
  *          to stage an old object that planning observed as absent.
  */
-[[nodiscard]] old_object_capture_plan prepare_old_object_captures(
+[[nodiscard]] PKGAPPLY_API old_object_capture_plan prepare_old_object_captures(
     const pkgplan::upgrade_plan& plan,
     const application_execution_control& control);
 
@@ -73,7 +75,7 @@ private:
  *  \throws std::invalid_argument If a decision lacks its precondition or asks
  *          to stage an old object that planning observed as absent.
  */
-[[nodiscard]] old_object_capture_plan prepare_old_object_captures(
+[[nodiscard]] PKGAPPLY_API old_object_capture_plan prepare_old_object_captures(
     const pkgplan::removal_plan& plan,
     const application_execution_control& control);
 

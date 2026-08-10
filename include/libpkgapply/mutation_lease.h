@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -25,7 +27,7 @@ inline constexpr std::uint16_t mutation_lease_acquisition_schema_version = 1;
 inline constexpr std::size_t mutation_lease_nonce_size = 32;
 
 /*! \brief Mechanism-issued nonce distinguishing a physical lease acquisition. */
-class mutation_lease_nonce final {
+class PKGAPPLY_API mutation_lease_nonce final {
 public:
   /*! \brief Fixed-size byte representation of a lease nonce. */
   using byte_array = std::array<std::uint8_t, mutation_lease_nonce_size>;
@@ -48,7 +50,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const mutation_lease_nonce& lhs,
+  friend PKGAPPLY_API bool operator==(const mutation_lease_nonce& lhs,
                          const mutation_lease_nonce& rhs) noexcept;
 
   /*!
@@ -57,7 +59,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const mutation_lease_nonce& lhs,
+  friend PKGAPPLY_API bool operator!=(const mutation_lease_nonce& lhs,
                          const mutation_lease_nonce& rhs) noexcept;
 
   /*!
@@ -66,7 +68,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const mutation_lease_nonce& lhs,
+  friend PKGAPPLY_API bool operator<(const mutation_lease_nonce& lhs,
                         const mutation_lease_nonce& rhs) noexcept;
 
 private:
@@ -76,7 +78,7 @@ private:
 };
 
 /*! \brief Canonical identity of one target lease acquisition instance. */
-class mutation_lease_acquisition final {
+class PKGAPPLY_API mutation_lease_acquisition final {
 public:
   /*! \brief Identify one physical lease acquisition.
    *  \param target Exact application target context protected by the lease.
@@ -146,7 +148,7 @@ enum class mutation_lease_error_code {
 };
 
 /*! \brief Invalid or stale caller-held target mutation authority. */
-class mutation_lease_error final : public std::invalid_argument {
+class PKGAPPLY_API mutation_lease_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a lease refusal.
    *  \param code Stable refusal category.
@@ -174,7 +176,7 @@ private:
  *  held through application, installed-state publication, and the selected
  *  finalization or recovery decision.
  */
-class target_mutation_lease {
+class PKGAPPLY_API target_mutation_lease {
 public:
   /*! \brief Construct an interface base. */
   target_mutation_lease() = default;
@@ -228,7 +230,7 @@ public:
  *  pre-application state projection. Success is point-in-time admission only;
  *  the caller remains responsible for retaining the lease.
  */
-void validate_target_mutation_lease_scope(
+PKGAPPLY_API void validate_target_mutation_lease_scope(
     const application_target_context& target,
     const target_mutation_lease& lease);
 
@@ -239,7 +241,7 @@ void validate_target_mutation_lease_scope(
  *  \throws mutation_lease_error If scope is invalid or the projection was
  *          established under another acquisition instance.
  */
-void validate_target_mutation_lease(
+PKGAPPLY_API void validate_target_mutation_lease(
     const application_target_context& target,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease);

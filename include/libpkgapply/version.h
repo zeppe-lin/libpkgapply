@@ -6,17 +6,19 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <string_view>
 
 namespace pkgapply {
 
 /*! \brief Version of the public semantic application API. */
-inline constexpr std::uint32_t api_version = 2;
+inline constexpr std::uint32_t api_version = 3;
 
 /*! \brief Return the linked libpkgapply release version.
  *  \return Static semantic-version string with process lifetime.
  */
-[[nodiscard]] std::string_view version() noexcept;
+[[nodiscard]] PKGAPPLY_API std::string_view version() noexcept;
 
 } // namespace pkgapply

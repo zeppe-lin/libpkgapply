@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <vector>
 
@@ -25,7 +27,7 @@ enum class state_projection_completeness : std::uint8_t {
 };
 
 /*! \brief Exact current installed owners for one operated path. */
-class projected_path_owners final {
+class PKGAPPLY_API projected_path_owners final {
 public:
   /*! \brief Construct one canonical path-to-owners fact.
    *  \param path Exact package path.
@@ -55,7 +57,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const projected_path_owners& lhs,
+  friend PKGAPPLY_API bool operator==(const projected_path_owners& lhs,
                          const projected_path_owners& rhs) noexcept;
 
   /*!
@@ -64,7 +66,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const projected_path_owners& lhs,
+  friend PKGAPPLY_API bool operator!=(const projected_path_owners& lhs,
                          const projected_path_owners& rhs) noexcept;
 
   /*!
@@ -73,7 +75,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const projected_path_owners& lhs,
+  friend PKGAPPLY_API bool operator<(const projected_path_owners& lhs,
                         const projected_path_owners& rhs) noexcept;
 
 private:
@@ -88,7 +90,7 @@ private:
  *  exact operated path universe, observation evidence, and completeness to
  *  one physical mutation-lease acquisition.
  */
-class lease_bound_state_projection final {
+class PKGAPPLY_API lease_bound_state_projection final {
 public:
   /*! \brief Normalize, identify, and construct one state projection.
    *  \param lease Physical mutation-lease acquisition identity.

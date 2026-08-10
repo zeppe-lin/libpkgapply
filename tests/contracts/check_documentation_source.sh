@@ -41,7 +41,7 @@ state_include=$(next_include libpkgstate "${1:-}"); [ "$#" -eq 0 ] || shift
 for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.scdoc man/pkgapply.7.scdoc docs/architecture.md docs/integration.md docs/abi.md docs/testing.md docs/history/3.0-posix-extraction.md; do [ -s "$root/$f" ] || fail "missing $f"; done
 [ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
 grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
-grep -F 'Do not tag 3.0' "$root/MAINTAINING.md" >/dev/null || fail 'ABI release gate absent'
+grep -F 'The 3.0 ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null || fail 'closed ABI release gate absent'
 
 if grep -F 'The lifecycle-executor identity is explicitly absent in schema version 1.' \
     "$root/DESIGN.md" >/dev/null; then

@@ -26,6 +26,9 @@ Authority correction
   projection when restart occurs after evidence publication but before terminal
   receipt sealing; republish and reconfirm only immutable evidence without
   replaying target effects.
+- Reject unknown completed-object, path-consequence, and terminal-receipt enum
+  values before they can enter canonical application evidence or receipt
+  identities.
 
 Repository boundary
 
@@ -35,7 +38,11 @@ Repository boundary
   backend contracts in `libpkgapply`.
 - Removed fallback subproject coupling and made the public compile closure and
   implementation ELF closure separately auditable.
-- Kept exact core ABI capture as a mandatory pre-tag gate.
+- Closed the exact core ABI gate with explicit export annotations, hidden default
+  visibility, and a reviewed GCC/Clang ELF manifest.
+- Advanced the core to SONAME 3 and public API generation 3 because the 3.0
+  incoming-package authority replaces the published 2.x admission signature
+  and by-value representation; no compatibility shim is retained.
 
 libpkgapply changelog
 =====================

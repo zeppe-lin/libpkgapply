@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -30,7 +32,7 @@ enum class application_effect_step_kind : std::uint8_t {
 };
 
 /*! \brief One fully ordered mechanism step derived from accepted semantics. */
-class application_effect_step final {
+class PKGAPPLY_API application_effect_step final {
 public:
   /*! \brief Validate and construct one schedule step.
    *  \param ordinal Zero-based consecutive schedule position.
@@ -76,7 +78,7 @@ private:
 };
 
 /*! \brief Canonical safe order of path-scoped application mechanisms. */
-class application_effect_schedule final {
+class PKGAPPLY_API application_effect_schedule final {
 public:
   /*! \brief Construct and validate a complete schedule.
    *  \param steps Mechanism steps in execution order.
@@ -105,7 +107,7 @@ private:
  *  \throws std::invalid_argument For cross-bound image facts, malformed link
  *          dependencies, missing entries, or cyclic effect ordering.
  */
-[[nodiscard]] application_effect_schedule prepare_application_schedule(
+[[nodiscard]] PKGAPPLY_API application_effect_schedule prepare_application_schedule(
     const pkgplan::installation_plan& plan,
     const pkgimage::package_image& image,
     const incoming_payload_plan& payloads,
@@ -120,7 +122,7 @@ private:
  *  \throws std::invalid_argument For cross-bound image facts, malformed link
  *          dependencies, missing entries, or cyclic effect ordering.
  */
-[[nodiscard]] application_effect_schedule prepare_application_schedule(
+[[nodiscard]] PKGAPPLY_API application_effect_schedule prepare_application_schedule(
     const pkgplan::upgrade_plan& plan,
     const pkgimage::package_image& image,
     const incoming_payload_plan& payloads,
@@ -132,7 +134,7 @@ private:
  *  \return Complete deterministic effect schedule.
  *  \throws std::invalid_argument For malformed or cyclic effect ordering.
  */
-[[nodiscard]] application_effect_schedule prepare_application_schedule(
+[[nodiscard]] PKGAPPLY_API application_effect_schedule prepare_application_schedule(
     const pkgplan::removal_plan& plan,
     const old_object_capture_plan& captures);
 

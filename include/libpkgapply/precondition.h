@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <vector>
 
@@ -35,7 +37,7 @@ enum class application_precondition_failure_kind : std::uint8_t {
 };
 
 /*! \brief One deterministic failed filesystem precondition. */
-class application_precondition_failure final {
+class PKGAPPLY_API application_precondition_failure final {
 public:
   /*! \brief Construct one field-level failure.
    *  \param path Exact path whose precondition failed.
@@ -69,7 +71,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_precondition_failure& lhs,
+  friend PKGAPPLY_API bool operator<(const application_precondition_failure& lhs,
                         const application_precondition_failure& rhs) noexcept;
 
 private:
@@ -79,7 +81,7 @@ private:
 };
 
 /*! \brief Fresh observations and every planning-precondition failure. */
-class application_precondition_check final {
+class PKGAPPLY_API application_precondition_check final {
 public:
   /*! \brief Compare fresh backend observations with accepted preconditions.
    *  \param expected Planner-owned operation preconditions.

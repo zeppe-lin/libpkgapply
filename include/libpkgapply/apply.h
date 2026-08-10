@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <libpkgapply/backend.h>
 #include <libpkgapply/mutation_lease.h>
 #include <libpkgapply/request.h>
@@ -30,7 +32,7 @@ namespace pkgapply {
  *  \throws application_admission_error If authority, state, lease, backend, or
  *          archive facts do not bind exactly.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 apply(const installation_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
@@ -51,7 +53,7 @@ apply(const installation_application_request& request,
  *  \throws application_admission_error If authority, state, lease, backend, or
  *          archive facts do not bind exactly.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 apply(const upgrade_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
@@ -67,7 +69,7 @@ apply(const upgrade_application_request& request,
  *  \throws application_admission_error If authority, state, lease, or backend
  *          facts do not bind exactly.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 apply(const removal_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,

@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -70,7 +72,7 @@ enum class application_journal_event_kind : std::uint8_t {
 };
 
 /*! \brief Fixed identity-bearing header of one application journal. */
-class application_journal_header final {
+class PKGAPPLY_API application_journal_header final {
 public:
   /*! \brief Validate, identify, and construct a journal header.
    *  \param kind Operation kind of the immutable request.
@@ -184,7 +186,7 @@ private:
 };
 
 /*! \brief One deterministic node in the application effect graph. */
-class application_journal_effect final {
+class PKGAPPLY_API application_journal_effect final {
 public:
   /*! \brief Validate, identify, and construct one journal effect.
    *  \param ordinal Zero-based effect-graph position.
@@ -227,7 +229,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_journal_effect& lhs,
+  friend PKGAPPLY_API bool operator<(const application_journal_effect& lhs,
                         const application_journal_effect& rhs) noexcept;
 
 private:
@@ -245,7 +247,7 @@ private:
 };
 
 /*! \brief One append-only write-ahead or terminal effect event. */
-class application_journal_event final {
+class PKGAPPLY_API application_journal_event final {
 public:
   /*! \brief Validate and construct one journal event.
    *  \param sequence Zero-based append-only event sequence.
@@ -292,7 +294,7 @@ private:
 };
 
 /*! \brief Immutable identified snapshot of one durable application journal. */
-class application_journal_record final {
+class PKGAPPLY_API application_journal_record final {
 public:
   /*! \brief Validate, normalize, identify, and construct a journal snapshot.
    *  \param header Fixed application-attempt authority.

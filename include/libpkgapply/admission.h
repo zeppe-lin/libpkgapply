@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -47,7 +49,7 @@ enum class application_admission_error_code {
 };
 
 /*! \brief Invalid, stale, or cross-bound authority universe. */
-class application_admission_error final : public std::invalid_argument {
+class PKGAPPLY_API application_admission_error final : public std::invalid_argument {
 public:
   /*! \brief Construct an admission refusal.
    *  \param code Stable refusal category.
@@ -90,7 +92,7 @@ private:
  *          path universe, archive, image, receipt, or incoming entry differs.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_admission(
+PKGAPPLY_API void validate_application_admission(
     const installation_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -107,7 +109,7 @@ void validate_application_admission(
  *          path universe, archive, image, receipt, or incoming entry differs.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_admission(
+PKGAPPLY_API void validate_application_admission(
     const upgrade_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -123,7 +125,7 @@ void validate_application_admission(
  *          path universe, or removal precondition differs.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_admission(
+PKGAPPLY_API void validate_application_admission(
     const removal_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -137,7 +139,7 @@ void validate_application_admission(
  *  \throws application_admission_error If the transaction reports another
  *          provider, capability profile, target, or lease acquisition.
  */
-void validate_backend_transaction(
+PKGAPPLY_API void validate_backend_transaction(
     const application_target_context& target,
     const target_mutation_lease& lease,
     const application_backend& backend,

@@ -371,5 +371,35 @@ int main()
         pkgapply::application_durability_status::confirmed));
   } catch (const std::invalid_argument&) { rejected = true; }
   require(rejected, "invalid durability domain was accepted");
+
+  rejected = false;
+  try {
+    static_cast<void>(pkgapply::application_receipt::failed(
+        request, app_identity<pkgapply::application_attempt_identity>(80),
+        app_identity<pkgapply::lease_bound_state_projection_identity>(41),
+        static_cast<pkgapply::application_attempt_outcome>(0xff),
+        pkgapply::application_recovery_state::unchanged, durability(), {},
+        std::nullopt));
+  } catch (const std::invalid_argument&) {
+    rejected = true;
+  }
+  require(rejected, "invalid application attempt outcome was accepted");
+
+  rejected = false;
+  try {
+    static_cast<void>(pkgapply::application_receipt::failed(
+        rejected_request,
+        app_identity<pkgapply::application_attempt_identity>(81),
+        app_identity<pkgapply::lease_bound_state_projection_identity>(72),
+        pkgapply::application_attempt_outcome::
+            effects_visible_durability_unconfirmed,
+        static_cast<pkgapply::application_recovery_state>(0xff),
+        rejected_durability(pkgapply::application_durability_status::visible),
+        {rejected_consequence},
+        app_identity<pkgapply::application_journal_identity>(73)));
+  } catch (const std::invalid_argument&) {
+    rejected = true;
+  }
+  require(rejected, "invalid application recovery state was accepted");
   return 0;
 }

@@ -27,6 +27,15 @@ endif
 
 pkgconf = import('pkgconfig')
 
+cpp = meson.get_compiler('cpp')
+visibility_cpp_args = []
+if cpp.has_argument('-fvisibility=hidden')
+  visibility_cpp_args += '-fvisibility=hidden'
+endif
+if cpp.has_argument('-fvisibility-inlines-hidden')
+  visibility_cpp_args += '-fvisibility-inlines-hidden'
+endif
+
 libpkgplan_dep = dependency(
   'libpkgplan',
   version: ['>=0.3.0', '<1.0.0'],

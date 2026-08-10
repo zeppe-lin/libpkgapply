@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <memory>
 #include <stdexcept>
@@ -25,7 +27,7 @@ enum class incoming_package_error_code : std::uint8_t {
 };
 
 /*! \brief Invalid or cross-bound incoming package authority. */
-class incoming_package_error final : public std::invalid_argument {
+class PKGAPPLY_API incoming_package_error final : public std::invalid_argument {
 public:
   /*! \brief Construct an incoming-package refusal.
    *  \param code Stable refusal category.
@@ -45,7 +47,7 @@ private:
  *  and image agreement remains owned by `libpkgbuild-image`; source and
  *  artifact planner projection remains owned by `libpkgbuild-plan`.
  */
-class incoming_package_authority final {
+class PKGAPPLY_API incoming_package_authority final {
 public:
   /*! \brief Admit one complete planner artifact projection.
    *  \param projection Planner-ready artifact authority.

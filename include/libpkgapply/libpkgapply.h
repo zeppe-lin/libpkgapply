@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <libpkgapply/digest.h>
 #include <libpkgapply/admission.h>
 #include <libpkgapply/apply.h>

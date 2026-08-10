@@ -43,5 +43,16 @@ do
     fail "abstract interface vtable is not anchored: $type"
 done
 
-grep -F 'exact core ABI capture' "$root/CHANGELOG.md" >/dev/null ||
-  fail 'pre-tag exact ABI gate is undocumented'
+[ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
+[ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 594 ] ||
+  fail 'reviewed ELF ABI manifest count changed without review'
+[ -x "$root/tools/generate-elf-export-script.sh" ] || fail 'ELF export-script generator is absent'
+grep -F "soversion: '3'" "$root/src/meson.build" >/dev/null || fail 'core SONAME is not generation 3'
+grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fail 'public API is not generation 3'
+grep -F "gnu_symbol_visibility: 'hidden'" "$root/src/meson.build" >/dev/null || fail 'hidden default visibility is absent'
+grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || fail 'library export annotation define is absent'
+grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
+grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/CHANGELOG.md" >/dev/null ||
+  fail '3.0 ABI generation transition is undocumented'
+grep -F '594 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'

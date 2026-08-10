@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -37,7 +39,7 @@ enum class completed_application_evidence_codec_error_code : std::uint8_t {
 };
 
 /*! \brief Malformed, corrupt, or cross-bound completed-evidence bytes. */
-class completed_application_evidence_codec_error final : public std::invalid_argument {
+class PKGAPPLY_API completed_application_evidence_codec_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a codec refusal.
    *  \param code Stable refusal category.
@@ -67,7 +69,7 @@ using completed_application_evidence_encoding = std::vector<std::uint8_t>;
  *  \return Canonical versioned bytes with integrity framing.
  *  \throws completed_application_evidence_codec_error If bytes exceed the ceiling.
  */
-[[nodiscard]] completed_application_evidence_encoding
+[[nodiscard]] PKGAPPLY_API completed_application_evidence_encoding
 encode_completed_application_evidence(const completed_application_evidence& value);
 
 /*! \brief Decode completed-evidence bytes for an immutable installation request.
@@ -78,7 +80,7 @@ encode_completed_application_evidence(const completed_application_evidence& valu
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
@@ -91,7 +93,7 @@ decode_completed_application_evidence(
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const installation_application_request& request);
@@ -104,7 +106,7 @@ decode_completed_application_evidence(
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
@@ -117,7 +119,7 @@ decode_completed_application_evidence(
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const upgrade_application_request& request);
@@ -130,7 +132,7 @@ decode_completed_application_evidence(
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const std::uint8_t* data,
     std::size_t size,
@@ -143,7 +145,7 @@ decode_completed_application_evidence(
  *  \throws completed_application_evidence_codec_error For malformed, corrupt, noncanonical,
  *          oversized, identity-mismatching, or request-mismatching bytes.
  */
-[[nodiscard]] completed_application_evidence
+[[nodiscard]] PKGAPPLY_API completed_application_evidence
 decode_completed_application_evidence(
     const completed_application_evidence_encoding& encoding,
     const removal_application_request& request);

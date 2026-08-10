@@ -104,5 +104,50 @@ int main()
     rejected = true;
   }
   require(rejected, "invalid timestamp nanoseconds must be rejected");
+
+  const auto require_invalid_enumeration_rejected =
+      [&](pkgapply::completed_object_kind kind,
+          pkgapply::object_fact_provenance provenance,
+          pkgapply::object_fact_completeness completeness,
+          std::string_view message) {
+        bool invalid_rejected = false;
+        try {
+          static_cast<void>(pkgapply::completed_object_fact(
+              path, kind,
+              pkgapply::qualified_fact<std::uint32_t>::known(0755),
+              pkgapply::qualified_fact<std::uint64_t>::known(0),
+              pkgapply::qualified_fact<std::uint64_t>::known(0),
+              pkgapply::qualified_fact<std::uint64_t>::known(4),
+              pkgapply::qualified_fact<
+                  pkgapply::completed_object_timestamp>::known({10, 0}),
+              pkgapply::qualified_fact<
+                  pkgapply::completed_regular_content_identity>::known(content),
+              pkgapply::qualified_fact<std::string>::not_applicable(),
+              pkgapply::qualified_fact<
+                  pkgapply::completed_device_number>::not_applicable(),
+              pkgapply::qualified_fact<
+                  pkgapply::completed_hardlink_relation>::unknown(),
+              provenance, completeness));
+        } catch (const std::invalid_argument&) {
+          invalid_rejected = true;
+        }
+        require(invalid_rejected, message);
+      };
+
+  require_invalid_enumeration_rejected(
+      static_cast<pkgapply::completed_object_kind>(0xff),
+      pkgapply::object_fact_provenance::application_observation,
+      pkgapply::object_fact_completeness::complete,
+      "invalid completed object kind was accepted");
+  require_invalid_enumeration_rejected(
+      pkgapply::completed_object_kind::regular,
+      static_cast<pkgapply::object_fact_provenance>(0xff),
+      pkgapply::object_fact_completeness::complete,
+      "invalid object fact provenance was accepted");
+  require_invalid_enumeration_rejected(
+      pkgapply::completed_object_kind::regular,
+      pkgapply::object_fact_provenance::application_observation,
+      static_cast<pkgapply::object_fact_completeness>(0xff),
+      "invalid object fact completeness was accepted");
   return 0;
 }

@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 
@@ -37,7 +39,7 @@ enum class application_cancellation_policy : std::uint8_t {
 };
 
 /*! \brief Immutable actuator guarantees, never path-selection policy. */
-class application_execution_control final {
+class PKGAPPLY_API application_execution_control final {
 public:
   /*! \brief Validate, identify, and construct execution control.
    *  \param recovery Required recovery guarantee.
@@ -107,7 +109,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const application_execution_control& lhs,
+  friend PKGAPPLY_API bool operator==(const application_execution_control& lhs,
                          const application_execution_control& rhs) noexcept;
 
   /*!
@@ -116,7 +118,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const application_execution_control& lhs,
+  friend PKGAPPLY_API bool operator!=(const application_execution_control& lhs,
                          const application_execution_control& rhs) noexcept;
 
 private:

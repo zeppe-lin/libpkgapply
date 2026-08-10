@@ -10,11 +10,13 @@ Before tagging:
    consumer qualification;
 4. inspect pkg-config against the public semantic owners and `DT_NEEDED` against
    the reviewed implementation dependency closure plus private `libcrypto`;
-5. complete the core export-annotation and exact ABI-manifest gate documented in
-   `docs/abi.md`;
+5. build the shared core with GCC and Clang and require its exact dynamic
+   symbol set to match `abi/libpkgapply.exports`; review any manifest change
+   against the SONAME/API policy in `docs/abi.md`;
 6. lint manuals and strict Doxygen, and stage-install all documentation;
 7. audit integration against the corresponding `libpkgapply-posix` and
    `libpkgstate-apply` release candidates;
 8. replay the mailbox independently and compare Git trees.
 
-Do not tag 3.0 while the exact core ABI gate remains open.
+The 3.0 ABI gate is closed only while the reviewed manifest, SONAME 3, and API
+generation 3 remain exact in every release candidate.

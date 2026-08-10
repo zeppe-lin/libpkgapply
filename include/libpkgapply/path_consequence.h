@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 
@@ -40,7 +42,7 @@ enum class ownership_publication_status : std::uint8_t {
 };
 
 /*! \brief Explicit present, absent, or unknown path observation. */
-class application_path_observation final {
+class PKGAPPLY_API application_path_observation final {
 public:
   /*!
    * \brief Construct a present observation from complete object evidence.
@@ -93,7 +95,7 @@ private:
 };
 
 /*! \brief Planned and actual consequences for one operated logical path. */
-class application_path_consequence final {
+class PKGAPPLY_API application_path_consequence final {
 public:
   /*! \brief Validate and construct one path consequence.
    *  \param path Exact operated path.
@@ -108,9 +110,9 @@ public:
    *  \param after Fresh resulting observation.
    *  \param rejected_object Published rejected-object record when completed.
    *  \param publication Ownership publication eligibility.
-   *  \throws std::invalid_argument If paths, entry applicability, rejected
-   *          evidence, conditional retention, or publication eligibility are
-   *          internally inconsistent.
+   *  \throws std::invalid_argument If an enum value is unknown, or paths,
+   *          entry applicability, rejected evidence, conditional retention,
+   *          or publication eligibility are internally inconsistent.
    */
   application_path_consequence(
       pkgplan::package_path path,

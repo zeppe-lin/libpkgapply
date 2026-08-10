@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <variant>
 
@@ -23,7 +25,7 @@ namespace pkgapply {
 inline constexpr std::uint16_t application_request_schema_version = 1;
 
 /*! \brief Application request for one accepted installation plan. */
-class installation_application_request final {
+class PKGAPPLY_API installation_application_request final {
 public:
   /*! \brief Validate, identify, and construct an installation request.
    *  \param plan Accepted pure installation plan.
@@ -90,7 +92,7 @@ private:
 };
 
 /*! \brief Application request for one accepted upgrade plan. */
-class upgrade_application_request final {
+class PKGAPPLY_API upgrade_application_request final {
 public:
   /*! \brief Validate, identify, and construct an upgrade request.
    *  \param plan Accepted pure upgrade plan.
@@ -157,7 +159,7 @@ private:
 };
 
 /*! \brief Application request for one accepted removal plan. */
-class removal_application_request final {
+class PKGAPPLY_API removal_application_request final {
 public:
   /*! \brief Validate, identify, and construct a removal request.
    *  \param plan Accepted pure removal plan.
@@ -220,7 +222,7 @@ using package_application_request_body = std::variant<
     removal_application_request>;
 
 /*! \brief One immutable installation, upgrade, or removal request. */
-class package_application_request final {
+class PKGAPPLY_API package_application_request final {
 public:
   /*!
    * \brief Construct from an installation request body.

@@ -7,6 +7,68 @@
 #include <utility>
 
 namespace pkgapply {
+namespace {
+
+bool valid_role(application_path_role value) noexcept
+{
+  switch (value) {
+    case application_path_role::incoming_entry:
+    case application_path_role::obsolete_old_path:
+    case application_path_role::structural_parent:
+    case application_path_role::installed_owned_path:
+      return true;
+  }
+  return false;
+}
+
+bool valid_active_outcome(pkgplan::planned_active_outcome value) noexcept
+{
+  switch (value) {
+    case pkgplan::planned_active_outcome::activate_incoming:
+    case pkgplan::planned_active_outcome::retain_observed:
+    case pkgplan::planned_active_outcome::remove_observed:
+    case pkgplan::planned_active_outcome::remove_directory_if_empty:
+    case pkgplan::planned_active_outcome::remain_absent:
+      return true;
+  }
+  return false;
+}
+
+bool valid_rejected_outcome(pkgplan::planned_rejected_outcome value) noexcept
+{
+  switch (value) {
+    case pkgplan::planned_rejected_outcome::none:
+    case pkgplan::planned_rejected_outcome::stage_incoming:
+    case pkgplan::planned_rejected_outcome::stage_old:
+      return true;
+  }
+  return false;
+}
+
+bool valid_effect_status(application_effect_status value) noexcept
+{
+  switch (value) {
+    case application_effect_status::not_attempted:
+    case application_effect_status::completed:
+    case application_effect_status::conditional_retained:
+    case application_effect_status::failed:
+    case application_effect_status::indeterminate:
+      return true;
+  }
+  return false;
+}
+
+bool valid_publication(ownership_publication_status value) noexcept
+{
+  switch (value) {
+    case ownership_publication_status::ineligible:
+    case ownership_publication_status::eligible:
+      return true;
+  }
+  return false;
+}
+
+} // namespace
 
 application_path_observation
 application_path_observation::present(completed_object_fact object)
@@ -80,6 +142,20 @@ application_path_consequence::application_path_consequence(
       rejected_object_(std::move(rejected_object)),
       publication_(publication)
 {
+  if (!valid_role(role_))
+    throw std::invalid_argument("invalid application path role");
+  if (!valid_active_outcome(requested_active_))
+    throw std::invalid_argument("invalid planned active outcome");
+  if (!valid_rejected_outcome(requested_rejected_))
+    throw std::invalid_argument("invalid planned rejected outcome");
+  if (!valid_effect_status(active_status_) ||
+      !valid_effect_status(rejected_status_))
+  {
+    throw std::invalid_argument("invalid application effect status");
+  }
+  if (!valid_publication(publication_))
+    throw std::invalid_argument("invalid ownership publication status");
+
   if (before_.path() != path_ || after_.path() != path_)
     throw std::invalid_argument("application consequence observation path mismatch");
 

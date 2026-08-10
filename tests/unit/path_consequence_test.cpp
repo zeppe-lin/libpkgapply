@@ -213,5 +213,79 @@ main()
   require(staged.rejected_object() == rejected_record,
           "completed rejected record binding changed");
 
+  const auto require_invalid_consequence_rejected =
+      [&](pkgapply::application_path_role role,
+          pkgplan::planned_active_outcome active,
+          pkgplan::planned_rejected_outcome rejected_plan,
+          pkgapply::application_effect_status active_status,
+          pkgapply::ownership_publication_status publication,
+          std::string_view message) {
+        bool invalid_rejected = false;
+        try {
+          static_cast<void>(pkgapply::application_path_consequence(
+              path, role, active, rejected_plan,
+              *active_decision.incoming_entry(), active_decision.ownership(),
+              active_status, pkgapply::application_effect_status::not_attempted,
+              pkgapply::application_path_observation::absent(path),
+              pkgapply::application_path_observation::present(directory(path)),
+              std::nullopt, publication));
+        } catch (const std::invalid_argument&) {
+          invalid_rejected = true;
+        }
+        require(invalid_rejected, message);
+      };
+
+  require_invalid_consequence_rejected(
+      static_cast<pkgapply::application_path_role>(0xff),
+      pkgplan::planned_active_outcome::activate_incoming,
+      pkgplan::planned_rejected_outcome::none,
+      pkgapply::application_effect_status::completed,
+      pkgapply::ownership_publication_status::eligible,
+      "invalid path role was accepted");
+  require_invalid_consequence_rejected(
+      pkgapply::application_path_role::incoming_entry,
+      static_cast<pkgplan::planned_active_outcome>(0xff),
+      pkgplan::planned_rejected_outcome::none,
+      pkgapply::application_effect_status::completed,
+      pkgapply::ownership_publication_status::eligible,
+      "invalid planned active outcome was accepted");
+  require_invalid_consequence_rejected(
+      pkgapply::application_path_role::incoming_entry,
+      pkgplan::planned_active_outcome::activate_incoming,
+      static_cast<pkgplan::planned_rejected_outcome>(0xff),
+      pkgapply::application_effect_status::completed,
+      pkgapply::ownership_publication_status::eligible,
+      "invalid planned rejected outcome was accepted");
+  require_invalid_consequence_rejected(
+      pkgapply::application_path_role::incoming_entry,
+      pkgplan::planned_active_outcome::activate_incoming,
+      pkgplan::planned_rejected_outcome::none,
+      static_cast<pkgapply::application_effect_status>(0xff),
+      pkgapply::ownership_publication_status::ineligible,
+      "invalid active effect status was accepted");
+  require_invalid_consequence_rejected(
+      pkgapply::application_path_role::incoming_entry,
+      pkgplan::planned_active_outcome::activate_incoming,
+      pkgplan::planned_rejected_outcome::none,
+      pkgapply::application_effect_status::completed,
+      static_cast<pkgapply::ownership_publication_status>(0xff),
+      "invalid publication status was accepted");
+
+  rejected = false;
+  try {
+    static_cast<void>(pkgapply::application_path_consequence(
+        path, pkgapply::application_path_role::incoming_entry,
+        staged_decision.active(), staged_decision.rejected(),
+        *staged_decision.incoming_entry(), staged_decision.ownership(),
+        pkgapply::application_effect_status::not_attempted,
+        static_cast<pkgapply::application_effect_status>(0xff),
+        pkgapply::application_path_observation::present(directory(path)),
+        pkgapply::application_path_observation::present(directory(path)),
+        std::nullopt, pkgapply::ownership_publication_status::ineligible));
+  } catch (const std::invalid_argument&) {
+    rejected = true;
+  }
+  require(rejected, "invalid rejected effect status was accepted");
+
   return 0;
 }

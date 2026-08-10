@@ -102,6 +102,7 @@ if html_docs_enabled
     '../include/libpkgapply/completed_evidence_codec.h',
     '../include/libpkgapply/digest.h',
     '../include/libpkgapply/execution_control.h',
+    '../include/libpkgapply/export.h',
     '../include/libpkgapply/incoming_package.h',
     '../include/libpkgapply/journal.h',
     '../include/libpkgapply/journal_codec.h',

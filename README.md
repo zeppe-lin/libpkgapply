@@ -76,6 +76,11 @@ retained through `libpkgbuild-plan`; they are not reconstructed by
 Transitive authority libraries remain legitimate implementation ELF needs where
 opaque accessors are used and enter consumer flags only for static linkage.
 
+The 3.0 core is SONAME 3 / public API generation 3. The generation advances
+because incoming package authority now admits the opaque `libpkgbuild-plan`
+projection rather than the published 2.x build-result/image pair. The old ABI
+is not carried as a compatibility shim.
+
 Fallback subprojects are intentionally unsupported. Shared and static closures
 must be built separately.
 

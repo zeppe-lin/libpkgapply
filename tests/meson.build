@@ -105,6 +105,7 @@ if get_option('tests').allowed()
     'state_projection.h',
     'target_context.h',
     'version.h',
+    'export.h',
   ]
   foreach header : public_headers
     target = executable(
@@ -116,6 +117,22 @@ if get_option('tests').allowed()
     )
     test('header-' + header.underscorify(), target, suite: 'header')
   endforeach
+
+
+  if library_kind == 'shared'
+    nm = find_program('nm')
+    abi_surface = find_program('contracts/check_abi_surface.sh')
+    test(
+      'abi-surface',
+      abi_surface,
+      args: [
+        nm.full_path(),
+        libpkgapply,
+        meson.project_source_root() / 'abi/libpkgapply.exports',
+      ],
+      suite: 'contract',
+    )
+  endif
 
   test(
     'pkgconfig-metadata',

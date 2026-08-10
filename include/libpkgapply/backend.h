@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <memory>
 #include <optional>
 #include <vector>
@@ -44,7 +46,7 @@ enum class backend_operation_outcome {
 };
 
 /*! \brief Immutable result of one backend mechanism operation. */
-class backend_operation_result final {
+class PKGAPPLY_API backend_operation_result final {
 public:
   /*! \brief Validate and construct one mechanism result.
    *  \param outcome Exact physical outcome.
@@ -73,7 +75,7 @@ private:
 };
 
 /*! \brief Result of publishing one immutable rejected-object record. */
-class rejected_object_publication_result final {
+class PKGAPPLY_API rejected_object_publication_result final {
 public:
   /*! \brief Validate and construct one rejected-record publication result.
    *  \param outcome Exact publication outcome.
@@ -112,7 +114,7 @@ private:
 };
 
 /*! \brief Result of publishing one immutable completed-evidence record. */
-class completed_evidence_publication_result final {
+class PKGAPPLY_API completed_evidence_publication_result final {
 public:
   /*! \brief Validate and construct one evidence-publication result.
    *  \param outcome Exact publication outcome.
@@ -151,7 +153,7 @@ private:
 };
 
 /*! \brief Exact observation closure returned for one requested path set. */
-class backend_observation_batch final {
+class PKGAPPLY_API backend_observation_batch final {
 public:
   /*! \brief Normalize and construct a complete observation closure.
    *  \param requested Exact requested paths.
@@ -204,7 +206,7 @@ private:
 };
 
 /*! \brief Exact reason to capture one existing object before mutation. */
-class old_object_capture_request final {
+class PKGAPPLY_API old_object_capture_request final {
 public:
   /*! \brief Construct one purposeful capture request.
    *  \param path Logical target path.
@@ -239,7 +241,7 @@ private:
 };
 
 /*! \brief Backend evidence established while capturing one old object. */
-class old_object_capture_result final {
+class PKGAPPLY_API old_object_capture_result final {
 public:
   /*! \brief Validate and construct one capture result.
    *  \param outcome Exact physical capture outcome.
@@ -286,7 +288,7 @@ private:
 };
 
 /*! \brief Exact active-object command derived from one accepted plan path. */
-class backend_active_effect_request final {
+class PKGAPPLY_API backend_active_effect_request final {
 public:
   /*! \brief Validate and construct one active-namespace command.
    *  \param path Logical target path.
@@ -330,7 +332,7 @@ private:
 };
 
 /*! \brief Exact rejected-object command copied from one accepted plan path. */
-class backend_rejected_effect_request final {
+class PKGAPPLY_API backend_rejected_effect_request final {
 public:
   /*! \brief Copy complete structured staging intent from planner authority.
    *  \param plan Exact planner-owned rejected-object plan.
@@ -437,7 +439,7 @@ private:
 };
 
 /*! \brief Backend-owned sink for one exact incoming regular-payload closure. */
-class incoming_payload_stage : public pkgimage::payload_sink {
+class PKGAPPLY_API incoming_payload_stage : public pkgimage::payload_sink {
 public:
   /*! \brief Destroy the polymorphic payload stage. */
   ~incoming_payload_stage() override;
@@ -463,7 +465,7 @@ public:
  *  mutate only the target, lease, request, incoming image, and attempt nonce to
  *  which it reports itself bound. It cannot reinterpret planner policy.
  */
-class application_backend_transaction {
+class PKGAPPLY_API application_backend_transaction {
 public:
   /*! \brief Construct an unbound implementation base. */
   application_backend_transaction() = default;
@@ -621,7 +623,7 @@ public:
  *  target lease, choose a plan, construct installed state, publish package
  *  state, or classify terminal semantic success.
  */
-class application_backend {
+class PKGAPPLY_API application_backend {
 public:
   /*! \brief Construct an unbound implementation base. */
   application_backend() = default;

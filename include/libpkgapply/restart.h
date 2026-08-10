@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
@@ -45,7 +47,7 @@ enum class application_restart_error_code : std::uint8_t {
 };
 
 /*! \brief Invalid restart authority or backend reopen binding. */
-class application_restart_error final : public std::invalid_argument {
+class PKGAPPLY_API application_restart_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a restart refusal.
    *  \param code Stable refusal category.
@@ -68,7 +70,7 @@ private:
 };
 
 /*! \brief Durable old-object capture retained by a reopened attempt. */
-class application_restart_capture final {
+class PKGAPPLY_API application_restart_capture final {
 public:
   /*! \brief Construct a path-keyed restart capture.
    *  \param result Complete backend capture result.
@@ -90,7 +92,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_restart_capture& lhs,
+  friend PKGAPPLY_API bool operator<(const application_restart_capture& lhs,
                         const application_restart_capture& rhs) noexcept;
 
 private:
@@ -98,7 +100,7 @@ private:
 };
 
 /*! \brief Durable rejected-object result retained across process restart. */
-class application_restart_rejected_effect final {
+class PKGAPPLY_API application_restart_rejected_effect final {
 public:
   /*! \brief Construct one path-keyed rejected result.
    *  \param path Logical path governed by the effect.
@@ -124,7 +126,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_restart_rejected_effect& lhs,
+  friend PKGAPPLY_API bool operator<(const application_restart_rejected_effect& lhs,
                         const application_restart_rejected_effect& rhs) noexcept;
 
 private:
@@ -133,7 +135,7 @@ private:
 };
 
 /*! \brief Durable active-effect result retained across process restart. */
-class application_restart_active_effect final {
+class PKGAPPLY_API application_restart_active_effect final {
 public:
   /*! \brief Construct one path-keyed active result.
    *  \param path Logical path governed by the effect.
@@ -158,7 +160,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_restart_active_effect& lhs,
+  friend PKGAPPLY_API bool operator<(const application_restart_active_effect& lhs,
                         const application_restart_active_effect& rhs) noexcept;
 
 private:
@@ -167,7 +169,7 @@ private:
 };
 
 /*! \brief Durable recovery-effect result retained across process restart. */
-class application_restart_recovery_effect final {
+class PKGAPPLY_API application_restart_recovery_effect final {
 public:
   /*! \brief Construct one path-keyed recovery result.
    *  \param path Logical path governed by the recovery effect.
@@ -192,7 +194,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_restart_recovery_effect& lhs,
+  friend PKGAPPLY_API bool operator<(const application_restart_recovery_effect& lhs,
                         const application_restart_recovery_effect& rhs) noexcept;
 
 private:
@@ -201,7 +203,7 @@ private:
 };
 
 /*! \brief Exact synchronization result retained across process restart. */
-class application_restart_synchronization final {
+class PKGAPPLY_API application_restart_synchronization final {
 public:
   /*! \brief Construct one domain-keyed synchronization result.
    *  \param result Complete durability fact issued by the backend.
@@ -224,7 +226,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_restart_synchronization& lhs,
+  friend PKGAPPLY_API bool operator<(const application_restart_synchronization& lhs,
                         const application_restart_synchronization& rhs) noexcept;
 
 private:
@@ -237,7 +239,7 @@ private:
  *  reopening a journal. It retains no live file descriptors or hidden process
  *  state; those remain provider-owned behind application_backend_transaction.
  */
-class application_restart_checkpoint final {
+class PKGAPPLY_API application_restart_checkpoint final {
 public:
   /*! \brief Normalize and construct one restart checkpoint.
    *  \param journal Journal-record identity reopened by the backend.
@@ -395,7 +397,7 @@ private:
 };
 
 /*! \brief Pure classification of one durable application journal. */
-class application_restart_assessment final {
+class PKGAPPLY_API application_restart_assessment final {
 public:
   /*! \brief Construct one journal restart assessment.
    *  \param journal Assessed journal-record identity.
@@ -440,7 +442,7 @@ private:
  *  \return Pure disposition derived from state, terminal evidence, and effect
  *          progress.
  */
-[[nodiscard]] application_restart_assessment
+[[nodiscard]] PKGAPPLY_API application_restart_assessment
 assess_application_restart(const application_journal_record& journal);
 
 /*! \brief Validate installation restart authority before reopening a backend.
@@ -454,7 +456,7 @@ assess_application_restart(const application_journal_record& journal);
  *  \throws application_admission_error For stale authority or archive facts.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_restart(
+PKGAPPLY_API void validate_application_restart(
     const installation_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -473,7 +475,7 @@ void validate_application_restart(
  *  \throws application_admission_error For stale authority or archive facts.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_restart(
+PKGAPPLY_API void validate_application_restart(
     const upgrade_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -491,7 +493,7 @@ void validate_application_restart(
  *  \throws application_admission_error For stale authority facts.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
  */
-void validate_application_restart(
+PKGAPPLY_API void validate_application_restart(
     const removal_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
@@ -512,7 +514,7 @@ void validate_application_restart(
  *  current projection; terminal receipt and completed evidence bind to that
  *  current projection after restart validation succeeds.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
     const installation_application_request& request,
     const lease_bound_state_projection& state,
@@ -534,7 +536,7 @@ resume_application(
  *  evidence; successful continuation binds terminal evidence to the current
  *  lease-bound projection supplied for this restart.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
     const upgrade_application_request& request,
     const lease_bound_state_projection& state,
@@ -555,7 +557,7 @@ resume_application(
  *  evidence; successful continuation binds terminal evidence to the current
  *  lease-bound projection supplied for this restart.
  */
-[[nodiscard]] application_receipt
+[[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
     const removal_application_request& request,
     const lease_bound_state_projection& state,
@@ -573,7 +575,7 @@ resume_application(
  *  \throws application_restart_error If attempt nonce or reopened journal
  *          identity differs.
  */
-void validate_restarted_backend_transaction(
+PKGAPPLY_API void validate_restarted_backend_transaction(
     const application_target_context& target,
     const target_mutation_lease& lease,
     const application_backend& backend,

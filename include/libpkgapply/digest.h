@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -37,7 +39,7 @@ enum class digest_error_code : std::uint8_t {
 };
 
 /*! \brief Typed refusal raised while parsing an application identity. */
-class digest_error final : public std::invalid_argument {
+class PKGAPPLY_API digest_error final : public std::invalid_argument {
 public:
   /*! \brief Construct a digest refusal.
    *  \param code Stable refusal category.
@@ -372,7 +374,7 @@ struct application_backend_evidence_identity_domain final {
  *  from owner APIs.
  */
 template<class Domain>
-class typed_digest final {
+class PKGAPPLY_API typed_digest final {
 public:
   /*! \brief Fixed-size SHA-256 result accepted by the identity factory. */
   using byte_array = std::array<std::uint8_t, sha256_digest_size>;
@@ -422,7 +424,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when both SHA-256 results are equal.
    */
-  friend bool operator==(const typed_digest& lhs,
+  friend PKGAPPLY_API bool operator==(const typed_digest& lhs,
                          const typed_digest& rhs) noexcept
   {
     return lhs.bytes_ == rhs.bytes_;
@@ -433,7 +435,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when the SHA-256 results differ.
    */
-  friend bool operator!=(const typed_digest& lhs,
+  friend PKGAPPLY_API bool operator!=(const typed_digest& lhs,
                          const typed_digest& rhs) noexcept
   {
     return !(lhs == rhs);
@@ -444,7 +446,7 @@ public:
    *  \param rhs Right operand.
    *  \return `true` when `lhs` precedes `rhs` by digest bytes.
    */
-  friend bool operator<(const typed_digest& lhs,
+  friend PKGAPPLY_API bool operator<(const typed_digest& lhs,
                         const typed_digest& rhs) noexcept
   {
     return lhs.bytes_ < rhs.bytes_;

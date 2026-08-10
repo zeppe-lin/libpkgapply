@@ -28,5 +28,6 @@ include closure explicitly, so a globally installed zoo cannot hide a missing
 dependency edge. GCC and Clang debug/release plus ASan/UBSan jobs are required.
 
 The architecture contract rejects POSIX implementation paths and state
-publication dependencies. The release contract also treats exact core ABI
-capture as an explicit pre-tag gate until the reviewed manifest exists.
+publication dependencies. Shared builds also compare the complete dynamic
+symbol table with the reviewed generation-3 ELF manifest; compiler-specific
+STL/template emission is not admitted as ABI.

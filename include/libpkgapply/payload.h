@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <optional>
 #include <vector>
 
@@ -19,7 +21,7 @@
 namespace pkgapply {
 
 /*! \brief One incoming entry requiring active or rejected preparation. */
-class incoming_payload_requirement final {
+class PKGAPPLY_API incoming_payload_requirement final {
 public:
   /*! \brief Validate and construct one payload requirement.
    *  \param path Logical path governed by the plan decision.
@@ -72,7 +74,7 @@ private:
 };
 
 /*! \brief Exact regular payload closure for one install or upgrade plan. */
-class incoming_payload_plan final {
+class PKGAPPLY_API incoming_payload_plan final {
 public:
   /*!
    * \brief Return the package image identity governing the closure.
@@ -117,7 +119,7 @@ private:
  *  \throws std::invalid_argument If a planned entry is absent, cross-bound,
  *          malformed, or has an invalid hard-link payload anchor.
  */
-[[nodiscard]] incoming_payload_plan prepare_incoming_payloads(
+[[nodiscard]] PKGAPPLY_API incoming_payload_plan prepare_incoming_payloads(
     const pkgplan::installation_plan& plan,
     const pkgimage::package_image& image);
 
@@ -128,7 +130,7 @@ private:
  *  \throws std::invalid_argument If a planned entry is absent, cross-bound,
  *          malformed, or has an invalid hard-link payload anchor.
  */
-[[nodiscard]] incoming_payload_plan prepare_incoming_payloads(
+[[nodiscard]] PKGAPPLY_API incoming_payload_plan prepare_incoming_payloads(
     const pkgplan::upgrade_plan& plan,
     const pkgimage::package_image& image);
 

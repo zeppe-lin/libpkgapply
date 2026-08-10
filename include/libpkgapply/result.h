@@ -6,6 +6,8 @@
  */
 #pragma once
 
+#include <libpkgapply/export.h>
+
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -64,7 +66,7 @@ enum class application_durability_status : std::uint8_t {
 };
 
 /*! \brief One domain-qualified durability result. */
-class application_durability_fact final {
+class PKGAPPLY_API application_durability_fact final {
 public:
   /*! \brief Validate and construct one durability fact.
    *  \param domain Exact application-owned durability domain.
@@ -91,7 +93,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const application_durability_fact& lhs,
+  friend PKGAPPLY_API bool operator==(const application_durability_fact& lhs,
                          const application_durability_fact& rhs) noexcept;
   /*!
    * \brief Compare durability facts for inequality.
@@ -99,7 +101,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const application_durability_fact& lhs,
+  friend PKGAPPLY_API bool operator!=(const application_durability_fact& lhs,
                          const application_durability_fact& rhs) noexcept;
   /*!
    * \brief Order durability facts by domain and then status.
@@ -107,7 +109,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs precedes @p rhs in canonical order.
    */
-  friend bool operator<(const application_durability_fact& lhs,
+  friend PKGAPPLY_API bool operator<(const application_durability_fact& lhs,
                         const application_durability_fact& rhs) noexcept;
 
 private:
@@ -116,7 +118,7 @@ private:
 };
 
 /*! \brief Complete six-domain durability profile in canonical order. */
-class application_durability_profile final {
+class PKGAPPLY_API application_durability_profile final {
 public:
   /*! \brief Normalize and construct a complete durability profile.
    *  \param facts Exactly one fact for each application durability domain.
@@ -146,7 +148,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs are equal.
    */
-  friend bool operator==(const application_durability_profile& lhs,
+  friend PKGAPPLY_API bool operator==(const application_durability_profile& lhs,
                          const application_durability_profile& rhs) noexcept;
   /*!
    * \brief Compare durability profiles for inequality.
@@ -154,7 +156,7 @@ public:
   *  \param rhs Right operand.
   *  \return Whether @p lhs and @p rhs differ.
    */
-  friend bool operator!=(const application_durability_profile& lhs,
+  friend PKGAPPLY_API bool operator!=(const application_durability_profile& lhs,
                          const application_durability_profile& rhs) noexcept;
 
 private:
@@ -170,7 +172,7 @@ private:
  *  original process's admission projection. It is evidence for a
  *  state-publication adapter; it does not publish installed state itself.
  */
-class completed_application_evidence final {
+class PKGAPPLY_API completed_application_evidence final {
 public:
   /*! \brief Construct completed evidence for an installation request.
    *  \param request Exact immutable installation request.
@@ -358,7 +360,7 @@ private:
 };
 
 /*! \brief Truthful terminal result of one attempted package application. */
-class application_receipt final {
+class PKGAPPLY_API application_receipt final {
 public:
   /*! \brief Construct a successful terminal receipt.
    *  \param evidence Publication-eligible completed application evidence.
@@ -385,8 +387,9 @@ public:
    *  \param journal Journal identity when a post-mutation attempt exists.
    *  \param backend_evidence Supporting backend evidence identities.
    *  \return Canonical terminal failure/refusal receipt.
-   *  \throws std::invalid_argument If outcome, recovery, journal, paths,
-   *          publication eligibility, durability, or evidence contradict.
+   *  \throws std::invalid_argument If outcome or recovery is unknown, or if
+   *          outcome, recovery, journal, paths, publication eligibility,
+   *          durability, or evidence contradict.
    */
   [[nodiscard]] static application_receipt failed(
       const installation_application_request& request,
@@ -411,8 +414,9 @@ public:
    *  \param journal Journal identity when a post-mutation attempt exists.
    *  \param backend_evidence Supporting backend evidence identities.
    *  \return Canonical terminal failure/refusal receipt.
-   *  \throws std::invalid_argument If outcome, recovery, journal, paths,
-   *          publication eligibility, durability, or evidence contradict.
+   *  \throws std::invalid_argument If outcome or recovery is unknown, or if
+   *          outcome, recovery, journal, paths, publication eligibility,
+   *          durability, or evidence contradict.
    */
   [[nodiscard]] static application_receipt failed(
       const upgrade_application_request& request,
@@ -437,8 +441,9 @@ public:
    *  \param journal Journal identity when a post-mutation attempt exists.
    *  \param backend_evidence Supporting backend evidence identities.
    *  \return Canonical terminal failure/refusal receipt.
-   *  \throws std::invalid_argument If outcome, recovery, journal, paths,
-   *          publication eligibility, durability, or evidence contradict.
+   *  \throws std::invalid_argument If outcome or recovery is unknown, or if
+   *          outcome, recovery, journal, paths, publication eligibility,
+   *          durability, or evidence contradict.
    */
   [[nodiscard]] static application_receipt failed(
       const removal_application_request& request,
