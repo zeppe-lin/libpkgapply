@@ -509,10 +509,11 @@ PKGAPPLY_API void validate_application_restart(
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The durable journal header retains the projection admitted by the original
- *  process. A restart occurs under a newly acquired lease and therefore a new
- *  current projection; terminal receipt and completed evidence bind to that
- *  current projection after restart validation succeeds.
+ *  The durable journal header retains the exact immutable projection body
+ *  admitted by the original process. A restart occurs under a newly acquired
+ *  lease and therefore a new current projection; terminal receipt and
+ *  completed evidence bind to that current projection after restart validation
+ *  succeeds.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
@@ -532,9 +533,9 @@ resume_application(
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The original journal-header projection remains historical admission
- *  evidence; successful continuation binds terminal evidence to the current
- *  lease-bound projection supplied for this restart.
+ *  The exact original journal-header projection body remains historical
+ *  admission evidence; successful continuation binds terminal evidence to the
+ *  current lease-bound projection supplied for this restart.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
@@ -553,9 +554,9 @@ resume_application(
  *  \param journal Durable journal snapshot to resume.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The original journal-header projection remains historical admission
- *  evidence; successful continuation binds terminal evidence to the current
- *  lease-bound projection supplied for this restart.
+ *  The exact original journal-header projection body remains historical
+ *  admission evidence; successful continuation binds terminal evidence to the
+ *  current lease-bound projection supplied for this restart.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(

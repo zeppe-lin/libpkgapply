@@ -45,7 +45,7 @@ done
 
 [ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
 [ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
-[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 729 ] ||
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 730 ] ||
   fail 'reviewed ELF ABI manifest count changed without review'
 for signature in \
   '16canonical_domainEv' \
@@ -73,7 +73,7 @@ grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || f
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
 grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/CHANGELOG.md" >/dev/null ||
   fail '3.0 ABI generation transition is undocumented'
-grep -F '729 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+grep -F '730 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 
 
 grep -F "'../src/canonical_record.cpp'" "$root/tests/meson.build" >/dev/null ||

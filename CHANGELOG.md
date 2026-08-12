@@ -3,6 +3,9 @@
 
 Authority correction
 
+- Application journal headers retain the exact admitted lease-bound state
+  projection body. Restart consumes that durable historical evidence directly;
+  callers cannot admit a journal from a naked projection identity.
 - Replaced direct build, image, and source-projection admission with one opaque
   `libpkgbuild-plan` artifact projection.
 - Delegated exact build/image agreement to `libpkgbuild-image` and candidate plus

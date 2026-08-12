@@ -73,8 +73,12 @@ header()
       target,
       application_identity<
           pkgapply::application_execution_control_identity>(5),
-      application_identity<
-          pkgapply::lease_bound_state_projection_identity>(6),
+      pkgapply::lease_bound_state_projection::make(
+          application_identity<pkgapply::mutation_lease_instance_identity>(7),
+          planning_identity<pkgplan::installed_state_snapshot_identity>(6),
+          planning_identity<pkgplan::ownership_inventory_identity>(9),
+          pkgapply::state_projection_completeness::complete, {},
+          application_identity<pkgapply::state_projection_evidence_identity>(10)),
       application_identity<pkgapply::mutation_lease_instance_identity>(7),
       backend);
 }

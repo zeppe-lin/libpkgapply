@@ -178,8 +178,12 @@ journal(const pkgapply::application_target_context& context,
       context.identity(),
       application_identity<
           pkgapply::application_execution_control_identity>(42),
-      application_identity<
-          pkgapply::lease_bound_state_projection_identity>(43),
+      pkgapply::lease_bound_state_projection::make(
+          lease.identity(),
+          planning_identity<pkgplan::installed_state_snapshot_identity>(43),
+          planning_identity<pkgplan::ownership_inventory_identity>(44),
+          pkgapply::state_projection_completeness::complete, {},
+          application_identity<pkgapply::state_projection_evidence_identity>(45)),
       lease.identity(),
       context.mutation_backend());
   return pkgapply::application_journal_record::make(

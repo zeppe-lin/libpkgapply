@@ -561,14 +561,18 @@ under the same attempt because they do not repeat a managed-target actuator
 command and remain backend-idempotent by attempt identity.
 
 A crash can occur after completed evidence is durably published but before the
-terminal receipt is sealed. That retained evidence remains historical proof of
-the original process and is validated unchanged. Restart under a newly acquired
-outer lease then republishes equivalent completed application truth bound to
-the current lease-bound state projection and reconfirms completed-evidence
-durability before sealing the receipt. This projection refresh is immutable and
-idempotent evidence publication; it does not repeat an active or rejected
-application effect and does not rewrite the historical journal header.
-Terminal journals are never silently reopened as new attempts.
+terminal receipt is sealed. The application journal retains the exact immutable
+lease-bound state-projection body admitted by the original process, not merely
+its digest. That retained projection and completed evidence remain historical
+proof and are validated unchanged. Restart under a newly acquired outer lease
+may establish a new current projection for present-tense admission, but it must
+not feed that current observation through the historical lease identity to
+reconstruct the old projection. Successful continuation republishes equivalent
+completed application truth bound to the current projection and reconfirms
+completed-evidence durability before sealing the receipt. This projection
+refresh is immutable and idempotent evidence publication; it does not repeat an
+active or rejected application effect and does not rewrite the historical
+journal header. Terminal journals are never silently reopened as new attempts.
 
 The core owns the versioned journal wire format because journal field order,
 enum tags, digest domains, and identity verification are semantic protocol.

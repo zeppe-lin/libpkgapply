@@ -88,8 +88,15 @@ template<class Identity>
       application_request.target().identity(),
       backend,
       nonce(seed));
-  const auto state_projection =
-      application_identity<lease_bound_state_projection_identity>(seed + 1);
+  const auto lease =
+      application_identity<mutation_lease_instance_identity>(seed + 2);
+  const auto state_projection = lease_bound_state_projection::make(
+      lease,
+      fixture::planning_identity<pkgplan::installed_state_snapshot_identity>(
+          seed + 1),
+      fixture::planning_identity<pkgplan::ownership_inventory_identity>(seed + 3),
+      state_projection_completeness::complete, {},
+      application_identity<state_projection_evidence_identity>(seed + 4));
   const auto header = application_journal_header::make(
       pkgplan::operation_kind::install,
       application_request.identity(),
@@ -98,7 +105,7 @@ template<class Identity>
       application_request.target().identity(),
       application_request.control().identity(),
       state_projection,
-      application_identity<mutation_lease_instance_identity>(seed + 2),
+      lease,
       backend);
   const std::vector<application_journal_effect> effects = {
       application_journal_effect::make(

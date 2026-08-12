@@ -59,7 +59,8 @@ The immutable model suite must cover:
   agreement with the accepted plan;
 * rejection of same-name but foreign projections and plan facts;
 * target context normalization;
-* lease-bound state projection completeness;
+* lease-bound state projection completeness and exact journal retention of the
+  admitted projection body;
 * known, unknown, and not-applicable object facts;
 * hard-link relation validation;
 * outcome and durability invariants;
@@ -253,8 +254,9 @@ Restart admission and replay tests separately prove:
 * completed evidence and receipt sealing resume without inventing another
   attempt or duplicate seal intent;
 * a crash after completed-evidence durability but before receipt sealing
-  validates the historical record, republishes current-projection evidence,
-  reconfirms its durability, and does not replay active target effects; and
+  validates the exact historical projection body retained by the journal,
+  republishes current-projection evidence, reconfirms its durability, and does
+  not reconstruct historical state or replay active target effects; and
 * receipt-bearing journals are terminal even when their physical state remains
   visible or indeterminate.
 

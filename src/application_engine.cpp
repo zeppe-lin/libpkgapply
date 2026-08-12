@@ -505,7 +505,7 @@ journal_header(const Request& request,
   return application_journal_header::make(
       request.plan().kind(), request.identity(), request.plan().identity(),
       admitted.attempt(), request.target().identity(), request.control().identity(),
-      state.identity(), lease.identity(), request.target().mutation_backend());
+      state, lease.identity(), request.target().mutation_backend());
 }
 
 template<class Request>

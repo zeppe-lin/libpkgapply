@@ -24,6 +24,8 @@ constexpr std::array<std::uint8_t, 8> journal_magic = {
 constexpr std::uint64_t maximum_effect_count = 1'000'000;
 constexpr std::uint64_t maximum_event_count = 4'000'000;
 constexpr std::uint64_t maximum_evidence_count = 1'000'000;
+constexpr std::uint64_t maximum_projection_path_count = 1'000'000;
+constexpr std::uint64_t maximum_projection_owner_count = 1'000'000;
 constexpr std::uint64_t maximum_digest_text_size = 128;
 constexpr std::uint64_t maximum_path_text_size =
     maximum_application_journal_encoding_size;
@@ -229,6 +231,99 @@ std::uint8_t encode_operation_kind(pkgplan::operation_kind kind)
       "application journal contains an invalid operation kind");
 }
 
+std::uint64_t read_count(
+    reader& input, std::uint64_t maximum, std::string_view description);
+
+std::uint8_t encode_projection_completeness(
+    state_projection_completeness completeness)
+{
+  switch (completeness) {
+    case state_projection_completeness::complete:
+      return 1;
+    case state_projection_completeness::incomplete:
+      return 2;
+  }
+  throw application_journal_codec_error(
+      application_journal_codec_error_code::invalid_value,
+      "application journal contains invalid state-projection completeness");
+}
+
+state_projection_completeness read_projection_completeness(reader& input)
+{
+  switch (input.read_u8()) {
+    case 1:
+      return state_projection_completeness::complete;
+    case 2:
+      return state_projection_completeness::incomplete;
+  }
+  throw application_journal_codec_error(
+      application_journal_codec_error_code::invalid_value,
+      "application journal encoding contains invalid state-projection completeness");
+}
+
+void append_state_projection(
+    writer& output, const lease_bound_state_projection& projection)
+{
+  append_identity(output, projection.identity());
+  output.append_u16(projection.schema_version());
+  append_identity(output, projection.lease());
+  append_identity(output, projection.snapshot());
+  append_identity(output, projection.ownership_inventory());
+  output.append_u8(encode_projection_completeness(projection.completeness()));
+  output.append_u64(static_cast<std::uint64_t>(projection.paths().size()));
+  for (const auto& path : projection.paths()) {
+    output.append_string(path.path().string());
+    output.append_u64(static_cast<std::uint64_t>(path.owners().size()));
+    for (const auto& owner : path.owners())
+      append_identity(output, owner);
+  }
+  append_identity(output, projection.evidence());
+}
+
+lease_bound_state_projection read_state_projection(reader& input)
+{
+  const auto expected_identity = read_application_identity<
+      lease_bound_state_projection_identity>(input);
+  if (input.read_u16() != lease_bound_state_projection_schema_version)
+    throw application_journal_codec_error(
+        application_journal_codec_error_code::unsupported_version,
+        "application journal state-projection schema is unsupported");
+
+  auto lease = read_application_identity<mutation_lease_instance_identity>(input);
+  auto snapshot = read_planning_identity<
+      pkgplan::installed_state_snapshot_identity>(input);
+  auto ownership = read_planning_identity<
+      pkgplan::ownership_inventory_identity>(input);
+  const auto completeness = read_projection_completeness(input);
+  const auto path_count = read_count(
+      input, maximum_projection_path_count,
+      "application journal state-projection path universe");
+  std::vector<projected_path_owners> paths;
+  paths.reserve(static_cast<std::size_t>(path_count));
+  for (std::uint64_t index = 0; index < path_count; ++index) {
+    auto path = pkgplan::package_path::parse(
+        input.read_string(maximum_path_text_size));
+    const auto owner_count = read_count(
+        input, maximum_projection_owner_count,
+        "application journal state-projection owner universe");
+    std::vector<pkgplan::installed_package_identity> owners;
+    owners.reserve(static_cast<std::size_t>(owner_count));
+    for (std::uint64_t owner = 0; owner < owner_count; ++owner)
+      owners.push_back(read_planning_identity<
+          pkgplan::installed_package_identity>(input));
+    paths.emplace_back(std::move(path), std::move(owners));
+  }
+  auto evidence = read_application_identity<state_projection_evidence_identity>(input);
+  auto projection = lease_bound_state_projection::make(
+      std::move(lease), std::move(snapshot), std::move(ownership),
+      completeness, std::move(paths), std::move(evidence));
+  if (projection.identity() != expected_identity)
+    throw application_journal_codec_error(
+        application_journal_codec_error_code::identity_mismatch,
+        "application journal state-projection body does not reproduce its identity");
+  return projection;
+}
+
 application_journal_state read_state(reader& input)
 {
   const auto value = input.read_u8();
@@ -389,7 +484,7 @@ encode_application_journal(const application_journal_record& record)
       header.attempt().nonce().bytes().size());
   append_identity(output, header.target());
   append_identity(output, header.control());
-  append_identity(output, header.state_projection());
+  append_state_projection(output, header.admitted_state_projection());
   append_identity(output, header.lease());
   append_identity(output, header.backend());
 
@@ -464,8 +559,7 @@ decode_application_journal(const std::uint8_t* data, std::size_t size)
         read_application_identity<application_target_context_identity>(input);
     const auto control = read_application_identity<
         application_execution_control_identity>(input);
-    const auto state_projection = read_application_identity<
-        lease_bound_state_projection_identity>(input);
+    auto state_projection = read_state_projection(input);
     const auto lease = read_application_identity<
         mutation_lease_instance_identity>(input);
     const auto backend =
@@ -475,8 +569,8 @@ decode_application_journal(const std::uint8_t* data, std::size_t size)
         request, target, backend,
         application_attempt_nonce::from_bytes(nonce_bytes));
     auto header = application_journal_header::make(
-        kind, request, plan, attempt, target, control, state_projection, lease,
-        backend);
+        kind, request, plan, attempt, target, control, std::move(state_projection),
+        lease, backend);
 
     const auto state = read_state(input);
     const auto effect_count = read_count(

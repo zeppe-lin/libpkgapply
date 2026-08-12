@@ -292,7 +292,7 @@ application_journal_header::make(
     application_attempt attempt,
     application_target_context_identity target,
     application_execution_control_identity control,
-    lease_bound_state_projection_identity state_projection,
+    lease_bound_state_projection state_projection,
     mutation_lease_instance_identity lease,
     mutation_backend_identity backend)
 {
@@ -305,10 +305,13 @@ application_journal_header::make(
   if (attempt.backend() != backend)
     throw std::invalid_argument(
         "application journal attempt belongs to another backend");
+  if (state_projection.lease() != lease)
+    throw std::invalid_argument(
+        "application journal state projection belongs to another lease");
 
   auto identity = identify_header(
-      kind, request, plan, attempt, target, control, state_projection, lease,
-      backend);
+      kind, request, plan, attempt, target, control, state_projection.identity(),
+      lease, backend);
   return application_journal_header(
       std::move(identity), kind, std::move(request), std::move(plan),
       std::move(attempt), std::move(target), std::move(control),
@@ -323,7 +326,7 @@ application_journal_header::application_journal_header(
     application_attempt attempt,
     application_target_context_identity target,
     application_execution_control_identity control,
-    lease_bound_state_projection_identity state_projection,
+    lease_bound_state_projection state_projection,
     mutation_lease_instance_identity lease,
     mutation_backend_identity backend)
     : identity_(std::move(identity)), kind_(kind), request_(std::move(request)),
@@ -352,6 +355,9 @@ const application_execution_control_identity&
 application_journal_header::control() const noexcept { return control_; }
 const lease_bound_state_projection_identity&
 application_journal_header::state_projection() const noexcept
+{ return state_projection_.identity(); }
+const lease_bound_state_projection&
+application_journal_header::admitted_state_projection() const noexcept
 { return state_projection_; }
 const mutation_lease_instance_identity&
 application_journal_header::lease() const noexcept { return lease_; }

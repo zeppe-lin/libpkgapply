@@ -89,8 +89,22 @@ pkgapply::application_journal_header header(std::uint8_t seed = 1)
       target,
       application_identity<
           pkgapply::application_execution_control_identity>(seed + 4),
-      application_identity<
-          pkgapply::lease_bound_state_projection_identity>(seed + 5),
+      pkgapply::lease_bound_state_projection::make(
+          application_identity<
+              pkgapply::mutation_lease_instance_identity>(seed + 6),
+          planning_identity<pkgplan::installed_state_snapshot_identity>(
+              seed + 5),
+          planning_identity<pkgplan::ownership_inventory_identity>(seed + 7),
+          pkgapply::state_projection_completeness::complete,
+          {pkgapply::projected_path_owners(
+              pkgplan::package_path::parse("usr/bin/tool"),
+              {planning_identity<pkgplan::installed_package_identity>(seed + 9),
+               planning_identity<pkgplan::installed_package_identity>(
+                   seed + 10)}),
+           pkgapply::projected_path_owners(
+               pkgplan::package_path::parse("etc/tool.conf"), {})},
+          application_identity<pkgapply::state_projection_evidence_identity>(
+              seed + 8)),
       application_identity<
           pkgapply::mutation_lease_instance_identity>(seed + 6),
       backend);
@@ -168,16 +182,30 @@ int main()
 {
   const auto completed = completed_record();
   const auto encoding = pkgapply::encode_application_journal(completed);
-  require(encoding.size() == 1044,
+  require(encoding.size() == 1604,
           "journal wire-format test vector size changed");
   require(sha256_hex(encoding) ==
-              "448faddf5cea89d744797fea4c85a2b0120a08fd0c5403afe1b9f05fc45ca83b",
+              "6db0014279272e3776ee4aa5c20e5a7de6ee33b34ec2c8748d0aa5c688875032",
           "journal wire-format test vector changed");
   const auto decoded = pkgapply::decode_application_journal(encoding);
   require(decoded.identity() == completed.identity(),
           "journal codec changed the record identity");
   require(decoded.header().identity() == completed.header().identity(),
           "journal codec changed the header identity");
+  require(
+      decoded.header().admitted_state_projection().identity() ==
+          completed.header().admitted_state_projection().identity() &&
+      decoded.header().admitted_state_projection().lease() ==
+          completed.header().admitted_state_projection().lease() &&
+      decoded.header().admitted_state_projection().snapshot() ==
+          completed.header().admitted_state_projection().snapshot() &&
+      decoded.header().admitted_state_projection().ownership_inventory() ==
+          completed.header().admitted_state_projection().ownership_inventory() &&
+      decoded.header().admitted_state_projection().paths() ==
+          completed.header().admitted_state_projection().paths() &&
+      decoded.header().admitted_state_projection().evidence() ==
+          completed.header().admitted_state_projection().evidence(),
+      "journal codec lost the admitted state-projection body");
   require(decoded.events().size() == completed.events().size() &&
               decoded.events()[1].backend_evidence() ==
                   completed.events()[1].backend_evidence(),

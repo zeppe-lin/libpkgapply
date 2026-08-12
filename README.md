@@ -15,7 +15,8 @@ The core owns:
 
 - application attempts and backend identities;
 - immutable package application requests;
-- target contexts and lease-bound state projections;
+- target contexts and exact lease-bound state projections retained by durable
+  application journals;
 - precondition validation and deterministic effect schedules;
 - rejected, active, recovery, and final-observation evidence models;
 - durable journal, restart-checkpoint, completed-evidence, and application-
@@ -72,7 +73,11 @@ require:
 
 Build/image agreement and source-to-planner projection are upstream statements
 retained through `libpkgbuild-plan`; they are not reconstructed by
-`libpkgapply`. OpenSSL `libcrypto` is the only private pkg-config requirement.
+`libpkgapply`. Likewise, an application journal retains the exact admitted
+lease-bound state-projection body. Restart may validate current state under a
+new lease, but it never reconstructs the historical projection from that
+current observation. OpenSSL `libcrypto` is the only private pkg-config
+requirement.
 Transitive authority libraries remain legitimate implementation ELF needs where
 opaque accessors are used and enter consumer flags only for static linkage.
 

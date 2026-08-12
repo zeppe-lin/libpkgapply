@@ -14,6 +14,7 @@
 
 #include <libpkgapply/attempt.h>
 #include <libpkgapply/digest.h>
+#include <libpkgapply/state_projection.h>
 #include <libpkgplan/digest.h>
 #include <libpkgplan/package_path.h>
 #include <libpkgplan/plan.h>
@@ -95,7 +96,7 @@ public:
       application_attempt attempt,
       application_target_context_identity target,
       application_execution_control_identity control,
-      lease_bound_state_projection_identity state_projection,
+      lease_bound_state_projection state_projection,
       mutation_lease_instance_identity lease,
       mutation_backend_identity backend);
 
@@ -143,10 +144,17 @@ public:
   control() const noexcept;
   /*!
    * \brief Return the admitted state-projection identity.
-  *  \return The admitted state-projection identity.
+   * \return The admitted state-projection identity.
    */
   [[nodiscard]] const lease_bound_state_projection_identity&
   state_projection() const noexcept;
+
+  /*!
+   * \brief Return the exact admitted state-projection body.
+   * \return The exact admitted state-projection body retained by the journal.
+   */
+  [[nodiscard]] const lease_bound_state_projection&
+  admitted_state_projection() const noexcept;
   /*!
    * \brief Return the mutation-lease acquisition identity.
   *  \return The mutation-lease acquisition identity.
@@ -168,7 +176,7 @@ private:
       application_attempt attempt,
       application_target_context_identity target,
       application_execution_control_identity control,
-      lease_bound_state_projection_identity state_projection,
+      lease_bound_state_projection state_projection,
       mutation_lease_instance_identity lease,
       mutation_backend_identity backend);
 
@@ -180,7 +188,7 @@ private:
   application_attempt attempt_;
   application_target_context_identity target_;
   application_execution_control_identity control_;
-  lease_bound_state_projection_identity state_projection_;
+  lease_bound_state_projection state_projection_;
   mutation_lease_instance_identity lease_;
   mutation_backend_identity backend_;
 };

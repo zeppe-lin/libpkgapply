@@ -15,7 +15,9 @@ Before tagging:
    against the SONAME/API policy in `docs/abi.md`;
 6. lint manuals and strict Doxygen, and stage-install all documentation;
 7. audit integration against the corresponding `libpkgapply-posix` and
-   `libpkgstate-apply` release candidates;
+   `libpkgstate-apply` release candidates; require durable application journals
+   to retain the exact admitted state-projection body and forbid recovery code
+   from reconstructing that historical projection from a current state read;
 8. replay the mailbox independently and compare Git trees.
 
 The 3.0 ABI gate is closed only while the reviewed manifest, SONAME 3, and API

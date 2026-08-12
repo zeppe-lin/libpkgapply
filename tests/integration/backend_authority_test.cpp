@@ -398,7 +398,7 @@ int main()
   const auto foreign_header = application_journal_header::make(
       valid_journal.header().kind(), application.identity(),
       application.plan().identity(), foreign_attempt, target.identity(),
-      application.control().identity(), valid_journal.header().state_projection(),
+      application.control().identity(), valid_journal.header().admitted_state_projection(),
       valid_journal.header().lease(), alternate_backend);
   const auto foreign_journal = application_journal_record::make(
       foreign_header, valid_journal.state(), valid_journal.effects(),

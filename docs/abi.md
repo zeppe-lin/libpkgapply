@@ -16,7 +16,7 @@ toolchain.
 
 The pre-tag ABI gate is closed by `abi/libpkgapply.exports`. It contains the
 exact compiler-stable ELF surface reviewed from GCC and Clang shared builds:
-729 symbols. The library builds with hidden default visibility, explicit public
+730 symbols. The library builds with hidden default visibility, explicit public
 annotations, and an ELF linker export script generated from that manifest.
 `tests/contracts/check_abi_surface.sh` compares the linked shared object against
 the manifest exactly. The manifest includes all five out-of-line public member functions for each of
@@ -48,3 +48,9 @@ direct ELF needs of the implementation where opaque projection accessors are
 called; they are not public compile dependencies. Changes to public value
 layouts, exception hierarchies, virtual interfaces, dependency placement, or
 SONAME require explicit ABI review.
+
+Current development ABI note: application journals retain the complete admitted
+`lease_bound_state_projection` body. `application_journal_header::make()` now
+requires that body and `admitted_state_projection()` exposes it for recovery.
+The previous naked projection-identity constructor signature is intentionally
+absent; this is a reviewed development ABI break, not a compatibility surface.

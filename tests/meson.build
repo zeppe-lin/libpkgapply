@@ -159,6 +159,7 @@ if get_option('tests').allowed()
 
   foreach contract : [
     'application_receipt_codec_source',
+    'journal_projection_evidence_source',
     'mutation_lease_scope_source',
     'ci_qualification_source',
     'release_metadata',

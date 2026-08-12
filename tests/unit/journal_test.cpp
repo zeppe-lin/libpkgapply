@@ -72,8 +72,12 @@ header()
       target,
       application_identity<
           pkgapply::application_execution_control_identity>(5),
-      application_identity<
-          pkgapply::lease_bound_state_projection_identity>(6),
+      pkgapply::lease_bound_state_projection::make(
+          application_identity<pkgapply::mutation_lease_instance_identity>(7),
+          planning_identity<pkgplan::installed_state_snapshot_identity>(6),
+          planning_identity<pkgplan::ownership_inventory_identity>(9),
+          pkgapply::state_projection_completeness::complete, {},
+          application_identity<pkgapply::state_projection_evidence_identity>(10)),
       application_identity<pkgapply::mutation_lease_instance_identity>(7),
       backend);
 }
@@ -116,6 +120,34 @@ main()
 {
   const auto journal_header = header();
   const auto journal_effects = effects();
+  require(journal_header.admitted_state_projection().identity() ==
+              journal_header.state_projection(),
+          "application journal did not retain its admitted state projection");
+  require(journal_header.admitted_state_projection().lease() ==
+              journal_header.lease(),
+          "application journal projection lease differs from journal lease");
+
+  bool foreign_projection_lease_refused = false;
+  try {
+    const auto foreign = pkgapply::lease_bound_state_projection::make(
+        application_identity<pkgapply::mutation_lease_instance_identity>(70),
+        journal_header.admitted_state_projection().snapshot(),
+        journal_header.admitted_state_projection().ownership_inventory(),
+        journal_header.admitted_state_projection().completeness(),
+        journal_header.admitted_state_projection().paths(),
+        journal_header.admitted_state_projection().evidence());
+    (void)pkgapply::application_journal_header::make(
+        journal_header.kind(), journal_header.request(), journal_header.plan(),
+        journal_header.attempt(), journal_header.target(),
+        journal_header.control(), foreign, journal_header.lease(),
+        journal_header.backend());
+  }
+  catch (const std::invalid_argument&) {
+    foreign_projection_lease_refused = true;
+  }
+  require(foreign_projection_lease_refused,
+          "application journal admitted a projection from another lease");
+
   const auto journal_events = events(journal_effects);
   const auto receipt =
       application_identity<pkgapply::application_receipt_identity>(30);
@@ -130,11 +162,11 @@ main()
       receipt,
       evidence);
 
-  require(journal_header.identity().string() == "v1:sha256:e9414af7976e237f8945b2d33b89fb14974783c4ecb6743f6cc0ca152efd83a0",
+  require(journal_header.identity().string() == "v1:sha256:500a50a54372af2c8b05c23b8e0664552d8f37bfd969feaaf0a6d150b2c28839",
           "application journal header identity vector changed");
   require(journal_effects[0].identity().string() == "v1:sha256:1e1a549c38805eff0cac6b13aae44814560780bff354342f7d0fd48ea038e228",
           "application journal effect identity vector changed");
-  require(record.identity().string() == "v1:sha256:38c9eafe215977f66f7146daa358435b95bdffc39757ce73b8871a8d47b911a0",
+  require(record.identity().string() == "v1:sha256:94389c5ef4fde0d889b392d55d3252b3aa824a7c123f4f403325c6f1258858c2",
           "application journal record identity vector changed");
 
   auto reversed = journal_effects;
