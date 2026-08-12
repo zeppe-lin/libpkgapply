@@ -1,7 +1,8 @@
-3.0.0 - unreleased
-------------------
+# libpkgapply changelog
 
-Authority correction
+## 3.0.0 - 2026-08-12
+
+### Authority correction
 
 - Application journal headers retain the exact admitted lease-bound state
   projection body. Restart consumes that durable historical evidence directly;
@@ -33,7 +34,7 @@ Authority correction
   values before they can enter canonical application evidence or receipt
   identities.
 
-Repository boundary
+### Repository boundary
 
 - Extracted the existing POSIX mechanism product into the independent
   `libpkgapply-posix` repository.
@@ -47,14 +48,10 @@ Repository boundary
   incoming-package authority replaces the published 2.x admission signature
   and by-value representation; no compatibility shim is retained.
 
-libpkgapply changelog
-=====================
 
-2.3.0 - 2026-08-02
-------------------
+## 2.3.0 - 2026-08-02
 
-Durable application-receipt evidence
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Durable application-receipt evidence
 
 - Added a canonical, checksummed `application_receipt` encoding for completed,
   refused, failed, partially recovered, durability-unconfirmed, and
@@ -69,19 +66,16 @@ Durable application-receipt evidence
   schema, every existing durable application protocol, and all dependency
   floors.
 
-Deliberate boundary
-~~~~~~~~~~~~~~~~~~~
+### Deliberate boundary
 
 Version 2.3.0 adds no receipt store, journal traversal, target observation,
 application replay, recovery actuation, installed-state projection, state
 publication, discovery, repair, or package-manager command. Receipt bytes are
 owner evidence; the caller still supplies the immutable request authority.
 
-2.2.0 - 2026-08-01
-------------------
+## 2.2.0 - 2026-08-01
 
-Target-scoped lease validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Target-scoped lease validation
 
 - Added `validate_target_mutation_lease_scope()` for recovery and finalization
   paths that must prove one live lease belongs to the exact application target
@@ -92,19 +86,16 @@ Target-scoped lease validation
 - Preserved API version 2, both SONAMEs at 2, every durable schema, the POSIX
   acquisition mechanism, and all generation-2 source/build authority floors.
 
-Deliberate boundary
-~~~~~~~~~~~~~~~~~~~
+### Deliberate boundary
 
 Version 2.2.0 adds no lease acquisition, installed-state read, application,
 publication, reconciliation, retry, repair, or package-manager command. A
 scope-valid lease alone does not authorize filesystem mutation or state
 publication.
 
-2.1.0 - 2026-08-01
-------------------
+## 2.1.0 - 2026-08-01
 
-Caller-owned POSIX target exclusion
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Caller-owned POSIX target exclusion
 
 - Added a canonical mutation-lease acquisition value binding one exact
   application target context, mutation-exclusion domain, and mechanism-issued
@@ -119,15 +110,14 @@ Caller-owned POSIX target exclusion
 - Preserved API version 2, SONAME 2, all durable application schemas, and the
   generation-2 source/build authority floors.
 
-Deliberate boundary
-~~~~~~~~~~~~~~~~~~~
+### Deliberate boundary
 
 Version 2.1.0 provides the physical outer exclusion mechanism but does not
 construct lease-bound installed-state projections, publish installed state,
 assemble a transaction driver, choose retry policy, or expose package-manager
 mutation commands.
 
-2.0.0 - 2026-07-29
+## 2.0.0 - 2026-07-29
 
 ABI migration to the generation-2 source/build authority closure.
 
@@ -142,11 +132,9 @@ ABI migration to the generation-2 source/build authority closure.
 - Version 2.0.0 does not publish installed state, execute package lifecycle
   programs, or choose transaction order.
 
-1.0.0 - 2026-07-27
-------------------
+## 1.0.0 - 2026-07-27
 
-Native incoming authority
-~~~~~~~~~~~~~~~~~~~~~~~~~
+### Native incoming authority
 
 - Added `incoming_package_authority`, which admits one complete successful
   `libpkgbuild 1.0.0` result together with an independently inspected
@@ -158,8 +146,7 @@ Native incoming authority
 - Reject plans whose release, candidate control, artifact, image, inspection
   receipt, manifest, or archive precondition differs from the admitted build.
 
-Authority and ABI transition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Authority and ABI transition
 
 - Advanced the application-request schema to version 2, public API version to
   1, core SONAME to 1, and POSIX backend SONAME to 1.
@@ -170,8 +157,7 @@ Authority and ABI transition
   evidence, and descriptor-anchored POSIX mechanisms without moving source,
   build, planning, or installed-state authority into the backend.
 
-Operational transition
-~~~~~~~~~~~~~~~~~~~~~~
+### Operational transition
 
 - Version 0.1.0 application requests cannot be reconstructed as version 1.0.0
   requests because they did not retain native build authority.
@@ -183,19 +169,16 @@ Operational transition
   plan. Archive filenames and caller-invented control values are not migration
   inputs.
 
-Deliberate boundaries
-~~~~~~~~~~~~~~~~~~~~~
+### Deliberate boundaries
 
 Version 1.0.0 does not publish installed state, execute package lifecycle
 material, resolve dependencies, select package candidates, discover archives
 or targets from ambient configuration, compose multi-package transactions, or
 claim global filesystem and state atomicity.
 
-0.1.0 - 2026-07-25
-------------------
+## 0.1.0 - 2026-07-25
 
-Authority model
-~~~~~~~~~~~~~~~
+### Authority model
 
 - Established operation-specific immutable application requests over accepted
   `libpkgplan` installation, upgrade, and removal plans.
@@ -206,8 +189,7 @@ Authority model
   discovery, installed-state construction, and installed-state publication
   outside the library.
 
-Application semantics
-~~~~~~~~~~~~~~~~~~~~~
+### Application semantics
 
 - Added exact admission checks for target, lease, state, ownership, filesystem,
   archive, image, inspection-receipt, and image-entry authority.
@@ -220,8 +202,7 @@ Application semantics
 - Added durable journal and restart-checkpoint models with exact attempt
   reopening and replay classification.
 
-POSIX backend
-~~~~~~~~~~~~~
+### POSIX backend
 
 - Added FD-anchored target observation, journal, checkpoint, payload, capture,
   rejected-object, active-namespace, recovery, and completed-evidence
@@ -234,16 +215,14 @@ POSIX backend
   descriptor anchoring, physical restart revalidation, and terminal cleanup
   only after recovery authority is no longer required.
 
-Qualification
-~~~~~~~~~~~~~
+### Qualification
 
 - Added public-header isolation, deterministic scripted-backend failure
   injection, semantic and restart regressions, mechanism-level POSIX tests, and
   end-to-end concrete backend composition tests.
 - Added scdoc manuals and warning-strict Doxygen configuration.
 
-Deliberate boundaries
-~~~~~~~~~~~~~~~~~~~~~
+### Deliberate boundaries
 
 Version 0.1.0 does not publish installed state, execute package lifecycle
 material, discover archives or target paths from ambient configuration, solve

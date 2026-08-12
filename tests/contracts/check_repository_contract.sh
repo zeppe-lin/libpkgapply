@@ -3,6 +3,8 @@ set -eu
 root=$1
 fail(){ echo "repository-contract: $*" >&2; exit 1; }
 for p in include/libpkgapply src docs man tests ci .github/workflows; do [ -e "$root/$p" ] || fail "missing $p"; done
+[ -s "$root/meson.options" ] || fail 'missing meson.options'
+[ ! -e "$root/meson_options.txt" ] || fail 'legacy meson_options.txt remains'
 if git -C "$root" ls-files | grep -E \
   '(^|/)([^/]+\.(o|a|pyc)|[^/]+\.so(\..*)?)$' >/dev/null
 then

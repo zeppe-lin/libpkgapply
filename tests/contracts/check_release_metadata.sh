@@ -8,4 +8,5 @@ grep -F 'return "3.0.0";' "$root/src/version.cpp" >/dev/null || fail 'runtime ve
 grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fail 'API generation mismatch'
 grep -F "soversion: '3'" "$root/src/meson.build" >/dev/null || fail 'SONAME mismatch'
 [ ! -d "$root/posix" ] || fail 'POSIX source remains'
-grep -F '3.0.0 - unreleased' "$root/CHANGELOG.md" >/dev/null || fail '3.0 history absent'
+grep -F '## 3.0.0 - 2026-08-12' "$root/CHANGELOG.md" >/dev/null || fail '3.0 release history absent'
+! grep -F '3.0.0 - unreleased' "$root/CHANGELOG.md" >/dev/null || fail '3.0 release remains marked unreleased'

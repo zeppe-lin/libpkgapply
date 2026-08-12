@@ -1,8 +1,6 @@
-libpkgapply design
-==================
+# libpkgapply design
 
-Purpose
--------
+## Purpose
 
 `libpkgapply` owns package-application truth.
 
@@ -17,8 +15,7 @@ authority. It does not decide how several package operations, lifecycle
 actions, maintenance actions, and state publications form one complete
 transaction. That is orchestration authority.
 
-Authority graph
----------------
+## Authority graph
 
 ```text
 successful build result        independently inspected image
@@ -60,8 +57,7 @@ target mutation lease, supplies immutable authorities, retains the lease
 through installed-state publication and recovery choice, and records the
 complete transaction result.
 
-Incoming package authority
---------------------------
+## Incoming package authority
 
 Installation and upgrade do not accept an archive, candidate-control value,
 build result, or inspected image independently. `incoming_package_authority`
@@ -90,8 +86,7 @@ request-bound incoming package and the accepted plan.
 Removal has no incoming package authority. It cannot smuggle an incoming
 archive precondition into the application layer.
 
-Accepted plan
--------------
+## Accepted plan
 
 The public application API consumes the released operation-specific
 `libpkgplan` values directly:
@@ -120,8 +115,7 @@ not assumed to be payload replay order or safe filesystem execution order.
 The application core derives the effect dependency graph and uses canonical
 path order only as a deterministic tie-breaker.
 
-Public application facade
--------------------------
+## Public application facade
 
 The package-manager-facing API exposes three operation-specific `apply()`
 overloads. Installation and upgrade requests retain admitted native build and
@@ -143,8 +137,7 @@ exceptions. The facade does not fabricate a receipt when physical truth cannot
 be established. It also does not publish installed state; a successful receipt
 and completed evidence remain inputs to `libpkgstate`.
 
-Target application context
---------------------------
+## Target application context
 
 One immutable application target context binds at least:
 
@@ -171,8 +164,7 @@ The context contains no installed-snapshot identity and no root pathname.
 Concrete handles and locators belong to the call-scoped backend resources.
 A pathname is not a target or root-view identity.
 
-Outer mutation lease
---------------------
+## Outer mutation lease
 
 `libpkgapply` requires a caller-held target mutation lease. It does not own
 the outer lease lifetime.
@@ -218,8 +210,7 @@ A caller must not manufacture the old projection after canonical publication
 has already advanced to a new state epoch merely to satisfy an actuator-shaped
 interface.
 
-Lease-bound state projection
-----------------------------
+## Lease-bound state projection
 
 The core library has no `libpkgstate` dependency. A caller supplies an
 immutable projection established under the outer lease:
@@ -237,8 +228,7 @@ This value is not installed truth owned by `libpkgapply`. It is an explicit
 projection from the selected installed-state authority for application-time
 revalidation.
 
-Precondition revalidation
--------------------------
+## Precondition revalidation
 
 Before target-domain mutation, application verifies:
 
@@ -256,8 +246,7 @@ fact known by the plan must, however, still be known and equal.
 A mismatch returns a typed no-mutation refusal. Application does not
 replan, weaken policy, or improvise another outcome.
 
-Incoming archive authority
---------------------------
+## Incoming archive authority
 
 Installation and upgrade receive one stable replayable
 `pkgimage::package_archive` authority. Application verifies it against the
@@ -282,8 +271,7 @@ regular entries required by:
 Replay occurs into private staging. `libpkgimage` replay may partially
 deliver bytes before failure and is not itself a transaction.
 
-Effect domains
---------------
+## Effect domains
 
 Each operated path keeps independent consequences:
 
@@ -315,8 +303,7 @@ Incoming sockets cannot occur in the `libpkgimage 0.3.0` archive model. An
 observed socket may be retained or removed when the accepted plan says so.
 Application never invents unsupported restoration semantics.
 
-Completed-object evidence
--------------------------
+## Completed-object evidence
 
 Completed object facts remain richer than the current installed-state
 ownership representation. They may retain:
@@ -349,8 +336,7 @@ Unknown is never silently promoted to known. Inode numbers and temporary
 pathnames may support backend observation but do not enter canonical
 application evidence.
 
-Application result domains
---------------------------
+## Application result domains
 
 Every trustworthy attempt produces an immutable application receipt.
 Completed application evidence exists only when all selected effects and
@@ -387,8 +373,7 @@ The receipt records only guarantees actually established by the backend.
 It never upgrades rename, synchronization, signal handling, or process
 cleanup into unsupported global atomicity.
 
-Durable application-receipt encoding
-------------------------------------
+## Durable application-receipt encoding
 
 The core owns one versioned, length-qualified, SHA-256-protected encoding for a
 validated terminal `application_receipt`. Decode requires the complete immutable
@@ -406,8 +391,7 @@ The decoder performs no journal lookup, target observation, filesystem access,
 application replay, recovery, evidence publication, or installed-state
 publication. A receipt codec is evidence admission, not an actuator or store.
 
-Rejected objects
-----------------
+## Rejected objects
 
 Canonical rejected storage is attempt-scoped and distinguishes incoming from
 old objects:
@@ -427,8 +411,7 @@ The canonical representation need not materialize dangerous special objects
 as live nodes. Compatibility projection into the historical mirrored
 rejected tree remains a separate adapter concern.
 
-Application sequence
---------------------
+## Application sequence
 
 The non-virtual semantic engine owns this sequence:
 
@@ -486,8 +469,7 @@ durability is confirmed. Failed or indeterminate evidence publication leaves
 the already observed target truth explicit but every path publication-
 ineligible.
 
-Operation-specific semantics
-----------------------------
+## Operation-specific semantics
 
 ### Installation
 
@@ -510,8 +492,7 @@ It executes from the accepted removal plan and current target authorities.
 Conditional directory cleanup is non-recursive: a non-empty directory remains
 and is reported as the completed conditional outcome.
 
-Lifecycle authority remains outside application
------------------------------------------------
+## Lifecycle authority remains outside application
 
 `libpkgplan` may retain exact lifecycle declarations for downstream
 orchestration, and the target context may retain the identity of the selected
@@ -524,8 +505,7 @@ selected lifecycle executor. Supplying executable material directly to
 `libpkgapply` would create a second unplanned controller input and is therefore
 outside this boundary.
 
-Journal and crash recovery
---------------------------
+## Journal and crash recovery
 
 A durable write-ahead journal is part of the application contract.
 
@@ -595,16 +575,14 @@ exact journal snapshot plus immutable application request; plan-derived path
 roles, ownership transitions, and intended outcomes are reconstructed from that
 request rather than accepted as a second controller input.
 
-Reference mechanism separation
-------------------------------
+## Reference mechanism separation
 
 Concrete POSIX observation, storage, mutation, and recovery mechanics are
 owned by the independent `libpkgapply-posix` repository. The core specifies
 only the abstract backend contracts, ordering, evidence, and recovery
 obligations those mechanisms must satisfy.
 
-State integration
------------------
+## State integration
 
 `libpkgapply` produces completed application evidence. It does not construct:
 
@@ -626,8 +604,7 @@ Qualification of that translation belongs to `libpkgstate-apply`.
 `libpkgstate` remains absent from the core headers, library, tests, and
 pkg-config dependency closure.
 
-Core and backend split
-----------------------
+## Core and backend split
 
 `libpkgapply` contains:
 
@@ -653,8 +630,7 @@ through the opaque planner projection; they are not public pkg-config edges.
 The core has no direct archive-decoder, POSIX mechanism, resolver, catalog, or
 installed-state dependency.
 
-Concurrency and errors
-----------------------
+## Concurrency and errors
 
 Immutable public values support concurrent read access.
 
@@ -671,8 +647,7 @@ failure that prevents truthful receipt construction.
 Destructors are non-throwing and release resources. RAII cleanup is not crash
 recovery.
 
-Hard invariants
----------------
+## Hard invariants
 
 1. Application consumes an accepted plan and never reparses policy.
 2. Installation, upgrade, and removal remain distinct public request types.

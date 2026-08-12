@@ -19,8 +19,7 @@ headers, filesystem APIs, lock-file conventions, and backend storage layouts.
 `libpkgapply-posix` is the reference mechanism provider and depends inward on
 the core; the core does not depend outward on it.
 
-Backend authority
------------------
+## Backend authority
 
 The immutable `application_target_context` is the admitted backend authority for
 one application request.  A provider is revalidated when its transaction is

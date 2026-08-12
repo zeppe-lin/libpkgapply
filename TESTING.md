@@ -1,8 +1,6 @@
-Testing libpkgapply
-===================
+# Testing libpkgapply
 
-Doctrine
---------
+## Doctrine
 
 Package application is tested as an untrusted-input, stale-state, mutation,
 and recovery boundary.
@@ -18,8 +16,7 @@ Every behavioral addition requires:
 
 No test class may be disabled merely to obtain a release build.
 
-Qualification roles
--------------------
+## Qualification roles
 
 Meson suites are evidence roles, not synonyms for source directories:
 
@@ -35,8 +32,7 @@ The final application vertical intentionally remains composed. Focused tests
 must pin every owner boundary needed to diagnose it; the vertical proves only
 that those boundaries still compose in one application lifecycle.
 
-Model tests
------------
+## Model tests
 
 Plan-bearing tests construct accepted plans only through the released
 `libpkgplan` request and planner APIs. Installation and upgrade fixtures import
@@ -67,8 +63,7 @@ The immutable model suite must cover:
 * receipt versus completed-evidence separation; and
 * canonical order and permutation stability.
 
-Engine admission tests
-----------------------
+## Engine admission tests
 
 The internal non-virtual engine gate must prove:
 
@@ -88,8 +83,7 @@ The internal non-virtual engine gate must prove:
 * admission performs no payload, capture, effect, recovery, synchronization,
   or journal backend operation.
 
-Precondition tests
-------------------
+## Precondition tests
 
 Precondition qualification must cover:
 
@@ -104,8 +98,7 @@ Precondition qualification must cover:
 * fresh observations containing additional facts; and
 * all-or-nothing refusal before mutation.
 
-Archive staging and schedule tests
-----------------------------------
+## Archive staging and schedule tests
 
 Composition with planner-ready build authority and deterministic mechanism
 scheduling must
@@ -129,8 +122,7 @@ cover:
 * final observation after all active and rejected effects; and
 * no target mutation before private staging completes.
 
-Scripted backend
-----------------
+## Scripted backend
 
 A deterministic scripted backend must expose every semantic backend event and
 allow failure injection at each boundary:
@@ -171,8 +163,7 @@ unknown-result recovery seams, publication-ineligible evidence failures, exact
 completed-record identity return, completed-evidence durability, terminal
 receipt binding, and archive-free removal completion.
 
-Public facade tests
--------------------
+## Public facade tests
 
 The package-manager-facing `apply()` overloads must prove:
 
@@ -191,8 +182,7 @@ The scripted backend supplies ordered observation snapshots so a facade test
 can represent planning-time truth followed by post-effect truth without
 reaching between private engine phases.
 
-Operation tests
----------------
+## Operation tests
 
 Installation tests cover activation, preserve, reject, omit, compatible
 sharing, structural parents, empty packages, and ownership eligibility.
@@ -209,8 +199,7 @@ Filesystem object tests cover regular files, directories, symbolic links,
 hard links, FIFOs, character and block device capabilities, observed sockets,
 unsupported objects, metadata, and unknown facts.
 
-Journal and recovery tests
---------------------------
+## Journal and recovery tests
 
 Durable protocol qualification separately round-trips completed installation,
 upgrade, and removal evidence and attacks corruption, truncation, trailing bytes,
@@ -273,16 +262,14 @@ Application-receipt codec tests prove:
 * decoding performs no journal lookup, target access, replay, recovery, or
   publication.
 
-Mechanism-provider qualification
---------------------------------
+## Mechanism-provider qualification
 
 Concrete backend mechanism suites belong to their provider repositories.
 The core uses the scripted backend to prove semantic ordering, failure
 classification, restart policy, and evidence closure without depending on
 one host implementation.
 
-State seam tests
-----------------
+## State seam tests
 
 The independent `libpkgstate-apply` suite owns completed-evidence to
 installed-state projection. Core qualification proves only the semantic seam:
@@ -293,8 +280,7 @@ installed-state projection. Core qualification proves only the semantic seam:
 * the application layer does not construct state-owned publication values; and
 * `libpkgstate` is absent from the core library, tests, and pkg-config closure.
 
-Compiler and linkage matrix
----------------------------
+## Compiler and linkage matrix
 
 Release qualification uses at least:
 
@@ -320,8 +306,7 @@ Static installed consumers use `pkg-config --static` and must receive the
 complete private dependency closure. Shared consumers must not acquire
 private implementation libraries.
 
-Coverage limitations
---------------------
+## Coverage limitations
 
 A release must document any environment-limited coverage, including privileged
 device creation, abrupt power-loss durability, uncommon filesystems, network

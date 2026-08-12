@@ -39,6 +39,22 @@ state_include=$(next_include libpkgstate "${1:-}"); [ "$#" -eq 0 ] || shift
 [ "$#" -eq 0 ] || fail 'unexpected documentation-contract argument'
 
 for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.scdoc man/pkgapply.7.scdoc docs/architecture.md docs/integration.md docs/abi.md docs/testing.md docs/history/3.0-posix-extraction.md; do [ -s "$root/$f" ] || fail "missing $f"; done
+for f in \
+  README.md DESIGN.md TESTING.md CHANGELOG.md CONTRIBUTING.md MAINTAINING.md \
+  docs/architecture.md docs/integration.md docs/abi.md docs/testing.md \
+  docs/code-style.md docs/html.md docs/manpage-markdown.md \
+  docs/history/3.0-posix-extraction.md
+do
+  case $(sed -n '1p' "$root/$f") in
+    '# '*) ;;
+    *) fail "$f does not start with an ATX level-one heading" ;;
+  esac
+done
+
+if grep -RInE '^[-=~]{3,}[[:space:]]*$' \
+    "$root"/*.md "$root"/docs/*.md "$root"/docs/history/*.md >/dev/null 2>&1; then
+  fail 'underline-style Markdown heading remains'
+fi
 [ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
 grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
 grep -F 'The 3.0 ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null || fail 'closed ABI release gate absent'

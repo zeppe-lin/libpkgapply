@@ -35,4 +35,15 @@ for suite in unit integration protocol header contract; do
     fail "Meson does not register the $suite suite"
 done
 
+for contract in "$root"/tests/contracts/*.sh; do
+  [ -x "$contract" ] || fail "contract is not executable: ${contract##*/}"
+  basename=${contract##*/}
+  stem=${basename#check_}
+  stem=${stem%.sh}
+  if ! grep -F "$basename" "$root/tests/meson.build" >/dev/null &&
+     ! grep -F "'$stem'" "$root/tests/meson.build" >/dev/null; then
+    fail "contract is not registered: $basename"
+  fi
+done
+
 echo 'test-layout-contract: ok'
