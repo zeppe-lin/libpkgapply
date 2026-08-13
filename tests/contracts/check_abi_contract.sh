@@ -71,7 +71,7 @@ grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fa
 grep -F "gnu_symbol_visibility: 'hidden'" "$root/src/meson.build" >/dev/null || fail 'hidden default visibility is absent'
 grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || fail 'library export annotation define is absent'
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
-grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/CHANGELOG.md" >/dev/null ||
+grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/HISTORY.md" >/dev/null ||
   fail '3.0 ABI generation transition is undocumented'
 grep -F '730 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 

@@ -304,7 +304,9 @@ Additional builds include:
 
 Static installed consumers use `pkg-config --static` and must receive the
 complete private dependency closure. Shared consumers must not acquire
-private implementation libraries.
+private implementation libraries. Shared qualification also compares the
+complete dynamic symbol table with the reviewed generation-3 ELF manifest;
+compiler-specific STL/template emission is not admitted as public ABI.
 
 ## Coverage limitations
 

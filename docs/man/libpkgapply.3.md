@@ -1,8 +1,5 @@
 % LIBPKGAPPLY(3) libpkgapply | Version 3.0.0
 
-<!-- Generated from libpkgapply.3.scdoc; do not edit. -->
-
-
 # NAME
 
 libpkgapply - apply one accepted package-operation plan

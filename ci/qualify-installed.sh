@@ -98,7 +98,7 @@ fi
 
 python3 ci/qualify-installed-documentation.py "$prefix" libpkgapply
 
-for page in "$build"/product/man/*.[137]; do
+for page in "$build"/product/docs/man/*.[137]; do
   [ -e "$page" ] || continue
   section=${page##*.}
   installed=$prefix/share/man/man$section/$(basename "$page")

@@ -1,6 +1,6 @@
 # Contributing
 
-Preserve the semantic application boundary in `docs/architecture.md`.
+Preserve the semantic application boundary in `DESIGN.md`.
 
 Core changes may define immutable requests, evidence, scheduling, journals,
 restart policy, recovery obligations, and abstract backend contracts. They must

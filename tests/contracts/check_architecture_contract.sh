@@ -10,7 +10,7 @@ fail() {
 for path in \
   posix \
   include/libpkgapply-posix \
-  man/libpkgapply-posix.3.scdoc
+  docs/man/libpkgapply-posix.3.md
 do
   [ ! -e "$root/$path" ] || fail "extracted product remains: $path"
 done

@@ -168,6 +168,8 @@ if get_option('tests').allowed()
     'abi_contract',
     'repository_contract',
     'test_layout',
+    'manpage_source',
+    'manpage_normalizer',
   ]
     test(
       contract.replace('_', '-'),
@@ -225,6 +227,20 @@ if get_option('tests').allowed()
     ],
     suite: 'contract',
   )
+
+  pandoc_for_tests = find_program('pandoc', required: false)
+  if pandoc_for_tests.found()
+    test(
+      'generated-manpages',
+      sh,
+      args: [
+        meson.current_source_dir() / 'contracts/check_manpage_generated.sh',
+        meson.project_source_root(),
+        pandoc_for_tests.full_path(),
+      ],
+      suite: 'contract',
+    )
+  endif
 
   test(
     'style-contract',

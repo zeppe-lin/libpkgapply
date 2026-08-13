@@ -88,9 +88,8 @@ def relative_link(page: Path, target: str) -> str:
 def navigation(project: str, page: Path, version: str, outputs: set[str]) -> str:
     preferred = [
         ("Home", "index.html"),
-        ("Architecture", "architecture.html"),
-        ("Mechanisms", "mechanisms.html"),
-        ("Storage", "storage.html"),
+        ("Design", "design.html"),
+        ("Testing", "testing.html"),
         ("Integration", "integration.html"),
         ("ABI", "abi.html"),
     ]
@@ -98,7 +97,7 @@ def navigation(project: str, page: Path, version: str, outputs: set[str]) -> str
     if manual is not None:
         preferred.append(("Manuals", manual))
     preferred.append(("API", "api/index.html"))
-    history = "history.html" if "history.html" in outputs else "changelog.html" if "changelog.html" in outputs else None
+    history = "history.html" if "history.html" in outputs else None
     if history is not None:
         preferred.append(("History", history))
     links = "\n".join(

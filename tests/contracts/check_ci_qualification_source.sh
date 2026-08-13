@@ -6,7 +6,7 @@ for f in .github/workflows/ci.yml ci/configure-and-test.sh ci/qualify-installed.
 [ ! -e "$root/ci/installed-posix-consumer.cpp" ] || fail 'POSIX installed consumer remains'
 find "$root/ci" "$root/tests" -type f -name '*.sh' -exec sh -n {} \; ||\
   fail 'invalid shell script in ci/ or tests/'
-for token in v0.4.0 v0.3.1 v3.0.1 v3.1.0 v1.1.0 v1.0.0 v3.0.0; do grep -F "$token" "$root/.github/workflows/ci.yml" >/dev/null || fail "CI omits $token"; done
+for token in v0.4.1 v0.3.1 v3.0.1 v3.1.0 v1.1.0 v1.0.0 v3.0.0; do grep -F "$token" "$root/.github/workflows/ci.yml" >/dev/null || fail "CI omits $token"; done
 
 awk '
   /repository: zeppe-lin\/libpkgresolve/ {

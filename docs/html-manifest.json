@@ -7,9 +7,9 @@
       "title": "libpkgapply"
     },
     {
-      "source": "CHANGELOG.md",
-      "output": "changelog.html",
-      "title": "libpkgapply"
+      "source": "HISTORY.md",
+      "output": "history.html",
+      "title": "libpkgapply history"
     },
     {
       "source": "CONTRIBUTING.md",
@@ -19,7 +19,7 @@
     {
       "source": "DESIGN.md",
       "output": "design.html",
-      "title": "libpkgapply"
+      "title": "libpkgapply design"
     },
     {
       "source": "MAINTAINING.md",
@@ -28,18 +28,13 @@
     },
     {
       "source": "TESTING.md",
-      "output": "test-doctrine.html",
-      "title": "libpkgapply"
+      "output": "testing.html",
+      "title": "Testing libpkgapply"
     },
     {
       "source": "docs/abi.md",
       "output": "abi.html",
       "title": "ABI policy"
-    },
-    {
-      "source": "docs/architecture.md",
-      "output": "architecture.html",
-      "title": "Architecture"
     },
     {
       "source": "docs/code-style.md",
@@ -75,11 +70,6 @@
       "source": "docs/manpage-markdown.md",
       "output": "manpage-markdown.html",
       "title": "Manual-page Markdown"
-    },
-    {
-      "source": "docs/testing.md",
-      "output": "testing.html",
-      "title": "Testing"
     }
   ]
 }

@@ -1,8 +1,5 @@
 % PKGAPPLY(7) libpkgapply | Version 3.0.0
 
-<!-- Generated from pkgapply.7.scdoc; do not edit. -->
-
-
 # NAME
 
 pkgapply - package application authority and sequencing semantics

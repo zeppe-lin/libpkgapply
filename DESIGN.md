@@ -606,6 +606,11 @@ pkg-config dependency closure.
 
 ## Core and backend split
 
+`libpkgapply` owns semantic application, not host mutation mechanics. Every
+target observation and effect crosses the abstract `application_backend` and
+`application_backend_transaction` interfaces. A mechanism provider owns target
+access, storage, synchronization, and system-call failures.
+
 `libpkgapply` contains:
 
 * immutable public model values;
@@ -628,7 +633,21 @@ cryptographic provider is private. Build/image admission, source projection,
 and their transitive authorities remain upstream implementation needs exposed
 through the opaque planner projection; they are not public pkg-config edges.
 The core has no direct archive-decoder, POSIX mechanism, resolver, catalog, or
-installed-state dependency.
+installed-state dependency. POSIX headers, filesystem APIs, lock-file
+conventions, backend storage layouts, and `libpkgstate` mechanism dependencies
+are forbidden from the core. `libpkgapply-posix` depends inward on this semantic
+core; the core never depends outward on its reference mechanism provider.
+
+### Backend authority
+
+The immutable `application_target_context` is the admitted backend authority for
+one request. A provider is revalidated when its transaction is accepted, and
+transaction mutation identity, observation identity, and capability evidence
+must equal the identities and capability profile already sealed into that
+context. Restart journal backend identity is compared to the same request-bound
+target authority, never to a fresh provider callback. A provider therefore
+cannot change the meaning of an admitted request by reporting different
+identity or capability evidence later in the call.
 
 ## Concurrency and errors
 

@@ -1,4 +1,4 @@
-# libpkgapply changelog
+# libpkgapply history
 
 ## 3.0.0 - 2026-08-12
 

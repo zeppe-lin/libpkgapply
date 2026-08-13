@@ -100,7 +100,7 @@ meson compile -C build
 meson test -C build --print-errorlogs
 ```
 
-See `DESIGN.md`, `TESTING.md`, `docs/architecture.md`, `docs/integration.md`,
+See `DESIGN.md`, `TESTING.md`, `docs/integration.md`,
 `docs/abi.md`, and `MAINTAINING.md` before changing the boundary.
 
 ## License

@@ -10,7 +10,7 @@ set -eu
 build_dir=$1
 
 for name in libpkgapply.3 pkgapply.7; do
-  page=$build_dir/product/man/$name
+  page=$build_dir/product/docs/man/$name
   [ -s "$page" ] || {
     echo "generated manual is absent: $page" >&2
     exit 1

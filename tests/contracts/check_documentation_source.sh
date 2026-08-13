@@ -38,26 +38,47 @@ catalog_include=$(next_include libpkgcatalog "${1:-}"); [ "$#" -eq 0 ] || shift
 state_include=$(next_include libpkgstate "${1:-}"); [ "$#" -eq 0 ] || shift
 [ "$#" -eq 0 ] || fail 'unexpected documentation-contract argument'
 
-for f in README.md DESIGN.md TESTING.md CHANGELOG.md Doxyfile man/libpkgapply.3.scdoc man/pkgapply.7.scdoc docs/architecture.md docs/integration.md docs/abi.md docs/testing.md docs/history/3.0-posix-extraction.md; do [ -s "$root/$f" ] || fail "missing $f"; done
 for f in \
-  README.md DESIGN.md TESTING.md CHANGELOG.md CONTRIBUTING.md MAINTAINING.md \
-  docs/architecture.md docs/integration.md docs/abi.md docs/testing.md \
-  docs/code-style.md docs/html.md docs/manpage-markdown.md \
-  docs/history/3.0-posix-extraction.md
+  README.md DESIGN.md TESTING.md HISTORY.md CONTRIBUTING.md MAINTAINING.md Doxyfile \
+  docs/integration.md docs/abi.md docs/code-style.md docs/html.md \
+  docs/manpage-markdown.md docs/history/3.0-posix-extraction.md \
+  docs/man/libpkgapply.3.md docs/man/pkgapply.7.md
+do
+  [ -s "$root/$f" ] || fail "missing $f"
+done
+for f in \
+  README.md DESIGN.md TESTING.md HISTORY.md CONTRIBUTING.md MAINTAINING.md \
+  docs/integration.md docs/abi.md docs/code-style.md docs/html.md \
+  docs/manpage-markdown.md docs/history/3.0-posix-extraction.md
 do
   case $(sed -n '1p' "$root/$f") in
     '# '*) ;;
     *) fail "$f does not start with an ATX level-one heading" ;;
   esac
+  count=$(grep -c '^# ' "$root/$f" || true)
+  [ "$count" -eq 1 ] || fail "$f must contain exactly one ATX level-one heading"
 done
 
 if grep -RInE '^[-=~]{3,}[[:space:]]*$' \
     "$root"/*.md "$root"/docs/*.md "$root"/docs/history/*.md >/dev/null 2>&1; then
   fail 'underline-style Markdown heading remains'
 fi
-[ ! -e "$root/man/libpkgapply-posix.3.scdoc" ] || fail 'POSIX manual remains in core'
-grep -F 'does not depend outward on it' "$root/docs/architecture.md" >/dev/null || fail 'dependency direction absent'
-grep -F 'The 3.0 ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null || fail 'closed ABI release gate absent'
+[ ! -e "$root/CHANGELOG.md" ] || fail 'retired CHANGELOG.md authority remains'
+[ ! -e "$root/docs/architecture.md" ] || fail 'duplicate docs/architecture.md authority remains'
+[ ! -e "$root/docs/testing.md" ] || fail 'duplicate docs/testing.md authority remains'
+[ ! -e "$root/man" ] || fail 'legacy root man/ authority remains'
+if find "$root" -type f \( -name '*.scd' -o -name '*.scdoc' \) | grep . >/dev/null; then
+  fail 'scdoc manual authority remains'
+fi
+
+grep -F 'the core never depends outward on its reference mechanism provider' \
+  "$root/DESIGN.md" >/dev/null || fail 'dependency direction absent'
+grep -F 'never to a fresh provider callback' "$root/DESIGN.md" >/dev/null ||
+  fail 'request-bound backend authority absent'
+grep -F 'complete dynamic symbol table with the reviewed generation-3 ELF manifest' \
+  "$root/TESTING.md" >/dev/null || fail 'ABI symbol qualification absent'
+grep -F 'The 3.0 ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null ||
+  fail 'closed ABI release gate absent'
 
 if grep -F 'The lifecycle-executor identity is explicitly absent in schema version 1.' \
     "$root/DESIGN.md" >/dev/null; then
@@ -69,7 +90,7 @@ fi
 grep -F 'Restart under a newly acquired' "$root/DESIGN.md" >/dev/null ||
   fail 'restart completed-evidence projection refresh is undocumented'
 grep -F 'Completed-evidence publication is immutable and idempotent.' \
-    "$root/man/libpkgapply.3.scdoc" >/dev/null ||
+    "$root/docs/man/libpkgapply.3.md" >/dev/null ||
   fail 'public manual omits completed-evidence restart refresh'
 
 python3 "$root/tools/check-public-documentation.py" \
@@ -90,7 +111,5 @@ if command -v clang++ >/dev/null 2>&1; then
     --namespace pkgapply --clang "$(command -v clang++)"
 fi
 
-python3 "$root/tools/check-man-markdown.py" \
-  --root "$root" --project libpkgapply --version 3.0.0
 python3 "$root/tools/check-html-manifest.py" \
   --root "$root" --project libpkgapply

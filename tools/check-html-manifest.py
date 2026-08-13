@@ -83,13 +83,13 @@ def main() -> int:
         "tools/build-html-docs.py",
         "tools/check-html-docs.py",
         "tools/install-html-docs.py",
-        "tools/render-man-markdown.py",
-        "tools/check-man-markdown.py",
+        "tools/update-man-pages.sh",
+        "tools/canonicalize-man-roff.awk",
     ):
         if not (root / required).is_file():
             fail(f"HTML documentation input is missing: {required}")
 
-    options = root / ("meson.options" if (root / "meson.options").exists() else "meson_options.txt")
+    options = root / "meson.options"
     if not re.search(r"['\"]html_docs['\"]", options.read_text(encoding="utf-8")):
         fail("Meson html_docs feature is absent")
 
