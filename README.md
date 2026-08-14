@@ -68,7 +68,7 @@ Release 3.0 separates the already distinct POSIX product and corrects
 application admission against the current authority graph. Installed headers
 require:
 
-- `libpkgbuild-plan >= 1.0.0, < 2.0.0`; and
+- `libpkgbuild-plan >= 1.1.0, < 2.0.0`; and
 - `libpkgplan >= 0.3.0, < 1.0.0`.
 
 Build/image agreement and source-to-planner projection are upstream statements

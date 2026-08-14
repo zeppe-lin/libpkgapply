@@ -1,5 +1,20 @@
 # libpkgapply history
 
+## 3.0.1 - 2026-08-14
+
+### Source-4 authority closure
+
+- Raised the public `libpkgbuild-plan` floor to 1.1.0 so application admission
+  cannot accept the retired source-plan-1/source-3 transitive authority closure.
+- Qualified the complete planner dependency chain against libpkgsource 4,
+  libpkgcatalog 4, libpkgresolve 4, libpkgbuild 3.0.1, libpkgbuild-image 1.0.1,
+  libpkgsource-plan 2, and libpkgbuild-plan 1.1.0.
+- Preserved public API generation 3, SONAME 3, application identity domains,
+  journal formats, and application semantics; this release only narrows the
+  admissible upstream authority generation.
+- Corrected the manual-page version section to report public API generation 3.
+
+
 ## 3.0.0 - 2026-08-12
 
 ### Authority correction

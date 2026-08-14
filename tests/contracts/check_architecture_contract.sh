@@ -48,7 +48,7 @@ grep -F 'requires_private: [libcrypto_dep]' "$root/src/meson.build" >/dev/null |
   fail 'private crypto metadata absent'
 
 public_block=$(sed -n '/requires: \[/,/^  \],/p' "$root/src/meson.build")
-for required in 'libpkgbuild-plan >= 1.0.0' 'libpkgbuild-plan < 2.0.0' \
+for required in 'libpkgbuild-plan >= 1.1.0' 'libpkgbuild-plan < 2.0.0' \
                 'libpkgplan >= 0.3.0' 'libpkgplan < 1.0.0'; do
   printf '%s\n' "$public_block" | grep -F "$required" >/dev/null || \
     fail "missing public requirement: $required"

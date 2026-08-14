@@ -5,7 +5,7 @@ set -eu
 build=$1
 pc=$build/meson-private/libpkgapply.pc
 [ -s "$pc" ] || { echo "pkgconfig-metadata: missing $pc" >&2; exit 1; }
-grep -F 'Version: 3.0.0' "$pc" >/dev/null
+grep -F 'Version: 3.0.1' "$pc" >/dev/null
 grep -F -- '-lpkgapply' "$pc" >/dev/null
 public=$(sed -n 's/^Requires:[[:space:]]*//p' "$pc")
 private=$(sed -n 's/^Requires\.private:[[:space:]]*//p' "$pc")
@@ -18,7 +18,7 @@ has_requirement() {
     '
 }
 for requirement in \
-  'libpkgbuild-plan >= 1.0.0' \
+  'libpkgbuild-plan >= 1.1.0' \
   'libpkgbuild-plan < 2.0.0' \
   'libpkgplan >= 0.3.0' \
   'libpkgplan < 1.0.0'

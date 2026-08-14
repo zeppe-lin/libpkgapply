@@ -24,8 +24,8 @@ needed=$(printf '%s\n' "$output" | grep 'Shared library:' || true)
 for required in \
   libpkgbuild-plan.so.1 \
   libpkgbuild-image.so.1 \
-  libpkgsource-plan.so.1 \
-  libpkgsource.so.3 \
+  libpkgsource-plan.so.2 \
+  libpkgsource.so.4 \
   libpkgimage.so.1 \
   libpkgplan.so.1
 do

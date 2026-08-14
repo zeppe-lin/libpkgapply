@@ -1,6 +1,6 @@
 .\" Generated from docs/man/libpkgapply.3.md; do not edit.
 .\"
-.TH "LIBPKGAPPLY" "3" "" "libpkgapply" "Version 3.0.0"
+.TH "LIBPKGAPPLY" "3" "" "libpkgapply" "Version 3.0.1"
 .SH NAME
 libpkgapply \- apply one accepted package\-operation plan
 .SH SYNOPSIS
@@ -79,7 +79,7 @@ Immutable public values support concurrent read access.
 One application transaction is single\-threaded unless its concrete backend documents stronger behavior.
 The abstract \f[B]pkgimage::package_archive\f[R] contract does not promise concurrent replay.
 .SH VERSION
-Version 3.0.0 exposes API version 2.
+Version 3.0.1 exposes API version 3.
 Canonical application, journal, checkpoint, completed\-evidence, and mechanism\-storage protocols remain their first actual generation.
 Protocol generation is independent of the project version and shared\-library SONAME.
 .SH SEE ALSO

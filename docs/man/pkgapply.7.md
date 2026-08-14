@@ -1,4 +1,4 @@
-% PKGAPPLY(7) libpkgapply | Version 3.0.0
+% PKGAPPLY(7) libpkgapply | Version 3.0.1
 
 # NAME
 
@@ -108,7 +108,7 @@ It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 3.0.0 does not solve dependencies, select packages, parse policy,
+Version 3.0.1 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 

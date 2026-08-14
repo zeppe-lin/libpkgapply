@@ -25,14 +25,14 @@ export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$deps/lib/pkgconfig${PKG_CONFIG_PA
 export LD_LIBRARY_PATH="$prefix/lib:$deps/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 unset PKG_CONFIG_SYSROOT_DIR
 
-[ "$(pkg-config --modversion libpkgapply)" = 3.0.0 ] || {
-  echo 'installed libpkgapply version is not 3.0.0' >&2
+[ "$(pkg-config --modversion libpkgapply)" = 3.0.1 ] || {
+  echo 'installed libpkgapply version is not 3.0.1' >&2
   exit 1
 }
 
 public=$(pkg-config --print-requires libpkgapply)
 for requirement in \
-  'libpkgbuild-plan >= 1.0.0' \
+  'libpkgbuild-plan >= 1.1.0' \
   'libpkgbuild-plan < 2.0.0' \
   'libpkgplan >= 0.3.0' \
   'libpkgplan < 1.0.0'

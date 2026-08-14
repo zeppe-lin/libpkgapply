@@ -1,4 +1,4 @@
-% LIBPKGAPPLY(3) libpkgapply | Version 3.0.0
+% LIBPKGAPPLY(3) libpkgapply | Version 3.0.1
 
 # NAME
 
@@ -139,7 +139,7 @@ concurrent replay.
 
 # VERSION
 
-Version 3.0.0 exposes API version 2. Canonical application, journal,
+Version 3.0.1 exposes API version 3. Canonical application, journal,
 checkpoint, completed-evidence, and mechanism-storage protocols remain their
 first actual generation. Protocol generation is independent of the project
 version and shared-library SONAME.

@@ -120,7 +120,7 @@ pkgconf.generate(
   description: 'Package operation application library',
   subdirs: '.',
   requires: [
-    'libpkgbuild-plan >= 1.0.0',
+    'libpkgbuild-plan >= 1.1.0',
     'libpkgbuild-plan < 2.0.0',
     'libpkgplan >= 0.3.0',
     'libpkgplan < 1.0.0',

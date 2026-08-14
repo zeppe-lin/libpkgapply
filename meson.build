@@ -4,7 +4,7 @@
 project(
   'libpkgapply',
   'cpp',
-  version: '3.0.0',
+  version: '3.0.1',
   license: 'GPL-3.0-or-later',
   meson_version: '>=1.2.0',
   default_options: [
@@ -45,7 +45,7 @@ libpkgplan_dep = dependency(
 
 libpkgbuild_plan_dep = dependency(
   'libpkgbuild-plan',
-  version: ['>=1.0.0', '<2.0.0'],
+  version: ['>=1.1.0', '<2.0.0'],
   required: true,
   static: want_static,
 )
