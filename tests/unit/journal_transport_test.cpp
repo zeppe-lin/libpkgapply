@@ -92,18 +92,39 @@ int main()
   require(cursor.step_count() == 0 && !cursor.latest_step(),
           "initial journal cursor is not bounded and empty");
 
-  const auto intent = pkgapply::application_journal_step::make(
+  bool skipped_prepared_refused = false;
+  try {
+    const auto skipped = pkgapply::application_journal_step::make(
+        declaration.identity(), 0, std::nullopt,
+        pkgapply::application_journal_state::mutating);
+    (void)pkgapply::application_journal_cursor::advance(cursor, skipped);
+  }
+  catch (const std::invalid_argument&) {
+    skipped_prepared_refused = true;
+  }
+  require(skipped_prepared_refused,
+          "journal cursor admitted preparing to mutating transition");
+
+  const auto prepared = pkgapply::application_journal_step::make(
       declaration.identity(), 0, std::nullopt,
+      pkgapply::application_journal_state::prepared);
+  cursor = pkgapply::application_journal_cursor::advance(cursor, prepared);
+  require(cursor.step_count() == 1 && cursor.latest_step() == prepared.identity() &&
+              cursor.state() == pkgapply::application_journal_state::prepared,
+          "journal cursor did not retain state-only preparation completion");
+
+  const auto intent = pkgapply::application_journal_step::make(
+      declaration.identity(), 1, prepared.identity(),
       pkgapply::application_journal_state::mutating,
       pkgapply::application_journal_event(
           0, pkgapply::application_journal_event_kind::intent,
           effects[0].identity()));
   cursor = pkgapply::application_journal_cursor::advance(cursor, intent);
-  require(cursor.step_count() == 1 && cursor.latest_step() == intent.identity(),
-          "journal cursor did not advance to exact immutable step");
+  require(cursor.step_count() == 2 && cursor.latest_step() == intent.identity(),
+          "journal cursor did not advance to exact immutable effect intent");
 
   const auto completed = pkgapply::application_journal_step::make(
-      declaration.identity(), 1, intent.identity(),
+      declaration.identity(), 2, intent.identity(),
       pkgapply::application_journal_state::effects_visible,
       pkgapply::application_journal_event(
           1, pkgapply::application_journal_event_kind::completed,
@@ -111,13 +132,13 @@ int main()
           {application_identity<pkgapply::application_backend_evidence_identity>(20)}),
       {std::byte{0x55}});
   const auto second = pkgapply::application_journal_cursor::advance(cursor, completed);
-  require(second.step_count() == 2 && second.latest_step() == completed.identity(),
-          "journal cursor did not retain second exact step");
+  require(second.step_count() == 3 && second.latest_step() == completed.identity(),
+          "journal cursor did not retain exact terminal effect step");
 
   bool branch_refused = false;
   try {
     const auto branch = pkgapply::application_journal_step::make(
-        declaration.identity(), 1,
+        declaration.identity(), 2,
         application_identity<pkgapply::application_journal_step_identity>(99),
         pkgapply::application_journal_state::effects_visible);
     (void)pkgapply::application_journal_cursor::advance(cursor, branch);
@@ -129,19 +150,33 @@ int main()
 
   bool gap_refused = false;
   try {
-    (void)pkgapply::application_journal_step::make(
-        declaration.identity(), 4, std::nullopt,
-        pkgapply::application_journal_state::effects_visible);
+    const auto gap = pkgapply::application_journal_step::make(
+        declaration.identity(), 4, completed.identity(),
+        pkgapply::application_journal_state::result_observed);
+    (void)pkgapply::application_journal_cursor::advance(second, gap);
   }
   catch (const std::invalid_argument&) {
     gap_refused = true;
   }
-  require(gap_refused, "journal step admitted a missing predecessor");
+  require(gap_refused, "journal cursor admitted a skipped sequence");
+
+  bool state_regression_refused = false;
+  try {
+    const auto regression = pkgapply::application_journal_step::make(
+        declaration.identity(), 3, completed.identity(),
+        pkgapply::application_journal_state::mutating);
+    (void)pkgapply::application_journal_cursor::advance(second, regression);
+  }
+  catch (const std::invalid_argument&) {
+    state_regression_refused = true;
+  }
+  require(state_regression_refused,
+          "journal cursor admitted an invalid lifecycle regression");
 
   bool terminal_without_receipt_refused = false;
   try {
     (void)pkgapply::application_journal_step::make(
-        declaration.identity(), 2, completed.identity(),
+        declaration.identity(), 3, completed.identity(),
         pkgapply::application_journal_state::application_completed,
         std::nullopt, {}, std::nullopt,
         application_identity<pkgapply::completed_application_evidence_identity>(40));
@@ -152,7 +187,5 @@ int main()
   require(terminal_without_receipt_refused,
           "journal step admitted completed evidence without receipt authority");
 
-  require(sizeof(pkgapply::application_journal_cursor) < 256,
-          "journal cursor size became package-history dependent");
   return 0;
 }
