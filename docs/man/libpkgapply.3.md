@@ -1,4 +1,4 @@
-% LIBPKGAPPLY(3) libpkgapply | Version 3.0.2
+% LIBPKGAPPLY(3) libpkgapply | Version 4.0.0
 
 # NAME
 
@@ -15,6 +15,7 @@ pkgapply::apply(
     const pkgapply::lease_bound_state_projection& state,
     pkgapply::target_mutation_lease& lease,
     pkgapply::application_backend& backend,
+    pkgapply::application_journal_store& journal_store,
     const pkgimage::package_archive& archive);
 ```
 
@@ -35,9 +36,10 @@ filesystem observations, and replay archive before mutation.
 
 The semantic engine owns mechanism order. It stages selected regular payloads,
 captures old objects needed for rejected publication or recovery, publishes
-rejected objects before destructive active effects, writes restartable journal
-snapshots, observes the final target, publishes completed application evidence,
-and returns one immutable receipt.
+rejected objects before destructive active effects, appends owner-authored
+journal steps through a separate durable journal store, observes the final
+target, publishes completed application evidence, and returns one immutable
+receipt.
 
 The library does not select packages, parse package-manager configuration,
 reinterpret planner policy, discover archives by pathname, execute lifecycle
@@ -96,9 +98,17 @@ attempt nonce and exact durable journal identity.
 
 The transaction exposes constrained operations for observation, payload
 staging, old-object capture, rejected publication, active effects, recovery,
-six-domain durability synchronization, journal publication, restart
-checkpoint retrieval, and completed-evidence publication. The core invokes
-those operations in semantic order; a backend does not choose policy.
+physical-domain durability synchronization, restart-checkpoint retrieval, and
+completed-evidence publication. It does not publish semantic journal history.
+The core invokes those operations in semantic order; a backend does not choose
+policy.
+
+A separate **application_journal_store** persists the immutable attempt
+declaration, append-only semantic steps, and bounded journal cursor. Successful
+store commits establish journal durability directly; the mutation transaction
+does not synchronize the journal domain. Restart addresses retained history by
+the exact store plus immutable declaration identity and libpkgapply rehydrates
+the committed step chain before reopening the mutation backend.
 
 Completed-evidence publication is immutable and idempotent. If restart reopens
 a crash after the historical completed-evidence record became durable but
@@ -139,10 +149,10 @@ concurrent replay.
 
 # VERSION
 
-Version 3.0.2 exposes API version 3. Canonical application, journal,
-checkpoint, completed-evidence, and mechanism-storage protocols remain their
-first actual generation. Protocol generation is independent of the project
-version and shared-library SONAME.
+Version 4.0.0 exposes API version 4. The public ABI advances because journal
+persistence is now a separate owner store and application/restart entry points
+carry that authority explicitly. Canonical durable protocol generations remain
+independent of the project version and shared-library SONAME.
 
 # SEE ALSO
 

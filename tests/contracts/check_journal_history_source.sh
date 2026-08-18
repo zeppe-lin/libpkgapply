@@ -20,8 +20,11 @@ grep -F 'sequence < committed.step_count();' "$source" >/dev/null ||
 grep -F 'store.load_step(declaration_identity, committed.step_count())' \
   "$source" >/dev/null ||
   fail 'exact next-step orphan probe is absent'
-grep -F 'committed.identity(), history.cursor()' "$source" >/dev/null ||
+grep -F 'committed.identity(), candidate' "$source" >/dev/null ||
   fail 'orphan adoption is not cursor-CAS bound'
+
+grep -F 'validate(const application_journal_step&' "$header" >/dev/null ||
+  fail 'history cannot validate a successor without advancing memory'
 
 for forbidden in \
   'directory_iterator' 'readdir(' 'scandir(' '.observe(' 'publish_journal('; do

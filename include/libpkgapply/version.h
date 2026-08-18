@@ -14,7 +14,7 @@
 namespace pkgapply {
 
 /*! \brief Version of the public semantic application API. */
-inline constexpr std::uint32_t api_version = 3;
+inline constexpr std::uint32_t api_version = 4;
 
 /*! \brief Return the linked libpkgapply release version.
  *  \return Static semantic-version string with process lifetime.

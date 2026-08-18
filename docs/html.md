@@ -10,7 +10,7 @@ escaping local links, leaked source/build paths, and source-format links. The
 installed tree is placed below:
 
 ```
-share/htmldocs/libpkgapply/3.0.2
+share/htmldocs/libpkgapply/4.0.0
 ```
 
 HTML output is derived. Edit the Markdown, headers, or Doxygen source and regenerate; never patch

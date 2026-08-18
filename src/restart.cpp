@@ -603,12 +603,13 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive)
 {
   detail::reopened_application reopened =
       detail::reopen_application_engine(
-          request, state, lease, backend, journal, archive);
+          request, state, lease, backend, journal_store, declaration, archive);
   return detail::replay_application_engine(
       std::move(reopened), request, state, lease, archive);
 }
@@ -619,12 +620,13 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive)
 {
   detail::reopened_application reopened =
       detail::reopen_application_engine(
-          request, state, lease, backend, journal, archive);
+          request, state, lease, backend, journal_store, declaration, archive);
   return detail::replay_application_engine(
       std::move(reopened), request, state, lease, archive);
 }
@@ -635,11 +637,12 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal)
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration)
 {
   detail::reopened_application reopened =
       detail::reopen_application_engine(
-          request, state, lease, backend, journal);
+          request, state, lease, backend, journal_store, declaration);
   return detail::replay_application_engine(
       std::move(reopened), request, state, lease);
 }

@@ -1,4 +1,4 @@
-% PKGAPPLY(7) libpkgapply | Version 3.0.2
+% PKGAPPLY(7) libpkgapply | Version 4.0.0
 
 # NAME
 
@@ -49,26 +49,29 @@ precondition, and publication before mutation. An archive pathname or package
 filename is never authority. Removal requires no incoming package or archive.
 
 A stale fact returns a precondition-refused receipt before payload staging,
-journal publication, capture, rejected publication, active mutation, or
+journal declaration, capture, rejected publication, active mutation, or
 recovery.
 
 # EFFECT ORDER
 
-The semantic engine freezes a deterministic mechanism schedule:
+The semantic engine freezes a deterministic mechanism schedule and publishes
+one immutable journal declaration before the first mechanism effect. Thereafter
+each semantic transition is one immutable journal step followed by a bounded
+cursor advance:
 
 . observe the exact precondition path closure;
-. stage and seal selected incoming regular payloads;
-. publish the preparing journal and checkpoint;
+. stage and seal selected incoming regular payloads under write-ahead intent;
 . capture old objects required for rejection or recovery;
 . publish structured rejected objects from sealed incoming or captured old authority;
 . execute active effects in safe parent, child, and hard-link order;
-. synchronize selected durability domains;
+. synchronize selected physical durability domains;
 . observe the complete final path closure;
 . publish and synchronize completed application evidence; and
-. seal the terminal journal and receipt.
+. append the terminal receipt/completed-evidence binding.
 
-Every destructive active effect has write-ahead intent. Checkpoints precede the
-journal snapshots that reference their new facts.
+The journal store is separate from the mutation transaction. A successful step
+and cursor commit establishes journal durability; no mutation-backend journal
+synchronization operation exists.
 
 # REJECTED OBJECTS
 
@@ -86,9 +89,13 @@ reverse. Exact restoration is claimed only when complete physical authority
 exists. Missing, stale, contradictory, or incomplete recovery facts produce
 partial or indeterminate truth rather than an invented rollback claim.
 
-Restart never allocates another attempt nonce. Completed prefixes are
-revalidated and retained, unresolved active or recovery intents are not blindly
-reissued, and unstarted work continues in the frozen schedule.
+Restart never allocates another attempt nonce. The core loads the immutable
+declaration and exact committed step sequence from the journal store, validates
+the predecessor chain, and probes only the exact next sequence for a crash-
+orphaned successor. Completed prefixes are revalidated and retained, unresolved
+active or recovery intents are not blindly reissued, and unstarted work
+continues in the frozen schedule. Current target observation is never used to
+invent historical journal state.
 
 # RESULT AND STATE SEAM
 
@@ -108,7 +115,7 @@ It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 3.0.2 does not solve dependencies, select packages, parse policy,
+Version 4.0.0 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 

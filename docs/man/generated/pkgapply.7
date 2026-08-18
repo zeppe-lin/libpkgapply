@@ -1,6 +1,6 @@
 .\" Generated from docs/man/pkgapply.7.md; do not edit.
 .\"
-.TH "PKGAPPLY" "7" "" "libpkgapply" "Version 3.0.2"
+.TH "PKGAPPLY" "7" "" "libpkgapply" "Version 4.0.0"
 .SH NAME
 pkgapply \- package application authority and sequencing semantics
 .SH DESCRIPTION
@@ -35,24 +35,24 @@ The accepted plan must name the same archive, image, receipt, release, candidate
 An archive pathname or package filename is never authority.
 Removal requires no incoming package or archive.
 .PP
-A stale fact returns a precondition\-refused receipt before payload staging, journal publication, capture, rejected publication, active mutation, or recovery.
+A stale fact returns a precondition\-refused receipt before payload staging, journal declaration, capture, rejected publication, active mutation, or recovery.
 .SH EFFECT ORDER
-The semantic engine freezes a deterministic mechanism schedule:
+The semantic engine freezes a deterministic mechanism schedule and publishes one immutable journal declaration before the first mechanism effect.
+Thereafter each semantic transition is one immutable journal step followed by a bounded cursor advance:
 .PP
 \&.
 observe the exact precondition path closure; .
-stage and seal selected incoming regular payloads; .
-publish the preparing journal and checkpoint; .
+stage and seal selected incoming regular payloads under write\-ahead intent; .
 capture old objects required for rejection or recovery; .
 publish structured rejected objects from sealed incoming or captured old authority; .
 execute active effects in safe parent, child, and hard\-link order; .
-synchronize selected durability domains; .
+synchronize selected physical durability domains; .
 observe the complete final path closure; .
 publish and synchronize completed application evidence; and .
-seal the terminal journal and receipt.
+append the terminal receipt/completed\-evidence binding.
 .PP
-Every destructive active effect has write\-ahead intent.
-Checkpoints precede the journal snapshots that reference their new facts.
+The journal store is separate from the mutation transaction.
+A successful step and cursor commit establishes journal durability; no mutation\-backend journal synchronization operation exists.
 .SH REJECTED OBJECTS
 Rejected objects carry planner\-supplied source side and typed reason.
 Incoming records bind candidate release, artifact, manifest, image, entry, and observation identities.
@@ -65,7 +65,9 @@ Exact restoration is claimed only when complete physical authority exists.
 Missing, stale, contradictory, or incomplete recovery facts produce partial or indeterminate truth rather than an invented rollback claim.
 .PP
 Restart never allocates another attempt nonce.
+The core loads the immutable declaration and exact committed step sequence from the journal store, validates the predecessor chain, and probes only the exact next sequence for a crash\- orphaned successor.
 Completed prefixes are revalidated and retained, unresolved active or recovery intents are not blindly reissued, and unstarted work continues in the frozen schedule.
+Current target observation is never used to invent historical journal state.
 .SH RESULT AND STATE SEAM
 Application receipts have an owner\-defined canonical byte encoding.
 Decode requires the original immutable application request and does not infer request, plan, target, or control authority from digest text.
@@ -77,6 +79,6 @@ That evidence is application truth, not installed\-state truth.
 A destination\-owned state adapter must consume the request\-bound source and build authority, accepted plan, completed application evidence, and prior state.
 It may not accept a second caller\-supplied build\-provenance value.
 .SH NON\-GOALS
-Version 3.0.2 does not solve dependencies, select packages, parse policy, execute lifecycle declarations, discover archives, publish installed state, or claim global filesystem/state atomicity.
+Version 4.0.0 does not solve dependencies, select packages, parse policy, execute lifecycle declarations, discover archives, publish installed state, or claim global filesystem/state atomicity.
 .SH SEE ALSO
 \f[B]libpkgapply\f[R](3), \f[B]libpkgapply\-posix\f[R](3), \f[B]libpkgbuild\-plan\f[R](3), \f[B]libpkgbuild\-image\f[R](3), \f[B]libpkgplan\f[R](3)

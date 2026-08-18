@@ -16,7 +16,7 @@ library=$1
 output=$(readelf -d "$library")
 printf '%s\n' "$output"
 printf '%s\n' "$output" | grep -F \
-  'Library soname: [libpkgapply.so.3]' >/dev/null || {
+  'Library soname: [libpkgapply.so.4]' >/dev/null || {
   echo 'shared-boundary-audit: wrong SONAME' >&2
   exit 1
 }

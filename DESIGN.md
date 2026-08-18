@@ -422,29 +422,33 @@ The non-virtual semantic engine owns this sequence:
 5. Validate the exact archive replay authority when applicable.
 6. Derive the payload, capture, rejected, active, observation, and durability
    effect graph without executing it.
-7. Durably publish the complete `preparing` journal before capture, replay, or
-   any externally visible effect.
-8. Capture old objects required for rejected staging or recovery.
-9. Replay required regular payloads into private incoming staging.
-10. Synchronize required private staging domains and publish the `prepared`
-    journal state.
-12. Publish the `mutating` journal state before the first rejected-store or
-    active-namespace effect.
-13. Publish each rejected object from its exact sealed incoming entry or exact
+7. Publish one immutable application declaration and initial bounded cursor
+   through the separate journal store before any mechanism effect.
+8. Before each mechanism invocation, append its immutable intent step and
+   durably advance the bounded cursor.
+9. Capture old objects required for rejected staging or recovery.
+10. Replay required regular payloads into private incoming staging.
+11. After each mechanism result, append exactly one typed terminal step and
+    durably advance the cursor; state-only transitions are also single steps.
+12. Synchronize required private staging domains and append the `prepared` state.
+13. Append the `mutating` state before the first rejected-store or active-
+    namespace effect.
+14. Publish each rejected object from its exact sealed incoming entry or exact
     pre-mutation old-object capture, retaining the immutable rejected-record
     identity returned by the backend.
-14. Synchronize the rejected-object store to the guarantee selected by the
+15. Synchronize the rejected-object store to the guarantee selected by the
     application execution control.
-15. Execute the remaining core-derived active effect graph and synchronize the
+16. Execute the remaining core-derived active effect graph and synchronize the
     managed target when the selected durability contract requires it.
-16. Observe the complete resulting active-path universe and compare it with the
+17. Observe the complete resulting active-path universe and compare it with the
     frozen plan consequences.
-17. On contradiction or unknown result truth, retain the live transaction and
+18. On contradiction or unknown result truth, retain the live transaction and
     enter the recovery branch without publishing completed evidence.
-18. Construct completed evidence only after every path is observed and eligible.
-19. Publish and synchronize the exact completed-evidence record.
-20. Seal the terminal receipt and journal with the exact receipt and completed-
-    evidence identities.
+19. Construct completed evidence only after every path is observed and eligible.
+20. Publish and synchronize the exact completed-evidence record.
+21. Append one terminal receipt step carrying the exact receipt and completed-
+    evidence identities. Journal durability is established by successful store
+    commits, not by a mutation-backend synchronization effect.
 
 The target-mutation boundary refers to the managed active-object namespace.
 The rejected-object store is an independent application-effect domain. A
@@ -507,73 +511,65 @@ outside this boundary.
 
 ## Journal and crash recovery
 
-A durable write-ahead journal is part of the application contract.
+The durable semantic history is the append-only declaration/step/cursor protocol
+described below. `application_backend_transaction` does not persist journal
+history and cannot synchronize journal durability. A controller supplies one
+separate `application_journal_store`; a mechanism product may implement both
+objects, but code-location coincidence grants no shared authority.
 
-Before each destructive effect:
+Before a mechanism effect, libpkgapply validates the next semantic step without
+advancing its in-memory head, publishes the immutable intent step, and
+compare-and-publishes the bounded cursor. Only then may the physical mechanism
+run. After the mechanism returns, its typed result/evidence is encoded into one
+terminal step, that step and cursor are committed, and only then does the live
+engine advance. Store failure therefore cannot make a non-durable transition
+look committed to a reusable engine session.
 
-1. required recovery material is made durable;
-2. an effect-intent record is appended and synchronized;
-3. the effect is performed; and
-4. an effect-completed record is appended and synchronized.
+A restart is addressed by the immutable declaration identity. Libpkgapply loads
+the declaration and bounded cursor, reads every committed step by exact sequence,
+validates declaration, sequence, predecessor, lifecycle and effect progress, and
+probes exactly `cursor.step_count()` for the one crash case where a successor
+step became durable before the cursor advance. A valid orphan may advance the
+head by exact compare-and-publish; conflicting, skipped, missing, or malformed
+history fails closed. Directory enumeration and current-target observation are
+not history-recovery mechanisms.
 
-A crash between intent and completion is not guessed to be either old or new
-state. Restart handling reopens the original durable attempt under a newly
-acquired outer lease and requires the backend to provide an exact replay
-checkpoint bound to the durable journal snapshot.
+The declaration retains the complete deterministic effect graph and the exact
+owner-authored replay seed admitted before mutation. Terminal steps retain typed
+replay facts for mechanism results. Restart therefore recovers historical
+semantic authority from owner-authored bytes, not from present filesystem state
+or a provider reconstruction.
 
-The core classifies validated durable snapshots as forward-resumable,
-recovery-resumable, terminal, or requiring external resolution. Restart
-admission verifies the original request, plan, target, execution control,
-backend, attempt nonce, and journal identity before any observation or replay.
-The replay checkpoint retains admitted observations, private payload staging,
-old-object captures, rejected records, active and recovery outcomes,
-synchronization facts, backend evidence, and completed evidence when present.
-Checkpoint facts are reconciled with journal intents and terminal events; a
-contradiction is a backend contract violation, not a reason to guess.
+The current generation still asks a reopened backend transaction for an
+`application_restart_checkpoint` as a temporary subordinate bridge to existing
+provider evidence: private staging/capture outcomes, rejected and active results,
+recovery results, physical synchronization facts, backend evidence, and completed
+evidence. The checkpoint no longer supplies original admission observations, no
+longer owns semantic progress, and its journal-synchronization residue is ignored.
+The core first rehydrates the owner journal and then reconciles subordinate
+mechanism facts against it. Contradiction is a backend contract violation.
 
-Completed forward effects are reconstructed and skipped. An active or recovery
-intent without a terminal event is never issued again: replay treats its
-physical result as indeterminate and enters recovery or external-resolution
-semantics. Unstarted forward effects may continue in frozen schedule order.
-Final observation may be repeated because it is read-only. Private incoming
-staging, old-object capture, and durability synchronization may be retried
-under the same attempt because they do not repeat a managed-target actuator
-command and remain backend-idempotent by attempt identity.
+A complete `application_journal_record` is still materialized transiently at
+that pre-release backend-reopen/checkpoint seam because the old checkpoint API
+uses the record identity. The projection is derived in memory, never persisted,
+and never used as a second historical spine. The checkpoint API itself is the
+next provider-generation migration seam; no final generation-4 release should
+retain a durable checkpoint store as semantic co-authority.
 
-A crash can occur after completed evidence is durably published but before the
-terminal receipt is sealed. The application journal retains the exact immutable
-lease-bound state-projection body admitted by the original process, not merely
-its digest. That retained projection and completed evidence remain historical
-proof and are validated unchanged. Restart under a newly acquired outer lease
-may establish a new current projection for present-tense admission, but it must
-not feed that current observation through the historical lease identity to
-reconstruct the old projection. Successful continuation republishes equivalent
-completed application truth bound to the current projection and reconfirms
-completed-evidence durability before sealing the receipt. This projection
-refresh is immutable and idempotent evidence publication; it does not repeat an
-active or rejected application effect and does not rewrite the historical
-journal header. Terminal journals are never silently reopened as new attempts.
+Completed forward effects are skipped. An active or recovery intent without a
+terminal event is never issued again: replay treats its physical result as
+indeterminate and enters recovery or external-resolution semantics. Unstarted
+forward effects may continue in frozen schedule order. Final observation may be
+repeated because it is read-only. Private staging/capture and physical
+synchronization may be retried only under their existing attempt-scoped
+idempotence contracts.
 
-The core owns the versioned journal wire format because journal field order,
-enum tags, digest domains, and identity verification are semantic protocol.
-Decoding is bounded, rejects trailing or malformed data, reconstructs every
-derived identity through the public model constructors, and requires the
-encoded record identity to match the reconstructed snapshot. A replacement
-snapshot must retain the same journal header and effect graph, preserve the
-entire prior event prefix, retain any resolution identities, follow an allowed
-execution-state transition, and leave receipt-bearing terminal snapshots
-immutable.
-
-The checkpoint wire format is also core-owned semantic protocol. It records
-the exact journal-record identity, admitted observations, private staging and
-capture outcomes, rejected and active effects, recovery effects,
-synchronization facts, six-domain durability truth, aggregate backend evidence,
-and completed evidence when present. A length-qualified envelope distinguishes
-truncation and trailing data before a SHA-256 body checksum detects same-length
-corruption. Decoding is bounded and requires the
-exact journal snapshot plus immutable application request; plan-derived path
-roles, ownership transitions, and intended outcomes are reconstructed from that
-request rather than accepted as a second controller input.
+A crash can occur after completed evidence is durable but before the terminal
+receipt step. Historical projection and completed evidence remain immutable
+proof. Restart under a newly acquired lease validates a new current projection
+without rewriting historical admission. Equivalent completed application truth
+may be republished against that current projection and reconfirmed before the
+terminal receipt is appended; active or rejected effects are not repeated.
 
 ## Reference mechanism separation
 

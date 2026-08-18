@@ -35,14 +35,28 @@ public:
   load(application_journal_store& store,
        const application_journal_declaration_identity& declaration);
 
+  /*! \brief Validate one exact immutable successor without advancing memory.
+   *  \return The bounded cursor that would result from committing @p step.
+   */
+  [[nodiscard]] application_journal_cursor
+  validate(const application_journal_step& step) const;
+
   /*! \brief Admit one exact immutable successor into the semantic history. */
   void append(const application_journal_step& step);
 
   [[nodiscard]] const application_journal_declaration&
   declaration() const noexcept;
+  [[nodiscard]] const application_journal_header& header() const noexcept;
+  [[nodiscard]] const std::vector<application_journal_effect>&
+  effects() const noexcept;
   [[nodiscard]] const application_journal_cursor& cursor() const noexcept;
+  [[nodiscard]] application_journal_state state() const noexcept;
   [[nodiscard]] const std::vector<application_journal_event>&
   events() const noexcept;
+  [[nodiscard]] const std::optional<application_receipt_identity>&
+  receipt() const noexcept;
+  [[nodiscard]] const std::optional<completed_application_evidence_identity>&
+  completed_evidence() const noexcept;
 
   /*! \brief Materialize the legacy snapshot only as a derived in-memory view.
    *
@@ -62,12 +76,20 @@ private:
     std::optional<application_journal_event_kind> terminal;
   };
 
+  struct step_validation final {
+    application_journal_cursor candidate;
+    std::optional<std::size_t> ordinal;
+    std::size_t completed_success_effects;
+  };
+
   application_journal_history(
       application_journal_declaration declaration,
       application_journal_cursor cursor);
 
   [[nodiscard]] std::size_t validate_event(
       const application_journal_event& event) const;
+  [[nodiscard]] step_validation
+  validate_step(const application_journal_step& step) const;
   void validate_resolution(
       const application_journal_cursor& candidate,
       std::size_t completed_success_effects) const;

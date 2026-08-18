@@ -19,8 +19,8 @@ The core owns:
   application journals;
 - precondition validation and deterministic effect schedules;
 - rejected, active, recovery, and final-observation evidence models;
-- durable journal, restart-checkpoint, completed-evidence, and application-
-  receipt codecs;
+- append-only journal declaration/step/cursor semantics, restart-checkpoint,
+  completed-evidence, and application-receipt codecs;
 - restart admission and replay policy; and
 - abstract backend, transaction, observation, staging, capture, publication,
   and mutation contracts.
@@ -36,7 +36,8 @@ implementation formerly shipped in this repository. It implements target
 observation, target mutation leases, private payload and capture stores,
 rejected-object publication, journal and checkpoint storage, completed-evidence
 storage, active namespace mutation and recovery, and concrete backend
-composition.
+composition. Journal storage and mutation transactions remain separate objects
+even when one mechanism product implements both.
 
 ```text
 libpkgbuild-image + libpkgsource-plan + libpkgplan
@@ -61,6 +62,25 @@ libpkgbuild-image + libpkgsource-plan + libpkgplan
 Installed state publication is not part of application. `libpkgstate-apply`
 consumes completed application evidence and constructs state publication
 requests after application returns.
+
+## Version 4.0
+
+The generation-4 development line separates semantic journal persistence from
+physical mutation transactions. `apply()` receives an explicit
+`application_journal_store`; fresh execution publishes one immutable declaration
+and then one immutable step plus bounded cursor advance per semantic transition.
+Restart is addressed by the same store and exact declaration identity. The
+mutation backend no longer publishes complete journal snapshots or synchronizes
+the journal durability domain.
+
+This is SONAME 4 / public API generation 4. The generation change is deliberate:
+the transaction virtual interface and all package-manager-facing apply/restart
+entry points changed. No generation-3 compatibility shim is retained.
+
+Backend restart checkpoints remain only as a temporary subordinate mechanism-
+evidence bridge while `libpkgapply-posix` is migrated; they are not semantic
+history authority and the complete journal snapshot is no longer durable
+transport.
 
 ## Version 3.0
 

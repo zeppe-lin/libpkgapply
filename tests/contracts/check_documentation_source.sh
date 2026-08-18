@@ -75,9 +75,9 @@ grep -F 'the core never depends outward on its reference mechanism provider' \
   "$root/DESIGN.md" >/dev/null || fail 'dependency direction absent'
 grep -F 'never to a fresh provider callback' "$root/DESIGN.md" >/dev/null ||
   fail 'request-bound backend authority absent'
-grep -F 'complete dynamic symbol table with the reviewed generation-3 ELF manifest' \
+grep -F 'complete dynamic symbol table with the reviewed generation-4 ELF manifest' \
   "$root/TESTING.md" >/dev/null || fail 'ABI symbol qualification absent'
-grep -F 'The 3.0 ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null ||
+grep -F 'The current ABI gate is closed only while' "$root/MAINTAINING.md" >/dev/null ||
   fail 'closed ABI release gate absent'
 
 if grep -F 'The lifecycle-executor identity is explicitly absent in schema version 1.' \

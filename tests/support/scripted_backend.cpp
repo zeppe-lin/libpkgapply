@@ -382,23 +382,6 @@ public:
     return result;
   }
 
-  application_journal_record publish_journal(
-      const application_journal_record& record) override
-  {
-    state_->record(scripted_backend_boundary::publish_journal);
-    state_->maybe_throw(scripted_backend_boundary::publish_journal);
-    state_->published_journal_ = record;
-    const auto current = state_->established_durability_.find(
-        application_durability_domain::journal);
-    if (current == state_->established_durability_.end() ||
-        current->second == application_durability_status::not_attempted)
-    {
-      state_->retain_durability(
-          application_durability_domain::journal,
-          application_durability_status::visible);
-    }
-    return *state_->published_journal_;
-  }
 
 private:
   mutation_backend_identity backend_;
@@ -416,7 +399,6 @@ private:
 void
 scripted_backend_state::reset_attempt_checkpoint()
 {
-  published_journal_.reset();
   published_completed_evidence_.reset();
   admitted_observations_.reset();
   incoming_payload_.reset();
@@ -593,12 +575,6 @@ const std::vector<scripted_backend_event>&
 scripted_backend_state::events() const noexcept
 {
   return events_;
-}
-
-const std::optional<application_journal_record>&
-scripted_backend_state::published_journal() const noexcept
-{
-  return published_journal_;
 }
 
 const std::optional<completed_application_evidence>&

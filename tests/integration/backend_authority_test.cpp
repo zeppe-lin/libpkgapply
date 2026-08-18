@@ -172,11 +172,6 @@ public:
   {
     throw std::logic_error("unused test synchronization");
   }
-  application_journal_record publish_journal(
-      const application_journal_record&) override
-  {
-    throw std::logic_error("unused test journal publication");
-  }
 
 private:
   mutation_backend_identity backend_;

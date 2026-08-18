@@ -1,6 +1,6 @@
 .\" Generated from docs/man/libpkgapply.3.md; do not edit.
 .\"
-.TH "LIBPKGAPPLY" "3" "" "libpkgapply" "Version 3.0.2"
+.TH "LIBPKGAPPLY" "3" "" "libpkgapply" "Version 4.0.0"
 .SH NAME
 libpkgapply \- apply one accepted package\-operation plan
 .SH SYNOPSIS
@@ -14,6 +14,7 @@ pkgapply::apply(
     const pkgapply::lease_bound_state_projection& state,
     pkgapply::target_mutation_lease& lease,
     pkgapply::application_backend& backend,
+    pkgapply::application_journal_store& journal_store,
     const pkgimage::package_archive& archive);
 .EE
 .PP
@@ -25,7 +26,7 @@ That upstream value already retains a \f[B]libpkgbuild\-image\f[R] admission pro
 The library binds this incoming authority to the accepted plan, then revalidates the target, lease, installed\-state projection, filesystem observations, and replay archive before mutation.
 .PP
 The semantic engine owns mechanism order.
-It stages selected regular payloads, captures old objects needed for rejected publication or recovery, publishes rejected objects before destructive active effects, writes restartable journal snapshots, observes the final target, publishes completed application evidence, and returns one immutable receipt.
+It stages selected regular payloads, captures old objects needed for rejected publication or recovery, publishes rejected objects before destructive active effects, appends owner\-authored journal steps through a separate durable journal store, observes the final target, publishes completed application evidence, and returns one immutable receipt.
 .PP
 The library does not select packages, parse package\-manager configuration, reinterpret planner policy, discover archives by pathname, execute lifecycle declarations, construct installed\-state objects, or publish installed state.
 .SH APPLICATION REQUESTS
@@ -55,8 +56,13 @@ It is for observation\-only recovery and finalization paths where canonical stat
 A fresh transaction supplies one unpredictable attempt nonce and performs no effect merely by being constructed.
 A resumed transaction retains the original attempt nonce and exact durable journal identity.
 .PP
-The transaction exposes constrained operations for observation, payload staging, old\-object capture, rejected publication, active effects, recovery, six\-domain durability synchronization, journal publication, restart checkpoint retrieval, and completed\-evidence publication.
+The transaction exposes constrained operations for observation, payload staging, old\-object capture, rejected publication, active effects, recovery, physical\-domain durability synchronization, restart\-checkpoint retrieval, and completed\-evidence publication.
+It does not publish semantic journal history.
 The core invokes those operations in semantic order; a backend does not choose policy.
+.PP
+A separate \f[B]application_journal_store\f[R] persists the immutable attempt declaration, append\-only semantic steps, and bounded journal cursor.
+Successful store commits establish journal durability directly; the mutation transaction does not synchronize the journal domain.
+Restart addresses retained history by the exact store plus immutable declaration identity and libpkgapply rehydrates the committed step chain before reopening the mutation backend.
 .PP
 Completed\-evidence publication is immutable and idempotent.
 If restart reopens a crash after the historical completed\-evidence record became durable but before receipt sealing, the core validates that record, publishes equivalent evidence bound to the newly acquired lease projection, and reconfirms the completed\-evidence durability domain before sealing.
@@ -79,8 +85,8 @@ Immutable public values support concurrent read access.
 One application transaction is single\-threaded unless its concrete backend documents stronger behavior.
 The abstract \f[B]pkgimage::package_archive\f[R] contract does not promise concurrent replay.
 .SH VERSION
-Version 3.0.2 exposes API version 3.
-Canonical application, journal, checkpoint, completed\-evidence, and mechanism\-storage protocols remain their first actual generation.
-Protocol generation is independent of the project version and shared\-library SONAME.
+Version 4.0.0 exposes API version 4.
+The public ABI advances because journal persistence is now a separate owner store and application/restart entry points carry that authority explicitly.
+Canonical durable protocol generations remain independent of the project version and shared\-library SONAME.
 .SH SEE ALSO
 \f[B]libpkgapply\-posix\f[R](3), \f[B]pkgapply\f[R](7), \f[B]libpkgbuild\-plan\f[R](3), \f[B]libpkgbuild\-image\f[R](3), \f[B]libpkgplan\f[R](3)

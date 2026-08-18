@@ -20,8 +20,8 @@ Before tagging:
    from reconstructing that historical projection from a current state read;
 8. replay the mailbox independently and compare Git trees.
 
-The 3.0 ABI gate is closed only while the reviewed manifest, SONAME 3, and API
-generation 3 remain exact in every release candidate.
+The current ABI gate is closed only while the reviewed manifest, SONAME 4, and
+API generation 4 remain exact in every release candidate.
 
 ## Append-only journal migration gate
 
@@ -39,5 +39,7 @@ resolve the step-durable/head-stale crash case. Directory enumeration, current
 target observation, or per-step rescanning of the effect graph are release
 blockers.
 
-While the old complete-snapshot path still exists, the tree is a migration
-candidate and must not be tagged as the next libpkgapply release.
+While a durable provider restart-checkpoint store still survives as a second
+historical authority, the tree is a migration candidate and must not be tagged
+as the next libpkgapply release. Transient owner-derived record projections at
+the reopen bridge do not qualify as durable snapshot authority.

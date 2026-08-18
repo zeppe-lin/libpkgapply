@@ -92,7 +92,8 @@ effects()
           pkgplan::package_path::parse("usr/bin/tool")),
       pkgapply::application_journal_effect::make(
           1,
-          pkgapply::application_journal_effect_kind::synchronize_journal),
+          pkgapply::application_journal_effect_kind::
+              synchronize_active_namespace),
   };
 }
 
@@ -147,6 +148,17 @@ main()
   }
   require(foreign_projection_lease_refused,
           "application journal admitted a projection from another lease");
+
+  bool retired_journal_effect_refused = false;
+  try {
+    static_cast<void>(pkgapply::application_journal_effect::make(
+        0, static_cast<pkgapply::application_journal_effect_kind>(6)));
+  }
+  catch (const std::invalid_argument&) {
+    retired_journal_effect_refused = true;
+  }
+  require(retired_journal_effect_refused,
+          "application journal admitted the retired journal-sync effect");
 
   const auto journal_events = events(journal_effects);
   const auto receipt =
@@ -230,7 +242,8 @@ main()
   try {
     static_cast<void>(pkgapply::application_journal_effect::make(
         3,
-        pkgapply::application_journal_effect_kind::synchronize_journal,
+        pkgapply::application_journal_effect_kind::
+            synchronize_active_namespace,
         pkgplan::package_path::parse("usr/bin/tool")));
   } catch (const std::invalid_argument&) {
     rejected = true;

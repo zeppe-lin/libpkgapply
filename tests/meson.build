@@ -50,7 +50,11 @@ if get_option('tests').allowed()
     ['application-vertical', [
       'integration/application_vertical_test.cpp',
       'support/scripted_backend.cpp',
+      'support/scripted_journal_store.cpp',
       '../src/application_engine.cpp',
+      '../src/journal_history.cpp',
+      '../src/restart_checkpoint_codec.cpp',
+      '../src/sha256.cpp',
     ]],
     ['journal-history', [
       'integration/journal_history_test.cpp',

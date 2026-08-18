@@ -119,7 +119,7 @@ std::vector<pkgapply::application_journal_effect> effects()
           pkgplan::package_path::parse("usr/bin/tool")),
       pkgapply::application_journal_effect::make(
           1,
-          pkgapply::application_journal_effect_kind::synchronize_journal),
+          pkgapply::application_journal_effect_kind::synchronize_active_namespace),
   };
 }
 

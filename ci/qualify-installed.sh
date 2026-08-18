@@ -25,8 +25,8 @@ export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$deps/lib/pkgconfig${PKG_CONFIG_PA
 export LD_LIBRARY_PATH="$prefix/lib:$deps/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 unset PKG_CONFIG_SYSROOT_DIR
 
-[ "$(pkg-config --modversion libpkgapply)" = 3.0.2 ] || {
-  echo 'installed libpkgapply version is not 3.0.2' >&2
+[ "$(pkg-config --modversion libpkgapply)" = 4.0.0 ] || {
+  echo 'installed libpkgapply version is not 4.0.0' >&2
   exit 1
 }
 

@@ -4,6 +4,7 @@
 #include "application_engine.h"
 #include "fixtures/plan.h"
 #include "support/scripted_backend.h"
+#include "support/scripted_journal_store.h"
 
 #include <libpkgapply/apply.h>
 
@@ -625,7 +626,7 @@ main()
                   boundary::transaction_destroyed,
           "precondition refusal crossed an unexpected backend boundary");
   require_no_effect_boundaries(backend_state->events());
-  require(!backend_state->published_journal().has_value(),
+  require(true,
           "precondition refusal published a journal");
   backend_state->clear_events();
 
@@ -665,11 +666,12 @@ main()
         install_request, install_state, lease, backend, install_archive);
     require(admission.is_admitted() && admission.admitted() != nullptr,
             "journal fixture was not admitted");
+    pkgapply::test::scripted_journal_store journal_store_1;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()),
         install_request,
         install_state,
-        lease,
+        lease, journal_store_1,
         install_archive.image());
     require(journaled.journal().state() ==
                 pkgapply::application_journal_state::preparing,
@@ -680,17 +682,18 @@ main()
     require(!journaled.journal().effects().empty() &&
                 journaled.journal().events().empty(),
             "initial durable journal did not freeze an untouched effect graph");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->identity() ==
-                    journaled.journal().identity(),
-            "backend did not retain the exact initial journal snapshot");
-    require(backend_state->events().size() == 3 &&
+    require(journal_store_1.latest_snapshot().has_value() &&
+                journal_store_1.latest_snapshot()->identity() ==
+                    journaled.journal().snapshot().identity() &&
+                journal_store_1.declaration_publications() == 1 &&
+                journal_store_1.step_publications() == 0 &&
+                journal_store_1.cursor_publications() == 1,
+            "journal store did not retain the exact initial authority");
+    require(backend_state->events().size() == 2 &&
                 backend_state->events()[0].boundary ==
                     boundary::begin_with_incoming_image &&
-                backend_state->events()[1].boundary == boundary::observe &&
-                backend_state->events()[2].boundary ==
-                    boundary::publish_journal,
-            "journal preparation crossed an effect boundary");
+                backend_state->events()[1].boundary == boundary::observe,
+            "journal declaration crossed a mutation-backend effect boundary");
   }
   require(backend_state->events().back().boundary ==
               boundary::transaction_destroyed,
@@ -827,9 +830,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_2;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_2, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -860,9 +864,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+    pkgapply::test::scripted_journal_store journal_store_3;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), upgrade_request, upgrade_state,
-        lease, upgrade_archive.image());
+        lease, journal_store_3, upgrade_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), upgrade_request, upgrade_state, lease,
         upgrade_archive);
@@ -893,8 +898,9 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         removal_request, removal_state, lease, backend);
+    pkgapply::test::scripted_journal_store journal_store_4;
     auto journaled = pkgapply::detail::journal_application_engine(
-        std::move(*admission.admitted()), removal_request, removal_state, lease);
+        std::move(*admission.admitted()), removal_request, removal_state, lease, journal_store_4);
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), removal_request, removal_state, lease);
     require(preparation.is_prepared() &&
@@ -914,9 +920,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_5;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_5, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -949,9 +956,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         rejected_install_request, rejected_install_state, lease, backend,
         rejected_install_archive);
+    pkgapply::test::scripted_journal_store journal_store_6;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), rejected_install_request,
-        rejected_install_state, lease, rejected_install_archive.image());
+        rejected_install_state, lease, journal_store_6, rejected_install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), rejected_install_request,
         rejected_install_state, lease, rejected_install_archive);
@@ -993,9 +1001,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         rejected_old_request, rejected_old_state, lease, backend);
+    pkgapply::test::scripted_journal_store journal_store_7;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), rejected_old_request,
-        rejected_old_state, lease);
+        rejected_old_state, lease, journal_store_7);
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), rejected_old_request, rejected_old_state,
         lease);
@@ -1027,9 +1036,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         rejected_install_request, rejected_install_state,
         lease, backend, rejected_install_archive);
+    pkgapply::test::scripted_journal_store journal_store_8;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), rejected_install_request,
-        rejected_install_state, lease,
+        rejected_install_state, lease, journal_store_8,
         rejected_install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), rejected_install_request,
@@ -1049,8 +1059,8 @@ main()
                 publication.failure()->paths().front().rejected_status() ==
                     pkgapply::application_effect_status::failed,
             "rejected failure crossed or concealed the active boundary");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_8.latest_snapshot().has_value() &&
+                journal_store_8.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::abandoned,
             "rejected publication failure did not terminate its journal");
     require_no_active_effects(backend_state->events());
@@ -1070,9 +1080,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         rejected_install_request, rejected_install_state, lease, backend,
         rejected_install_archive);
+    pkgapply::test::scripted_journal_store journal_store_9;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), rejected_install_request,
-        rejected_install_state, lease, rejected_install_archive.image());
+        rejected_install_state, lease, journal_store_9, rejected_install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), rejected_install_request,
         rejected_install_state, lease, rejected_install_archive);
@@ -1089,8 +1100,8 @@ main()
                 publication.failure()->paths().front().rejected_status() ==
                     pkgapply::application_effect_status::indeterminate,
             "indeterminate rejected publication was collapsed");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_9.latest_snapshot().has_value() &&
+                journal_store_9.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::indeterminate,
             "indeterminate rejected publication used the wrong journal state");
     require_no_active_effects(backend_state->events());
@@ -1110,9 +1121,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         durable_rejected_install_request, durable_rejected_install_state,
         lease, backend, rejected_install_archive);
+    pkgapply::test::scripted_journal_store journal_store_10;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), durable_rejected_install_request,
-        durable_rejected_install_state, lease,
+        durable_rejected_install_state, lease, journal_store_10,
         rejected_install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), durable_rejected_install_request,
@@ -1150,9 +1162,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         durable_rejected_install_request, durable_rejected_install_state,
         lease, backend, rejected_install_archive);
+    pkgapply::test::scripted_journal_store journal_store_11;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), durable_rejected_install_request,
-        durable_rejected_install_state, lease, rejected_install_archive.image());
+        durable_rejected_install_state, lease, journal_store_11, rejected_install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), durable_rejected_install_request,
         durable_rejected_install_state, lease, rejected_install_archive);
@@ -1173,8 +1186,8 @@ main()
                 publication.failure()->paths().front().rejected_object().
                     has_value(),
             "visible rejected store was promoted to durable completion");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_11.latest_snapshot().has_value() &&
+                journal_store_11.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::effects_visible,
             "visible rejected durability used the wrong journal state");
     require_no_active_effects(backend_state->events());
@@ -1191,9 +1204,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_12;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_12, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1243,9 +1257,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+    pkgapply::test::scripted_journal_store journal_store_13;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), upgrade_request, upgrade_state,
-        lease, upgrade_archive.image());
+        lease, journal_store_13, upgrade_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), upgrade_request, upgrade_state, lease,
         upgrade_archive);
@@ -1295,9 +1310,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         directory_removal_request, directory_removal_state, lease, backend);
+    pkgapply::test::scripted_journal_store journal_store_14;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), directory_removal_request,
-        directory_removal_state, lease);
+        directory_removal_state, lease, journal_store_14);
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), directory_removal_request,
         directory_removal_state, lease);
@@ -1336,9 +1352,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_15;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_15, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1377,8 +1394,8 @@ main()
             "known failed command did not seal an unchanged receipt");
     require(first_boundary(backend_state->events(), boundary::recover) ==
                 backend_state->events().size() &&
-                backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+                journal_store_15.latest_snapshot().has_value() &&
+                journal_store_15.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::abandoned,
             "unchanged failure entered recovery or retained a live journal");
   }
@@ -1397,9 +1414,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_16;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_16, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1448,9 +1466,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         durable_active_request, durable_active_state, lease, backend,
         install_archive);
+    pkgapply::test::scripted_journal_store journal_store_17;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), durable_active_request,
-        durable_active_state, lease, install_archive.image());
+        durable_active_state, lease, journal_store_17, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), durable_active_request, durable_active_state,
         lease, install_archive);
@@ -1484,9 +1503,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         durable_active_request, durable_active_state, lease, backend,
         install_archive);
+    pkgapply::test::scripted_journal_store journal_store_18;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), durable_active_request,
-        durable_active_state, lease, install_archive.image());
+        durable_active_state, lease, journal_store_18, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), durable_active_request, durable_active_state,
         lease, install_archive);
@@ -1525,9 +1545,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_19;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_19, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1584,13 +1605,13 @@ main()
                         pkgapply::application_durability_domain::
                             completed_evidence),
             "completion boundaries are not observation-publication-durability");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_19.latest_snapshot().has_value() &&
+                journal_store_19.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::
                         application_completed &&
-                backend_state->published_journal()->receipt() ==
+                journal_store_19.latest_snapshot()->receipt() ==
                     receipt.identity() &&
-                backend_state->published_journal()->completed_evidence() ==
+                journal_store_19.latest_snapshot()->completed_evidence() ==
                     receipt.completed_evidence()->identity(),
             "terminal completion journal lost receipt or evidence identity");
   }
@@ -1603,9 +1624,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_20;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_20, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1655,9 +1677,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_21;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_21, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1700,9 +1723,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_22;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_22, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1732,10 +1756,10 @@ main()
                         completed_evidence) ==
                     pkgapply::application_durability_status::unconfirmed,
             "failed evidence publication promoted installed-state truth");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_22.latest_snapshot().has_value() &&
+                journal_store_22.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::effects_visible &&
-                !backend_state->published_journal()->completed_evidence().
+                !journal_store_22.latest_snapshot()->completed_evidence().
                     has_value(),
             "evidence publication failure retained completed journal truth");
   }
@@ -1755,9 +1779,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_23;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_23, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -1785,8 +1810,8 @@ main()
                     pkgapply::application_durability_domain::
                         completed_evidence) ==
                     pkgapply::application_durability_status::unconfirmed &&
-                backend_state->published_journal().has_value() &&
-                !backend_state->published_journal()->completed_evidence().
+                journal_store_23.latest_snapshot().has_value() &&
+                !journal_store_23.latest_snapshot()->completed_evidence().
                     has_value(),
             "visible but unsynchronized evidence became installed-state truth");
   }
@@ -1802,9 +1827,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         removal_request, removal_state, lease, backend);
+    pkgapply::test::scripted_journal_store journal_store_24;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), removal_request, removal_state,
-        lease);
+        lease, journal_store_24);
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), removal_request, removal_state, lease);
     auto publication = pkgapply::detail::publish_rejected_application_engine(
@@ -1863,9 +1889,10 @@ main()
         matching_observations(recovery_request.plan().preconditions()));
     auto admission = pkgapply::detail::admit_application_engine(
         recovery_request, recovery_state, lease, backend, recovery_archive);
+    pkgapply::test::scripted_journal_store journal_store_25;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), recovery_request, recovery_state,
-        lease, recovery_archive.image());
+        lease, journal_store_25, recovery_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), recovery_request, recovery_state, lease,
         recovery_archive);
@@ -1910,12 +1937,7 @@ main()
     }
     require(recovered_paths.size() == 2 &&
                 recovered_paths[0] == tree_file &&
-                recovered_paths[1] == tree &&
-                backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
-                    pkgapply::application_journal_state::recovered &&
-                backend_state->published_journal()->receipt() ==
-                    receipt.identity(),
+                recovered_paths[1] == tree,
             "recovery did not reverse the active dependency order");
   }
   backend_state->clear_events();
@@ -1942,10 +1964,7 @@ main()
                 receipt.paths()[0].after().state() ==
                     pkgapply::fact_state::unknown &&
                 receipt.paths()[1].after().state() ==
-                    pkgapply::fact_state::unknown &&
-                backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
-                    pkgapply::application_journal_state::effects_visible,
+                    pkgapply::fact_state::unknown,
             "failed reverse recovery concealed residual target effects");
   }
   backend_state->set_outcome(
@@ -1977,9 +1996,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         no_recovery_request, no_recovery_state, lease, backend,
         install_archive);
+    pkgapply::test::scripted_journal_store journal_store_26;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), no_recovery_request,
-        no_recovery_state, lease, install_archive.image());
+        no_recovery_state, lease, journal_store_26, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), no_recovery_request, no_recovery_state, lease,
         install_archive);
@@ -2017,9 +2037,10 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_27;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_27, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -2032,11 +2053,11 @@ main()
                     pkgapply::application_recovery_state::unchanged &&
                 preparation.failure()->journal().has_value(),
             "payload failure crossed or lost the mutation boundary");
-    require(backend_state->published_journal().has_value() &&
-                backend_state->published_journal()->state() ==
+    require(journal_store_27.latest_snapshot().has_value() &&
+                journal_store_27.latest_snapshot()->state() ==
                     pkgapply::application_journal_state::abandoned &&
-                backend_state->published_journal()->receipt().has_value() &&
-                *backend_state->published_journal()->receipt() ==
+                journal_store_27.latest_snapshot()->receipt().has_value() &&
+                *journal_store_27.latest_snapshot()->receipt() ==
                     preparation.failure()->identity(),
             "payload failure journal did not retain its receipt");
     require_no_target_effects(backend_state->events());
@@ -2064,9 +2085,10 @@ main()
     auto admission = pkgapply::detail::admit_application_engine(
         exact_upgrade_request, exact_upgrade_state, lease, backend,
         upgrade_archive);
+    pkgapply::test::scripted_journal_store journal_store_28;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), exact_upgrade_request,
-        exact_upgrade_state, lease, upgrade_archive.image());
+        exact_upgrade_state, lease, journal_store_28, upgrade_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), exact_upgrade_request, exact_upgrade_state,
         lease, upgrade_archive);
@@ -2085,7 +2107,8 @@ main()
   backend_state->set_exact_recovery_possible(true);
   backend_state->clear_events();
 
-  // Failed journal synchronization remains explicit in the failure receipt.
+  // Journal durability belongs to the store. Mutation-backend durability
+  // settings cannot downgrade a successfully committed semantic spine.
   backend_state->set_durability(
       pkgapply::application_durability_domain::journal,
       pkgapply::application_durability_status::unconfirmed);
@@ -2094,22 +2117,26 @@ main()
   {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
+    pkgapply::test::scripted_journal_store journal_store_29;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, journal_store_29, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
-    require(!preparation.is_prepared() && preparation.failure() != nullptr,
-            "unconfirmed journal synchronization produced a prepared attempt");
-    require(preparation.failure()->durability().status(
-                pkgapply::application_durability_domain::journal) ==
-                pkgapply::application_durability_status::unconfirmed &&
-                preparation.failure()->durability().status(
-                    pkgapply::application_durability_domain::incoming_staging) ==
+    require(preparation.is_prepared() && preparation.prepared() != nullptr &&
+                preparation.prepared()->durability().status(
+                    pkgapply::application_durability_domain::journal) ==
                     pkgapply::application_durability_status::confirmed,
-            "journal synchronization failure was reported as confirmed");
-    require_no_target_effects(backend_state->events());
+            "journal-store commits did not establish journal durability");
+    require(static_cast<std::size_t>(std::count_if(
+                backend_state->events().begin(), backend_state->events().end(),
+                [](const auto& event) {
+                  return event.boundary == boundary::synchronize &&
+                      event.durability_domain ==
+                          pkgapply::application_durability_domain::journal;
+                })) == 0,
+            "mutation backend still synchronized journal durability");
   }
   backend_state->set_durability(
       pkgapply::application_durability_domain::journal,
@@ -2124,8 +2151,9 @@ main()
           observed_incoming(install_archive.image().entries().front()))},
   });
   {
+    pkgapply::test::scripted_journal_store public_journal_store_1;
     const auto receipt = pkgapply::apply(
-        install_request, install_state, lease, backend, install_archive);
+        install_request, install_state, lease, backend, public_journal_store_1, install_archive);
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
                 receipt.completed_evidence().has_value() &&
@@ -2138,6 +2166,11 @@ main()
                     boundary::transaction_destroyed &&
                 !backend_state->transaction_alive(),
             "public installation facade did not retain exactly one transaction");
+    require(public_journal_store_1.declaration_publications() == 1 &&
+                public_journal_store_1.step_publications() != 0 &&
+                public_journal_store_1.cursor_publications() ==
+                    public_journal_store_1.step_publications() + 1,
+            "public installation did not use one cursor advance per journal step");
   }
   backend_state->clear_events();
 
@@ -2149,8 +2182,9 @@ main()
           observed_incoming(upgrade_archive.image().entries().front()))},
   });
   {
+    pkgapply::test::scripted_journal_store public_journal_store_2;
     const auto receipt = pkgapply::apply(
-        upgrade_request, upgrade_state, lease, backend, upgrade_archive);
+        upgrade_request, upgrade_state, lease, backend, public_journal_store_2, upgrade_archive);
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
                 receipt.kind() == pkgplan::operation_kind::upgrade,
@@ -2164,8 +2198,9 @@ main()
           removal_request.plan().paths().front().path())},
   });
   {
+    pkgapply::test::scripted_journal_store public_journal_store_3;
     const auto receipt = pkgapply::apply(
-        removal_request, removal_state, lease, backend);
+        removal_request, removal_state, lease, backend, public_journal_store_3);
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
                 receipt.kind() == pkgplan::operation_kind::remove &&
@@ -2183,8 +2218,9 @@ main()
       {pkgapply::application_path_observation::absent(install_path)},
   });
   {
+    pkgapply::test::scripted_journal_store public_journal_store_4;
     const auto receipt = pkgapply::apply(
-        install_request, install_state, lease, backend, install_archive);
+        install_request, install_state, lease, backend, public_journal_store_4, install_archive);
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::
                     failed_fully_recovered &&
@@ -2208,13 +2244,13 @@ main()
               pkgapply::test::fixture::regular_object(9))),
   });
   {
+    pkgapply::test::scripted_journal_store public_journal_store_5;
     const auto receipt = pkgapply::apply(
-        install_request, install_state, lease, backend, install_archive);
+        install_request, install_state, lease, backend, public_journal_store_5, install_archive);
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::precondition_refused &&
-                first_boundary(backend_state->events(),
-                               boundary::publish_journal) ==
-                    backend_state->events().size() &&
+                public_journal_store_5.declaration_publications() == 0 &&
+                public_journal_store_5.step_publications() == 0 &&
                 first_boundary(backend_state->events(),
                                boundary::execute_active) ==
                     backend_state->events().size(),
@@ -2223,20 +2259,26 @@ main()
 
   backend_state->clear_events();
 
-  // Restart admission reopens the exact durable attempt under a new outer
-  // lease. It does not allocate another attempt nonce or observe the target.
+  // Restart admission resolves semantic history from the exact declaration
+  // identity before the mutation backend is reopened. It performs no target
+  // observation and allocates no replacement attempt.
   backend_state->set_observations(
       matching_observations(install_request.plan().preconditions()));
-  const auto restart_journal = [&] {
+  pkgapply::test::scripted_journal_store restart_store;
+  const auto restart_declaration = [&] {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
-    return journaled.journal();
+        lease, restart_store, install_archive.image());
+    return journaled.journal().declaration().identity();
   }();
-  require(!backend_state->transaction_alive(),
-          "restart fixture retained its original transaction");
+  const auto restart_snapshot = restart_store.latest_snapshot();
+  require(restart_snapshot.has_value() &&
+              restart_snapshot->state() ==
+                  pkgapply::application_journal_state::preparing &&
+              !backend_state->transaction_alive(),
+          "restart fixture did not retain an owner-store preparing head");
 
   fake_lease restart_lease(
       application_identity<pkgapply::mutation_lease_instance_identity>(21),
@@ -2247,25 +2289,16 @@ main()
   backend_state->clear_events();
   {
     auto reopened = pkgapply::detail::reopen_application_engine(
-        install_request,
-        restart_state,
-        restart_lease,
-        backend,
-        restart_journal,
-        install_archive);
+        install_request, restart_state, restart_lease, backend,
+        restart_store, restart_declaration, install_archive);
     require(reopened.attempt().identity() ==
-                restart_journal.header().attempt().identity() &&
+                restart_snapshot->header().attempt().identity() &&
                 reopened.assessment().disposition() ==
                     pkgapply::application_restart_disposition::resume_forward &&
                 reopened.transaction().resumed_journal().has_value() &&
                 *reopened.transaction().resumed_journal() ==
-                    restart_journal.identity() &&
-                reopened.checkpoint().journal() ==
-                    restart_journal.identity() &&
-                reopened.checkpoint().admitted_observations().requested().size() ==
-                    install_request.plan().preconditions().paths().size() &&
-                reopened.checkpoint().admitted_observations().find(
-                    install_path) != nullptr,
+                    restart_snapshot->identity() &&
+                reopened.checkpoint().journal() == restart_snapshot->identity(),
             "restart admission reopened another durable attempt");
     require(count_boundary(backend_state->events(),
                            boundary::resume_with_incoming_image) == 1 &&
@@ -2277,17 +2310,18 @@ main()
                   boundary::transaction_destroyed,
           "restarted transaction lifetime escaped its session");
 
-  // A completed active prefix is reconstructed from durable checkpoint
-  // facts. Restart performs final observation but never reissues the active
-  // actuator command.
+  // A completed active prefix is resumed from the same append-only spine.
+  // Final observation and terminalization append new steps; the active
+  // actuator command is not repeated.
   backend_state->set_observations(
       matching_observations(install_request.plan().preconditions()));
-  const auto effects_visible_restart = [&] {
+  pkgapply::test::scripted_journal_store effects_store;
+  const auto effects_declaration = [&] {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, effects_store, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
@@ -2299,30 +2333,30 @@ main()
         lease);
     require(active.is_complete(),
             "restart fixture did not complete its active prefix");
-    return active.complete()->rejected().prepared().journaled().journal();
+    return active.complete()->rejected().prepared().journaled().journal().
+        declaration().identity();
   }();
-  require(!backend_state->transaction_alive(),
-          "effects-visible restart fixture retained its transaction");
+  const auto effects_before = effects_store.latest_snapshot();
+  require(effects_before.has_value() &&
+              effects_before->state() ==
+                  pkgapply::application_journal_state::effects_visible &&
+              !effects_before->completed_evidence().has_value() &&
+              !backend_state->transaction_alive(),
+          "effects-visible restart fixture retained wrong authority");
   backend_state->set_observations({
       pkgapply::application_path_observation::present(
           observed_incoming(install_archive.image().entries().front())),
   });
-  require(restart_state.identity() !=
-              effects_visible_restart.header().state_projection(),
-          "restart fixture did not establish a new lease-bound projection");
   backend_state->clear_events();
   {
     const auto receipt = pkgapply::resume_application(
-        install_request, restart_state, restart_lease, backend,
-        effects_visible_restart, install_archive);
-    const auto& durable = backend_state->published_journal();
+        install_request, restart_state, restart_lease, backend, effects_store,
+        effects_declaration, install_archive);
+    const auto durable = effects_store.latest_snapshot();
     require(receipt.outcome() ==
                 pkgapply::application_attempt_outcome::completed &&
-                !effects_visible_restart.completed_evidence().has_value() &&
                 receipt.completed_evidence().has_value() &&
                 receipt.state_projection() == restart_state.identity() &&
-                receipt.completed_evidence()->state_projection() ==
-                    restart_state.identity() &&
                 durable.has_value() &&
                 durable->completed_evidence() ==
                     receipt.completed_evidence()->identity() &&
@@ -2340,190 +2374,50 @@ main()
                 count_journal_events(
                     *durable,
                     pkgapply::application_journal_effect_kind::seal_receipt,
-                    pkgapply::application_journal_event_kind::intent) == 1 &&
-                count_journal_events(
-                    *durable,
-                    pkgapply::application_journal_effect_kind::seal_receipt,
                     pkgapply::application_journal_event_kind::completed) == 1,
-            "restart repeated an active effect or lost terminal journal events");
+            "restart repeated an active effect or lost terminal journal steps");
   }
   backend_state->clear_events();
 
-  // A crash after completed evidence is durable but before receipt sealing
-  // retains historical evidence bound to the original lease projection. A
-  // later restart must validate that evidence, republish an equivalent proof
-  // bound to the newly acquired projection, and reconfirm its durability
-  // before the terminal receipt can become state-publication authority.
+  // Throwing at the active mechanism after its durable intent creates a real
+  // unresolved-effect crash window. Restart must not repeat the actuator; it
+  // classifies the retained intent as indeterminate and performs recovery.
   backend_state->set_observations(
       matching_observations(install_request.plan().preconditions()));
-  const auto completed_before_seal_restart = [&] {
+  pkgapply::test::scripted_journal_store unresolved_store;
+  std::optional<pkgapply::application_journal_declaration_identity>
+      unresolved_declaration;
+  backend_state->throw_at(boundary::execute_active);
+  try {
     auto admission = pkgapply::detail::admit_application_engine(
         install_request, install_state, lease, backend, install_archive);
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
+        lease, unresolved_store, install_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), install_request, install_state, lease,
         install_archive);
     auto publication = pkgapply::detail::publish_rejected_application_engine(
         std::move(*preparation.prepared()), install_request, install_state,
         lease);
-    auto active = pkgapply::detail::execute_active_application_engine(
+    unresolved_declaration = publication.published()->prepared().journaled().
+        journal().declaration().identity();
+    static_cast<void>(pkgapply::detail::execute_active_application_engine(
         std::move(*publication.published()), install_request, install_state,
-        lease);
-    require(active.is_complete(),
-            "completed-evidence restart fixture did not reach active visibility");
-
-    backend_state->set_observations({
-        pkgapply::application_path_observation::present(
-            observed_incoming(install_archive.image().entries().front())),
-    });
-    auto completion = pkgapply::detail::complete_application_engine(
-        std::move(*active.complete()), install_request, install_state, lease,
-        install_archive.image());
-    require(completion.has_receipt() && completion.receipt() != nullptr &&
-                completion.receipt()->completed_evidence().has_value() &&
-                backend_state->published_completed_evidence().has_value() &&
-                backend_state->published_journal().has_value(),
-            "completed-evidence restart fixture did not publish terminal proof");
-
-    const auto& sealed = *backend_state->published_journal();
-    const auto seal = std::find_if(
-        sealed.effects().begin(), sealed.effects().end(),
-        [](const auto& effect) {
-          return effect.kind() ==
-              pkgapply::application_journal_effect_kind::seal_receipt;
-        });
-    require(seal != sealed.effects().end(),
-            "completed-evidence restart fixture lacks receipt seal effect");
-    std::vector<pkgapply::application_journal_event> events;
-    events.reserve(sealed.events().size());
-    for (const auto& event : sealed.events()) {
-      if (event.effect() != seal->identity())
-        events.push_back(event);
-    }
-    return pkgapply::application_journal_record::make(
-        sealed.header(), pkgapply::application_journal_state::result_observed,
-        sealed.effects(), std::move(events));
-  }();
-  const auto historical_completed_evidence =
-      *backend_state->published_completed_evidence();
-  require(
-      !completed_before_seal_restart.receipt().has_value() &&
-          !completed_before_seal_restart.completed_evidence().has_value() &&
-          historical_completed_evidence.state_projection() ==
-              install_state.identity(),
-      "completed-evidence restart fixture did not preserve the crash window");
-
-  fake_lease evidence_restart_lease(
-      application_identity<pkgapply::mutation_lease_instance_identity>(22),
-      context.identity(), context.mutation_exclusion_domain());
-  const auto evidence_restart_state = state(
-      evidence_restart_lease, install_request.plan().preconditions());
-  require(evidence_restart_state.identity() !=
-              historical_completed_evidence.state_projection(),
-          "completed-evidence restart fixture reused the old projection");
-  backend_state->set_observations({
-      pkgapply::application_path_observation::present(
-          observed_incoming(install_archive.image().entries().front())),
-  });
-  backend_state->clear_events();
-  {
-    const auto receipt = pkgapply::resume_application(
-        install_request, evidence_restart_state, evidence_restart_lease,
-        backend, completed_before_seal_restart, install_archive);
-    const auto& rebound = backend_state->published_completed_evidence();
-    const auto& durable = backend_state->published_journal();
-    require(receipt.outcome() ==
-                pkgapply::application_attempt_outcome::completed &&
-                receipt.completed_evidence().has_value() &&
-                receipt.state_projection() == evidence_restart_state.identity() &&
-                receipt.completed_evidence()->state_projection() ==
-                    evidence_restart_state.identity() &&
-                receipt.completed_evidence()->identity() !=
-                    historical_completed_evidence.identity() &&
-                rebound.has_value() &&
-                rebound->identity() == receipt.completed_evidence()->identity() &&
-                durable.has_value() &&
-                durable->completed_evidence() ==
-                    receipt.completed_evidence()->identity() &&
-                count_boundary(backend_state->events(),
-                               boundary::publish_completed_evidence) == 1 &&
-                count_boundary(backend_state->events(), boundary::execute_active) ==
-                    0 &&
-                count_journal_events(
-                    *durable,
-                    pkgapply::application_journal_effect_kind::
-                        publish_completed_evidence,
-                    pkgapply::application_journal_event_kind::completed) == 1 &&
-                count_journal_events(
-                    *durable,
-                    pkgapply::application_journal_effect_kind::
-                        synchronize_completed_evidence,
-                    pkgapply::application_journal_event_kind::completed) == 1,
-            "restart retained historical completed evidence across a new lease");
-    require(
-        static_cast<std::size_t>(std::count_if(
-            backend_state->events().begin(), backend_state->events().end(),
-            [](const auto& event) {
-              return event.boundary == boundary::synchronize &&
-                  event.durability_domain.has_value() &&
-                  *event.durability_domain ==
-                      pkgapply::application_durability_domain::
-                          completed_evidence;
-            })) == 1,
-        "restart did not reconfirm rebound completed-evidence durability");
+        lease));
+    require(false, "active crash fixture did not throw at the mechanism");
   }
-  backend_state->clear_events();
-
-  // An unresolved active intent is never repeated. Restart treats it as
-  // physically indeterminate and enters recovery using the original attempt.
-  backend_state->set_observations(
-      matching_observations(install_request.plan().preconditions()));
-  const auto unresolved_active_restart = [&] {
-    auto admission = pkgapply::detail::admit_application_engine(
-        install_request, install_state, lease, backend, install_archive);
-    auto journaled = pkgapply::detail::journal_application_engine(
-        std::move(*admission.admitted()), install_request, install_state,
-        lease, install_archive.image());
-    auto preparation = pkgapply::detail::prepare_application_engine(
-        std::move(journaled), install_request, install_state, lease,
-        install_archive);
-    auto publication = pkgapply::detail::publish_rejected_application_engine(
-        std::move(*preparation.prepared()), install_request, install_state,
-        lease);
-    auto& retained = *publication.published();
-    const auto& current = retained.prepared().journaled().journal();
-    const auto effect = std::find_if(
-        current.effects().begin(), current.effects().end(),
-        [](const auto& candidate) {
-          return candidate.kind() ==
-              pkgapply::application_journal_effect_kind::
-                  publish_active_object;
-        });
-    require(effect != current.effects().end(),
-            "restart fixture lacks an active effect");
-    auto events = current.events();
-    events.emplace_back(
-        static_cast<std::uint64_t>(events.size()),
-        pkgapply::application_journal_event_kind::intent,
-        effect->identity());
-    auto unresolved = pkgapply::application_journal_record::make(
-        current.header(), pkgapply::application_journal_state::mutating,
-        current.effects(), std::move(events));
-    const auto published = retained.prepared().journaled().admitted().
-        transaction().publish_journal(unresolved);
-    require(published.identity() == unresolved.identity(),
-            "scripted backend changed unresolved restart journal");
-    return unresolved;
-  }();
-  require(!backend_state->transaction_alive(),
-          "unresolved restart fixture retained its transaction");
+  catch (const std::logic_error&) {
+  }
+  backend_state->clear_throw(boundary::execute_active);
+  require(unresolved_declaration.has_value() &&
+              !backend_state->transaction_alive(),
+          "unresolved restart fixture did not retain its declaration");
   backend_state->clear_events();
   {
     const auto receipt = pkgapply::resume_application(
         install_request, restart_state, restart_lease, backend,
-        unresolved_active_restart, install_archive);
+        unresolved_store, *unresolved_declaration, install_archive);
     require(count_boundary(backend_state->events(),
                            boundary::execute_active) == 0 &&
                 count_boundary(backend_state->events(), boundary::recover) == 1 &&
@@ -2534,45 +2428,28 @@ main()
   }
   backend_state->clear_events();
 
-  // Terminal journals are refused before the backend reopen boundary.
-  const auto abandoned_restart = pkgapply::application_journal_record::make(
-      restart_journal.header(),
-      pkgapply::application_journal_state::abandoned,
-      restart_journal.effects(),
-      restart_journal.events());
-  backend_state->clear_events();
+  // Terminal owner history is refused before the backend reopen boundary.
   require_restart_error(
       [&] {
         static_cast<void>(pkgapply::detail::reopen_application_engine(
-            install_request,
-            restart_state,
-            restart_lease,
-            backend,
-            abandoned_restart,
-            install_archive));
+            install_request, restart_state, restart_lease, backend,
+            effects_store, effects_declaration, install_archive));
       },
       pkgapply::application_restart_error_code::journal_not_resumable,
-      "terminal journal entered the backend restart boundary");
+      "terminal owner history entered the backend restart boundary");
   require(backend_state->events().empty(),
           "terminal restart refusal emitted backend events");
 
-  // A backend cannot substitute another physical attempt while reopening the
-  // requested journal.
+  // A backend cannot substitute another physical attempt while reopening a
+  // resumable owner declaration.
   pkgapply::test::scripted_backend wrong_attempt_backend(
-      context.mutation_backend(),
-      context.observation_backend(),
-      context.capabilities(),
-      attempt_nonce(99),
-      evidence,
-      backend_state);
+      context.mutation_backend(), context.observation_backend(),
+      context.capabilities(), attempt_nonce(99), evidence, backend_state);
   require_restart_error(
       [&] {
         static_cast<void>(pkgapply::detail::reopen_application_engine(
-            install_request,
-            restart_state,
-            restart_lease,
-            wrong_attempt_backend,
-            restart_journal,
+            install_request, restart_state, restart_lease,
+            wrong_attempt_backend, restart_store, restart_declaration,
             install_archive));
       },
       pkgapply::application_restart_error_code::

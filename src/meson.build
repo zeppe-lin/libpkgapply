@@ -64,7 +64,7 @@ libpkgapply = library(
   ],
   install: true,
   version: meson.project_version(),
-  soversion: '3',
+  soversion: '4',
 )
 
 libpkgapply_consumer_deps = [

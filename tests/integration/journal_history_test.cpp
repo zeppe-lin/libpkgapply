@@ -322,6 +322,28 @@ void test_invalid_orphan_refused()
           "invalid orphan changed cursor authority");
 }
 
+
+void test_validation_does_not_advance_memory()
+{
+  const auto declaration = small_declaration();
+  auto history = pkgapply::detail::application_journal_history::initial(
+      declaration);
+  const auto prepared = pkgapply::application_journal_step::make(
+      declaration.identity(), 0, std::nullopt,
+      pkgapply::application_journal_state::prepared);
+
+  const auto candidate = history.validate(prepared);
+  require(history.cursor().step_count() == 0 &&
+              history.state() == pkgapply::application_journal_state::preparing &&
+              candidate.step_count() == 1 &&
+              candidate.state() == pkgapply::application_journal_state::prepared,
+          "journal validation advanced the in-memory committed head");
+
+  history.append(prepared);
+  require(history.cursor().identity() == candidate.identity(),
+          "journal commit disagreed with the prevalidated cursor");
+}
+
 void test_incremental_semantics_fail_closed()
 {
   const auto declaration = small_declaration();
@@ -398,7 +420,7 @@ void test_large_history_is_exactly_indexed()
   for (std::size_t ordinal = 0; ordinal < effect_count; ++ordinal) {
     effects.push_back(pkgapply::application_journal_effect::make(
         ordinal,
-        pkgapply::application_journal_effect_kind::synchronize_journal));
+        pkgapply::application_journal_effect_kind::synchronize_active_namespace));
   }
 
   memory_store store;
@@ -458,6 +480,7 @@ int main()
   test_exact_rehydration_and_orphan_adoption();
   test_missing_committed_step_refused();
   test_invalid_orphan_refused();
+  test_validation_does_not_advance_memory();
   test_incremental_semantics_fail_closed();
   test_large_history_is_exactly_indexed();
   return 0;

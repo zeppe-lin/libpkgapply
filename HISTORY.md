@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### Generation-4 append-only application history
+
+- Replaced live complete-journal snapshot republication with one immutable
+  application declaration, one immutable semantic step per transition, and a
+  bounded compare-and-publish cursor. Live publication no longer copies the
+  accumulated event prefix after every effect.
+- Separated semantic journal persistence from `application_backend_transaction`.
+  The public `apply()` entry points now receive an explicit
+  `application_journal_store`; mutation transactions no longer publish or
+  synchronize journal storage. Successful store commits establish the journal
+  durability fact directly.
+- Changed restart entry points to reopen semantic history from the exact journal
+  store plus immutable declaration identity. `libpkgapply` rehydrates and
+  validates committed steps itself before reopening the mutation backend.
+- Retained backend restart checkpoints only as a temporary subordinate
+  mechanism-evidence bridge while the provider generation is migrated. They no
+  longer provide original admission observations or semantic history authority,
+  and derived complete journal records are never persisted.
+- Removed the dead `synchronize_journal` journal-effect vocabulary. Journal
+  durability remains a receipt domain fact rather than a mutation-backend
+  application effect.
+- Advanced the core to SONAME 4 and public API generation 4. The generation
+  break is required by the removed transaction virtual and the new public
+  application/restart signatures; no generation-3 compatibility shim is
+  retained.
+
+
 ## 3.0.2 - 2026-08-18
 
 ### Bounded journal validation

@@ -9,6 +9,7 @@
 #include <libpkgapply/export.h>
 
 #include <libpkgapply/backend.h>
+#include <libpkgapply/journal_transport.h>
 #include <libpkgapply/mutation_lease.h>
 #include <libpkgapply/request.h>
 #include <libpkgapply/result.h>
@@ -27,6 +28,7 @@ namespace pkgapply {
  *  \param state Current state projection bound to `lease`.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Physical mechanism provider selected by the controller.
+ *  \param journal_store Separate durable store for owner-authored journal history.
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal receipt for this physical attempt.
  *  \throws application_admission_error If authority, state, lease, backend, or
@@ -37,6 +39,7 @@ apply(const installation_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
       application_backend& backend,
+      application_journal_store& journal_store,
       const pkgimage::package_archive& archive);
 
 /*! \brief Apply one accepted upgrade plan through one backend transaction.
@@ -48,6 +51,7 @@ apply(const installation_application_request& request,
  *  \param state Current state projection bound to `lease`.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Physical mechanism provider selected by the controller.
+ *  \param journal_store Separate durable store for owner-authored journal history.
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal receipt for this physical attempt.
  *  \throws application_admission_error If authority, state, lease, backend, or
@@ -58,6 +62,7 @@ apply(const upgrade_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
       application_backend& backend,
+      application_journal_store& journal_store,
       const pkgimage::package_archive& archive);
 
 /*! \brief Apply one accepted removal plan without incoming archive authority.
@@ -65,6 +70,7 @@ apply(const upgrade_application_request& request,
  *  \param state Current state projection bound to `lease`.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Physical mechanism provider selected by the controller.
+ *  \param journal_store Separate durable store for owner-authored journal history.
  *  \return Truthful terminal receipt for this physical attempt.
  *  \throws application_admission_error If authority, state, lease, or backend
  *          facts do not bind exactly.
@@ -73,6 +79,7 @@ apply(const upgrade_application_request& request,
 apply(const removal_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
-      application_backend& backend);
+      application_backend& backend,
+      application_journal_store& journal_store);
 
 } // namespace pkgapply

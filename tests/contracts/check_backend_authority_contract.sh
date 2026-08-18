@@ -6,8 +6,10 @@ fail(){ echo "backend-authority-contract: $*" >&2; exit 1; }
 admission="$root/src/admission.cpp"
 engine="$root/src/application_engine.cpp"
 restart="$root/src/restart.cpp"
+backend_header="$root/include/libpkgapply/backend.h"
+apply_header="$root/include/libpkgapply/apply.h"
 
-for f in "$admission" "$engine" "$restart"; do
+for f in "$admission" "$engine" "$restart" "$backend_header" "$apply_header"; do
   [ -s "$f" ] || fail "missing ${f#$root/}"
 done
 
@@ -27,6 +29,27 @@ if grep -F 'transaction.capabilities() != backend.capabilities()' "$admission" >
 fi
 if grep -F 'header.backend() != backend.identity()' "$restart" >/dev/null; then
   fail 'restart journal backend is compared to a fresh backend callback'
+fi
+
+
+# Semantic journal persistence is owner/store authority, never a mutation-backend
+# virtual or durability command.
+if grep -F 'publish_journal' "$backend_header" >/dev/null; then
+  fail 'mutation backend still owns semantic journal persistence'
+fi
+if grep -F 'synchronize_journal' "$root/include/libpkgapply/journal.h" >/dev/null; then
+  fail 'journal synchronization remains an application effect vocabulary token'
+fi
+grep -F 'application_journal_store& journal_store' "$apply_header" >/dev/null ||
+  fail 'public application facade does not receive the journal store explicitly'
+grep -F 'store.publish_declaration(intended)' "$engine" >/dev/null ||
+  fail 'fresh execution does not publish owner declaration through the journal store'
+grep -F 'store_->publish_step(intended)' "$engine" >/dev/null ||
+  fail 'live execution does not append immutable journal steps through the store'
+grep -F 'store_->compare_and_publish_cursor(previous.identity(), candidate)' "$engine" >/dev/null ||
+  fail 'live execution does not durably advance the bounded journal cursor'
+if grep -F 'synchronize(application_durability_domain::journal' "$engine" >/dev/null; then
+  fail 'mutation transaction still synchronizes journal durability'
 fi
 
 # Attempts and journal headers must be derived from immutable request authority.

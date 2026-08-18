@@ -337,7 +337,7 @@ application_journal_state read_state(reader& input)
 application_journal_effect_kind read_effect_kind(reader& input)
 {
   const auto value = input.read_u8();
-  if (value < 1 || value > 15)
+  if (value < 1 || value > 15 || value == 6)
     throw application_journal_codec_error(
         application_journal_codec_error_code::invalid_value,
         "application journal encoding contains an invalid effect kind");

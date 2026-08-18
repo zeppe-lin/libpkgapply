@@ -98,6 +98,7 @@ apply(const installation_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
       application_backend& backend,
+      application_journal_store& journal_store,
       const pkgimage::package_archive& archive)
 {
   detail::application_engine_admission admission =
@@ -112,7 +113,8 @@ apply(const installation_application_request& request,
 
   detail::journaled_application journaled =
       detail::journal_application_engine(
-          std::move(*admitted), request, state, lease, archive.image());
+          std::move(*admitted), request, state, lease, journal_store,
+          archive.image());
   detail::application_engine_preparation preparation =
       detail::prepare_application_engine(
           std::move(journaled), request, state, lease, archive);
@@ -156,6 +158,7 @@ apply(const upgrade_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
       application_backend& backend,
+      application_journal_store& journal_store,
       const pkgimage::package_archive& archive)
 {
   detail::application_engine_admission admission =
@@ -170,7 +173,8 @@ apply(const upgrade_application_request& request,
 
   detail::journaled_application journaled =
       detail::journal_application_engine(
-          std::move(*admitted), request, state, lease, archive.image());
+          std::move(*admitted), request, state, lease, journal_store,
+          archive.image());
   detail::application_engine_preparation preparation =
       detail::prepare_application_engine(
           std::move(journaled), request, state, lease, archive);
@@ -211,7 +215,8 @@ application_receipt
 apply(const removal_application_request& request,
       const lease_bound_state_projection& state,
       target_mutation_lease& lease,
-      application_backend& backend)
+      application_backend& backend,
+      application_journal_store& journal_store)
 {
   detail::application_engine_admission admission =
       detail::admit_application_engine(request, state, lease, backend);
@@ -224,7 +229,7 @@ apply(const removal_application_request& request,
 
   detail::journaled_application journaled =
       detail::journal_application_engine(
-          std::move(*admitted), request, state, lease);
+          std::move(*admitted), request, state, lease, journal_store);
   detail::application_engine_preparation preparation =
       detail::prepare_application_engine(
           std::move(journaled), request, state, lease);

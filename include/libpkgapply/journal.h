@@ -52,7 +52,6 @@ enum class application_journal_effect_kind : std::uint8_t {
   publish_active_object = 3, /*!< Apply one active namespace consequence. */
   publish_rejected_object = 4, /*!< Publish one rejected-object consequence. */
   observe_result = 5, /*!< Observe one resulting path. */
-  synchronize_journal = 6, /*!< Synchronize journal storage. */
   synchronize_active_namespace = 7, /*!< Synchronize active target storage. */
   synchronize_rejected_store = 8, /*!< Synchronize rejected-object storage. */
   seal_receipt = 9, /*!< Seal terminal application receipt authority. */

@@ -161,37 +161,6 @@ private:
   pkgapply::mutation_exclusion_domain_identity domain_;
 };
 
-pkgapply::application_journal_record
-journal(const pkgapply::application_target_context& context,
-        const fake_lease& lease,
-        const pkgapply::application_attempt_nonce& attempt_nonce)
-{
-  const auto request =
-      application_identity<pkgapply::application_request_identity>(40);
-  const auto attempt = pkgapply::application_attempt::make(
-      request, context.identity(), context.mutation_backend(), attempt_nonce);
-  const auto header = pkgapply::application_journal_header::make(
-      pkgplan::operation_kind::install,
-      request,
-      planning_identity<pkgplan::operation_plan_identity>(41),
-      attempt,
-      context.identity(),
-      application_identity<
-          pkgapply::application_execution_control_identity>(42),
-      pkgapply::lease_bound_state_projection::make(
-          lease.identity(),
-          planning_identity<pkgplan::installed_state_snapshot_identity>(43),
-          planning_identity<pkgplan::ownership_inventory_identity>(44),
-          pkgapply::state_projection_completeness::complete, {},
-          application_identity<pkgapply::state_projection_evidence_identity>(45)),
-      lease.identity(),
-      context.mutation_backend());
-  return pkgapply::application_journal_record::make(
-      header,
-      pkgapply::application_journal_state::preparing,
-      {},
-      {});
-}
 
 } // namespace
 
@@ -314,17 +283,6 @@ main()
                 pkgapply::backend_operation_outcome::completed,
             "scripted recovery did not complete");
 
-    const auto durability = transaction->synchronize(
-        pkgapply::application_durability_domain::journal);
-    require(durability.status() ==
-                pkgapply::application_durability_status::confirmed,
-            "scripted durability default changed");
-
-    const auto record = journal(context, lease, transaction->attempt_nonce());
-    const auto published = transaction->publish_journal(record);
-    require(published.identity() == record.identity() &&
-                state->published_journal()->identity() == record.identity(),
-            "scripted journal publication changed the record");
   }
 
   require(!state->transaction_alive(),

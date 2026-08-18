@@ -11,7 +11,7 @@ do
   [ -s "$source" ] || fail "missing canonical source: docs/man/$page.md"
   first=$(sed -n '1p' "$source")
   case $first in
-    "% "*"("[1-9]") libpkgapply | Version 3.0.2") ;;
+    "% "*"("[1-9]") libpkgapply | Version 4.0.0") ;;
     *) fail "invalid Pandoc title in docs/man/$page.md: $first" ;;
   esac
   grep -F '# NAME' "$source" >/dev/null || fail "NAME section missing: $page"

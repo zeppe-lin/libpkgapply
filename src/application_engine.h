@@ -18,6 +18,8 @@
 #include <libpkgapply/journal.h>
 #include <libpkgimage/package_archive.h>
 
+#include "journal_history.h"
+
 namespace pkgapply::detail {
 
 /*! \brief One admitted, freshly revalidated backend transaction.
@@ -117,7 +119,8 @@ public:
   reopened_application(
       application_attempt attempt,
       application_restart_assessment assessment,
-      application_journal_record journal,
+      application_journal_history history,
+      application_journal_store& store,
       application_restart_checkpoint checkpoint,
       std::unique_ptr<application_backend_transaction> transaction);
 
@@ -129,7 +132,7 @@ public:
   [[nodiscard]] const application_attempt& attempt() const noexcept;
   [[nodiscard]] const application_restart_assessment&
   assessment() const noexcept;
-  [[nodiscard]] const application_journal_record& journal() const noexcept;
+  [[nodiscard]] const application_journal_history& journal() const noexcept;
   [[nodiscard]] const application_restart_checkpoint&
   checkpoint() const noexcept;
   [[nodiscard]] application_backend_transaction& transaction() noexcept;
@@ -137,10 +140,14 @@ public:
   transaction() const noexcept;
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   release_transaction() noexcept;
+  [[nodiscard]] application_journal_history release_history() noexcept;
+  [[nodiscard]] application_journal_store& journal_store() noexcept;
 
 private:
   application_attempt attempt_;
   application_restart_assessment assessment_;
+  application_journal_history history_;
+  application_journal_store* store_;
   application_journal_record journal_;
   application_restart_checkpoint checkpoint_;
   std::unique_ptr<application_backend_transaction> transaction_;
@@ -151,7 +158,8 @@ private:
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive);
 
 [[nodiscard]] reopened_application reopen_application_engine(
@@ -159,7 +167,8 @@ private:
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive);
 
 [[nodiscard]] reopened_application reopen_application_engine(
@@ -167,7 +176,8 @@ private:
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal);
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration);
 
 /*! \brief One admitted transaction with its complete durable effect graph. */
 class journaled_application final {
@@ -177,7 +187,8 @@ public:
       std::optional<incoming_payload_plan> payloads,
       old_object_capture_plan captures,
       application_effect_schedule schedule,
-      application_journal_record journal,
+      application_journal_history history,
+      application_journal_store& store,
       lease_bound_state_projection_identity state_projection,
       mutation_lease_instance_identity lease);
 
@@ -192,20 +203,27 @@ public:
   payloads() const noexcept;
   [[nodiscard]] const old_object_capture_plan& captures() const noexcept;
   [[nodiscard]] const application_effect_schedule& schedule() const noexcept;
-  [[nodiscard]] const application_journal_record& journal() const noexcept;
+  [[nodiscard]] const application_journal_history& journal() const noexcept;
   [[nodiscard]] const lease_bound_state_projection_identity&
   state_projection() const noexcept;
   [[nodiscard]] const mutation_lease_instance_identity& lease() const noexcept;
 
-  /*! \brief Replace the durable snapshot without changing its effect graph. */
-  void advance_journal(application_journal_record journal);
+  /*! \brief Append and durably commit one owner-authored journal transition. */
+  void append_journal_step(
+      application_journal_state state,
+      std::optional<application_journal_event> event = std::nullopt,
+      application_journal_replay_encoding replay_fact = {},
+      std::optional<application_receipt_identity> receipt = std::nullopt,
+      std::optional<completed_application_evidence_identity>
+          completed_evidence = std::nullopt);
 
 private:
   admitted_application admitted_;
   std::optional<incoming_payload_plan> payloads_;
   old_object_capture_plan captures_;
   application_effect_schedule schedule_;
-  application_journal_record journal_;
+  application_journal_history history_;
+  application_journal_store* store_;
   lease_bound_state_projection_identity state_projection_;
   mutation_lease_instance_identity lease_;
 };
@@ -215,6 +233,7 @@ private:
     const installation_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
+    application_journal_store& store,
     const pkgimage::package_image& image);
 
 [[nodiscard]] journaled_application journal_application_engine(
@@ -222,13 +241,15 @@ private:
     const upgrade_application_request& request,
     const lease_bound_state_projection& state,
     const target_mutation_lease& lease,
+    application_journal_store& store,
     const pkgimage::package_image& image);
 
 [[nodiscard]] journaled_application journal_application_engine(
     admitted_application admitted,
     const removal_application_request& request,
     const lease_bound_state_projection& state,
-    const target_mutation_lease& lease);
+    const target_mutation_lease& lease,
+    application_journal_store& store);
 
 /*! \brief One transaction whose private preparation domains are durable. */
 class prepared_application final {

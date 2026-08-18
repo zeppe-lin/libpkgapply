@@ -609,12 +609,6 @@ public:
   [[nodiscard]] virtual application_durability_fact synchronize(
       application_durability_domain domain) = 0;
 
-  /*! \brief Durably replace the journal with one validated snapshot.
-   *  \param record Candidate monotonic journal successor.
-   *  \return Exact snapshot durably retained by the provider.
-   */
-  [[nodiscard]] virtual application_journal_record publish_journal(
-      const application_journal_record& record) = 0;
 };
 
 /*! \brief Provider factory selected by the transaction controller.

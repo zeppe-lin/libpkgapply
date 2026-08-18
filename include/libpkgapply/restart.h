@@ -16,6 +16,7 @@
 
 #include <libpkgapply/backend.h>
 #include <libpkgapply/journal.h>
+#include <libpkgapply/journal_transport.h>
 #include <libpkgapply/request.h>
 #include <libpkgapply/state_projection.h>
 #include <libpkgimage/package_archive.h>
@@ -450,7 +451,7 @@ assess_application_restart(const application_journal_record& journal);
  *  \param state Current lease-bound state projection.
  *  \param lease Borrowed caller-held mutation lease.
  *  \param backend Backend expected by the durable journal.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal Validated immutable journal snapshot.
  *  \param archive Exact incoming archive retained by the caller.
  *  \throws application_restart_error For nonresumable or cross-bound journal.
  *  \throws application_admission_error For stale authority or archive facts.
@@ -469,7 +470,7 @@ PKGAPPLY_API void validate_application_restart(
  *  \param state Current lease-bound state projection.
  *  \param lease Borrowed caller-held mutation lease.
  *  \param backend Backend expected by the durable journal.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal Validated immutable journal snapshot.
  *  \param archive Exact incoming archive retained by the caller.
  *  \throws application_restart_error For nonresumable or cross-bound journal.
  *  \throws application_admission_error For stale authority or archive facts.
@@ -488,7 +489,7 @@ PKGAPPLY_API void validate_application_restart(
  *  \param state Current lease-bound state projection.
  *  \param lease Borrowed caller-held mutation lease.
  *  \param backend Backend expected by the durable journal.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal Validated immutable journal snapshot.
  *  \throws application_restart_error For nonresumable or cross-bound journal.
  *  \throws application_admission_error For stale authority facts.
  *  \throws mutation_lease_error If the lease is stale or cross-bound.
@@ -505,15 +506,16 @@ PKGAPPLY_API void validate_application_restart(
  *  \param state Current lease-bound state projection.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Backend owning the durable attempt.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal_store Store owning the append-only semantic history.
+ *  \param declaration Exact immutable declaration identity to resume.
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The durable journal header retains the exact immutable projection body
- *  admitted by the original process. A restart occurs under a newly acquired
- *  lease and therefore a new current projection; terminal receipt and
- *  completed evidence bind to that current projection after restart validation
- *  succeeds.
+ *  The journal declaration retains the exact immutable projection body and
+ *  owner-authored replay seed admitted by the original process. A restart
+ *  occurs under a newly acquired lease and therefore a new current projection;
+ *  terminal receipt and completed evidence bind to that current projection
+ *  after restart validation succeeds.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
@@ -521,7 +523,8 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive);
 
 /*! \brief Resume one durable upgrade attempt to a terminal receipt.
@@ -529,13 +532,14 @@ resume_application(
  *  \param state Current lease-bound state projection.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Backend owning the durable attempt.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal_store Store owning the append-only semantic history.
+ *  \param declaration Exact immutable declaration identity to resume.
  *  \param archive Exact incoming archive retained by the caller.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The exact original journal-header projection body remains historical
- *  admission evidence; successful continuation binds terminal evidence to the
- *  current lease-bound projection supplied for this restart.
+ *  The exact declaration projection body remains historical admission
+ *  evidence; successful continuation binds terminal evidence to the current
+ *  lease-bound projection supplied for this restart.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
@@ -543,7 +547,8 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal,
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration,
     const pkgimage::package_archive& archive);
 
 /*! \brief Resume one durable removal attempt to a terminal receipt.
@@ -551,12 +556,13 @@ resume_application(
  *  \param state Current lease-bound state projection.
  *  \param lease Mutable borrowed caller-held mutation lease.
  *  \param backend Backend owning the durable attempt.
- *  \param journal Durable journal snapshot to resume.
+ *  \param journal_store Store owning the append-only semantic history.
+ *  \param declaration Exact immutable declaration identity to resume.
  *  \return Truthful terminal application receipt bound to @p state.
  *
- *  The exact original journal-header projection body remains historical
- *  admission evidence; successful continuation binds terminal evidence to the
- *  current lease-bound projection supplied for this restart.
+ *  The exact declaration projection body remains historical admission
+ *  evidence; successful continuation binds terminal evidence to the current
+ *  lease-bound projection supplied for this restart.
  */
 [[nodiscard]] PKGAPPLY_API application_receipt
 resume_application(
@@ -564,7 +570,8 @@ resume_application(
     const lease_bound_state_projection& state,
     target_mutation_lease& lease,
     application_backend& backend,
-    const application_journal_record& journal);
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration);
 
 /*! \brief Validate a transaction reopened for one exact durable journal.
  *  \param target Exact target context.

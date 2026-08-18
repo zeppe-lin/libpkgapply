@@ -1,5 +1,24 @@
 # ABI policy
 
+The generation-4 development line advances the semantic core from SONAME 3 /
+API generation 3 to SONAME 4 / API generation 4. Semantic journal persistence
+is no longer a virtual operation of `application_backend_transaction`; the
+package-manager-facing `apply()` overloads now require an explicit
+`application_journal_store`, and `resume_application()` is addressed by that
+store plus one immutable declaration identity rather than a caller-supplied
+complete journal snapshot. The removed virtual changes transaction vtable
+layout and all six application/restart entry-point manglings change, so SONAME 3
+cannot truthfully describe the new binary contract. No compatibility shim is
+retained.
+
+The reviewed generation-4 ELF manifest remains 790 symbols: exactly three old
+`apply()` and three old `resume_application()` symbols are replaced by their
+store-bearing generation-4 signatures. The private
+`detail::application_journal_history` implementation remains hidden. A shared
+build must export exactly the reviewed manifest under SONAME 4.
+
+## Generation 3 lineage
+
 Release 3.0 advances the semantic core from SONAME 2 / API generation 2 to
 SONAME 3 / API generation 3.
 
@@ -49,8 +68,9 @@ called; they are not public compile dependencies. Changes to public value
 layouts, exception hierarchies, virtual interfaces, dependency placement, or
 SONAME require explicit ABI review.
 
-Current development ABI note: application journals retain the complete admitted
-`lease_bound_state_projection` body. `application_journal_header::make()` now
-requires that body and `admitted_state_projection()` exposes it for recovery.
-The previous naked projection-identity constructor signature is intentionally
-absent; this is a reviewed development ABI break, not a compatibility surface.
+Generation-4 development note: the immutable journal declaration retains the
+complete admitted `lease_bound_state_projection` body and owner-authored replay
+seed. Complete `application_journal_record` values remain public semantic values
+for validation/derived views during migration, but live persistence no longer
+transports them. Backend restart-checkpoint removal is a subsequent provider
+generation seam and must not restore snapshot publication to the core ABI.

@@ -96,12 +96,13 @@ application_journal_history::load(
   // advance commits. Probe exactly that sequence and never enumerate storage.
   auto orphan = store.load_step(declaration_identity, committed.step_count());
   if (orphan) {
-    history.append(*orphan);
+    const application_journal_cursor candidate = history.validate(*orphan);
     const auto adopted = store.compare_and_publish_cursor(
-        committed.identity(), history.cursor());
-    if (adopted.identity() != history.cursor().identity())
+        committed.identity(), candidate);
+    if (adopted.identity() != candidate.identity())
       throw std::logic_error(
           "journal store changed an adopted application cursor");
+    history.append(*orphan);
   }
 
   return history;
@@ -187,8 +188,9 @@ application_journal_history::validate_resolution(
   }
 }
 
-void
-application_journal_history::append(const application_journal_step& step)
+application_journal_history::step_validation
+application_journal_history::validate_step(
+    const application_journal_step& step) const
 {
   application_journal_cursor candidate =
       application_journal_cursor::advance(cursor_, step);
@@ -204,29 +206,57 @@ application_journal_history::append(const application_journal_step& step)
     }
   }
 
+  if ((!step.event() ||
+       step.event()->kind() == application_journal_event_kind::intent) &&
+      !step.replay_fact().empty())
+  {
+    throw std::invalid_argument(
+        "application journal replay fact is not a terminal effect result");
+  }
+
   const bool introduces_receipt = !cursor_.receipt() && candidate.receipt();
-  if (introduces_receipt) {
-    if (!step.event() ||
-        step.event()->kind() != application_journal_event_kind::completed ||
+  if (introduces_receipt && step.event()) {
+    if (step.event()->kind() != application_journal_event_kind::completed ||
         declaration_.effects()[*ordinal].kind() !=
             application_journal_effect_kind::seal_receipt)
     {
       throw std::invalid_argument(
-          "application journal receipt was not established by receipt sealing");
+          "application journal receipt event is not receipt sealing");
     }
+  }
+  if (introduces_receipt && successful_state(candidate.state()) &&
+      !step.event())
+  {
+    throw std::invalid_argument(
+        "successful application journal receipt lacks receipt sealing");
   }
   validate_resolution(candidate, completed);
 
+  return {std::move(candidate), ordinal, completed};
+}
+
+application_journal_cursor
+application_journal_history::validate(
+    const application_journal_step& step) const
+{
+  return validate_step(step).candidate;
+}
+
+void
+application_journal_history::append(const application_journal_step& step)
+{
+  auto validated = validate_step(step);
+
   if (step.event()) {
-    auto& progress = progress_[*ordinal];
+    auto& progress = progress_[*validated.ordinal];
     if (step.event()->kind() == application_journal_event_kind::intent)
       progress.intended = true;
     else
       progress.terminal = step.event()->kind();
     events_.push_back(*step.event());
   }
-  completed_success_effects_ = completed;
-  cursor_ = std::move(candidate);
+  completed_success_effects_ = validated.completed_success_effects;
+  cursor_ = std::move(validated.candidate);
 }
 
 const application_journal_declaration&
@@ -235,16 +265,46 @@ application_journal_history::declaration() const noexcept
   return declaration_;
 }
 
+const application_journal_header&
+application_journal_history::header() const noexcept
+{
+  return declaration_.header();
+}
+
+const std::vector<application_journal_effect>&
+application_journal_history::effects() const noexcept
+{
+  return declaration_.effects();
+}
+
 const application_journal_cursor&
 application_journal_history::cursor() const noexcept
 {
   return cursor_;
 }
 
+application_journal_state
+application_journal_history::state() const noexcept
+{
+  return cursor_.state();
+}
+
 const std::vector<application_journal_event>&
 application_journal_history::events() const noexcept
 {
   return events_;
+}
+
+const std::optional<application_receipt_identity>&
+application_journal_history::receipt() const noexcept
+{
+  return cursor_.receipt();
+}
+
+const std::optional<completed_application_evidence_identity>&
+application_journal_history::completed_evidence() const noexcept
+{
+  return cursor_.completed_evidence();
 }
 
 application_journal_record

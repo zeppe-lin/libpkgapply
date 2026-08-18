@@ -43,7 +43,7 @@ std::uint8_t
 canonical_effect(application_journal_effect_kind kind)
 {
   const auto value = static_cast<std::uint8_t>(kind);
-  if (value < 1 || value > 15)
+  if (value < 1 || value > 15 || value == 6)
     throw std::invalid_argument("invalid application journal effect kind");
   return value;
 }
@@ -69,7 +69,6 @@ requires_path(application_journal_effect_kind kind)
     case application_journal_effect_kind::recover_active_object:
       return true;
 
-    case application_journal_effect_kind::synchronize_journal:
     case application_journal_effect_kind::synchronize_active_namespace:
     case application_journal_effect_kind::synchronize_rejected_store:
     case application_journal_effect_kind::seal_receipt:

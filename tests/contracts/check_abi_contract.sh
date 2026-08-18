@@ -70,13 +70,13 @@ if grep -F '_ZN8pkgapply6detail27application_journal_history' "$root/abi/libpkga
   fail 'private journal-history implementation leaked into public ABI'
 fi
 [ -x "$root/tools/generate-elf-export-script.sh" ] || fail 'ELF export-script generator is absent'
-grep -F "soversion: '3'" "$root/src/meson.build" >/dev/null || fail 'core SONAME is not generation 3'
-grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fail 'public API is not generation 3'
+grep -F "soversion: '4'" "$root/src/meson.build" >/dev/null || fail 'core SONAME is not generation 4'
+grep -F 'api_version = 4' "$root/include/libpkgapply/version.h" >/dev/null || fail 'public API is not generation 4'
 grep -F "gnu_symbol_visibility: 'hidden'" "$root/src/meson.build" >/dev/null || fail 'hidden default visibility is absent'
 grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || fail 'library export annotation define is absent'
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
-grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/HISTORY.md" >/dev/null ||
-  fail '3.0 ABI generation transition is undocumented'
+grep -F 'Advanced the core to SONAME 4 and public API generation 4' "$root/HISTORY.md" >/dev/null ||
+  fail '4.0 ABI generation transition is undocumented'
 grep -F '790 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 
 
@@ -88,3 +88,7 @@ grep -F "'../src/application_engine.cpp'" "$root/tests/meson.build" >/dev/null |
   fail 'application vertical does not link its private engine implementation'
 grep -F "'../src/journal_history.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'journal-history witness does not link its private implementation'
+grep -F "'../src/restart_checkpoint_codec.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'application vertical does not link private replay-fact codec implementation'
+grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'application vertical replay-fact codec lacks its private digest provider'
