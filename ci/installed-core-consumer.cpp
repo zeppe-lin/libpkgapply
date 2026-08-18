@@ -51,7 +51,7 @@ int main()
   return identity_api && context.target() == target &&
                  dependency_probe.code() ==
                      pkgbuild::plan_adapter::projection_error_code::planner_fact &&
-                 pkgapply::version() == "3.0.1" &&
+                 pkgapply::version() == "3.0.2" &&
                  pkgapply::api_version == 3
              ? 0
              : 1;

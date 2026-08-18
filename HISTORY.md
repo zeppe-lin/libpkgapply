@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 3.0.2 - 2026-08-18
+
+### Bounded journal validation
+
 - Bound application-journal event validation by one effect-identity index per
   snapshot. Package-sized effect graphs no longer rescan every effect for every
   retained event while preserving the exact journal model and identity bytes.
