@@ -703,3 +703,38 @@ recovery.
 21. `libpkgstate`, `libpkgapply-posix`, and host mechanism APIs are absent from
     the core dependency graph.
 22. No receipt or journal record invents global filesystem/state atomicity.
+
+## Append-only application history authority
+
+Application history is a write-ahead protocol, not a sequence of complete
+snapshots. The durable shape is therefore split into exactly three authorities:
+
+```text
+application_journal_declaration   written once
+              |
+              v
+step 0 -> step 1 -> ... -> step N immutable append-only history
+                              |
+                              v
+                    application_journal_cursor
+                         bounded mutable head
+```
+
+The declaration owns the fixed journal header and complete deterministic effect
+graph once. Each step owns only the newly-created historical transition. Replay
+seed/fact bytes are semantic libpkgapply material: a mechanism store retains
+them byte-for-byte but does not decode them or acquire restart vocabulary. The
+cursor is a bounded locator suitable for controller retention; it never embeds
+the effect graph or prior event history.
+
+A physical journal store publishes declarations and steps immutably, advances
+the cursor by exact compare-and-publish authority, and loads steps by exact
+sequence. Directory enumeration and current target inspection are not history
+recovery mechanisms. If a step is durable while the cursor update is missing,
+restart may probe only the exact next sequence named by the cursor and validate
+its declaration and predecessor before advancing the head.
+
+The legacy complete-snapshot journal and restart-checkpoint persistence path is
+not a compatibility target. During the pre-release migration it must be removed,
+not wrapped behind an adapter. No release may ship both durable histories as
+co-equal authority.

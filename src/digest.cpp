@@ -113,6 +113,12 @@ template class typed_digest<detail::application_journal_identity_domain>;
 template class typed_digest<
     detail::application_journal_effect_identity_domain>;
 template class typed_digest<
+    detail::application_journal_declaration_identity_domain>;
+template class typed_digest<
+    detail::application_journal_step_identity_domain>;
+template class typed_digest<
+    detail::application_journal_cursor_identity_domain>;
+template class typed_digest<
     detail::application_journal_record_identity_domain>;
 template class typed_digest<detail::application_receipt_identity_domain>;
 template class typed_digest<

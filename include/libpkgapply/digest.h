@@ -295,6 +295,30 @@ struct PKGAPPLY_API application_journal_effect_identity_domain final {
   }
 };
 
+/*! \brief Domain tag for one immutable application journal declaration. */
+struct PKGAPPLY_API application_journal_declaration_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/application-journal-declaration/v1";
+  }
+};
+
+/*! \brief Domain tag for one immutable append-only application journal step. */
+struct PKGAPPLY_API application_journal_step_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/application-journal-step/v1";
+  }
+};
+
+/*! \brief Domain tag for one bounded application journal cursor. */
+struct PKGAPPLY_API application_journal_cursor_identity_domain final {
+  [[nodiscard]] static constexpr std::string_view name() noexcept
+  {
+    return "pkgapply/application-journal-cursor/v1";
+  }
+};
+
 /*! \brief Domain tag for the identity of one immutable journal record. */
 struct PKGAPPLY_API application_journal_record_identity_domain final {
   /*! \brief Return the canonical identity domain separator.
@@ -528,6 +552,18 @@ using application_journal_identity = typed_digest<detail::application_journal_id
 /*! \brief Identity of an one durable application journal effect. */
 using application_journal_effect_identity = typed_digest<detail::application_journal_effect_identity_domain>;
 
+/*! \brief Identity of one immutable application journal declaration. */
+using application_journal_declaration_identity =
+    typed_digest<detail::application_journal_declaration_identity_domain>;
+
+/*! \brief Identity of one immutable append-only application journal step. */
+using application_journal_step_identity =
+    typed_digest<detail::application_journal_step_identity_domain>;
+
+/*! \brief Identity of one bounded application journal cursor. */
+using application_journal_cursor_identity =
+    typed_digest<detail::application_journal_cursor_identity_domain>;
+
 /*! \brief Identity of an one immutable journal record. */
 using application_journal_record_identity = typed_digest<detail::application_journal_record_identity_domain>;
 
@@ -568,6 +604,9 @@ extern template class typed_digest<detail::incoming_package_authority_identity_d
 extern template class typed_digest<detail::application_request_identity_domain>;
 extern template class typed_digest<detail::application_journal_identity_domain>;
 extern template class typed_digest<detail::application_journal_effect_identity_domain>;
+extern template class typed_digest<detail::application_journal_declaration_identity_domain>;
+extern template class typed_digest<detail::application_journal_step_identity_domain>;
+extern template class typed_digest<detail::application_journal_cursor_identity_domain>;
 extern template class typed_digest<detail::application_journal_record_identity_domain>;
 extern template class typed_digest<detail::application_receipt_identity_domain>;
 extern template class typed_digest<detail::completed_application_evidence_identity_domain>;

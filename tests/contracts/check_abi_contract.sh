@@ -37,7 +37,8 @@ for type in \
   target_mutation_lease \
   incoming_payload_stage \
   application_backend_transaction \
-  application_backend
+  application_backend \
+  application_journal_store
 do
   grep -R -F "~$type() = default;" "$root/src" >/dev/null ||
     fail "abstract interface vtable is not anchored: $type"
@@ -45,7 +46,7 @@ done
 
 [ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
 [ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
-[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 730 ] ||
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 790 ] ||
   fail 'reviewed ELF ABI manifest count changed without review'
 for signature in \
   '16canonical_domainEv' \
@@ -54,10 +55,10 @@ for signature in \
   '6stringB5cxx11Ev' \
   '5bytesEv'
 do
-  [ "$(grep -c "typed_digest.*${signature}$" "$root/abi/libpkgapply.exports")" -eq 27 ] ||
+  [ "$(grep -c "typed_digest.*${signature}$" "$root/abi/libpkgapply.exports")" -eq 30 ] ||
     fail "public typed-digest ABI member is not exported for all domains: $signature"
 done
-[ "$(grep -c '^struct PKGAPPLY_API .*_identity_domain final {' "$root/include/libpkgapply/digest.h")" -eq 27 ] ||
+[ "$(grep -c '^struct PKGAPPLY_API .*_identity_domain final {' "$root/include/libpkgapply/digest.h")" -eq 30 ] ||
   fail 'public typed-digest domain visibility is incomplete'
 if grep -F '_ZN8pkgapply6detail16canonical_record' "$root/abi/libpkgapply.exports" >/dev/null; then
   fail 'private canonical-record implementation leaked into public ABI'
@@ -73,7 +74,7 @@ grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || f
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
 grep -F 'Advanced the core to SONAME 3 and public API generation 3' "$root/HISTORY.md" >/dev/null ||
   fail '3.0 ABI generation transition is undocumented'
-grep -F '730 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+grep -F '790 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 
 
 grep -F "'../src/canonical_record.cpp'" "$root/tests/meson.build" >/dev/null ||

@@ -16,13 +16,13 @@ toolchain.
 
 The pre-tag ABI gate is closed by `abi/libpkgapply.exports`. It contains the
 exact compiler-stable ELF surface reviewed from GCC and Clang shared builds:
-730 symbols. The library builds with hidden default visibility, explicit public
+790 symbols. The library builds with hidden default visibility, explicit public
 annotations, and an ELF linker export script generated from that manifest.
 `tests/contracts/check_abi_surface.sh` compares the linked shared object against
 the manifest exactly. The manifest includes all five out-of-line public member functions for each of
 the 27 `typed_digest<Domain>` specializations: `canonical_domain()`, `parse()`,
 `algorithm()`, `string()`, and `bytes()`. Their `extern template` declarations
-suppress consumer-side instantiation, so omitting any of those 135 symbols would
+suppress consumer-side instantiation, so omitting any of those 150 symbols would
 make ordinary installed identity consumers unlinkable. Internal canonical-record and application
 engine helpers remain hidden and are linked into the protocol/integration tests
 that intentionally inspect those implementation boundaries. Any exported-symbol

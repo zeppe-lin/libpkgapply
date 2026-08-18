@@ -22,3 +22,16 @@ Before tagging:
 
 The 3.0 ABI gate is closed only while the reviewed manifest, SONAME 3, and API
 generation 3 remain exact in every release candidate.
+
+## Append-only journal migration gate
+
+The application journal is admitted for release only when there is one durable
+historical spine. `application_journal_declaration` may scale with the fixed
+effect graph once; each `application_journal_step` must scale only with the new
+fact; `application_journal_cursor` must remain bounded. A backend or controller
+must not retain a second complete restart snapshot, rewrite the event prefix on
+every effect, or discover missing history by directory scan or current target
+inspection.
+
+While the old complete-snapshot path still exists, the tree is a migration
+candidate and must not be tagged as the next libpkgapply release.

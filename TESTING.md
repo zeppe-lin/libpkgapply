@@ -324,3 +324,15 @@ the contract.
 Public-header documentation parsing receives the include roots of the exact
 public dependencies resolved by Meson. It must not become green merely because
 compatible zoo headers are installed in an ambient compiler search path.
+
+## Journal complexity assaults
+
+Journal tests treat asymptotic shape as a contract. Qualification must prove
+that the declaration is written once, steps are exact append-only successors,
+and the controller-facing cursor stays bounded as history grows. Hostile tests
+must reject predecessor branches, sequence gaps, cursor state regression, and
+terminal evidence that is not monotonically retained.
+
+The POSIX cohort must later measure durable byte volume over a large application
+and require linear growth in produced history. A green small-package functional
+test is not evidence for this boundary.
