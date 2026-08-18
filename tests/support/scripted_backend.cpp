@@ -539,11 +539,11 @@ scripted_backend::resume_with_incoming_image(
     const application_restart_view& restart,
     const pkgimage::package_image&)
 {
-  if (restart.attempt().request() != request.identity() ||
-      restart.attempt().nonce() != nonce_)
-  {
-    throw std::logic_error("scripted restart view names another attempt");
-  }
+  if (restart.attempt().request() != request.identity())
+    throw std::logic_error("scripted restart view names another request");
+  // nonce_ is the value the reopened transaction will report. Do not compare
+  // it with the owner view here: hostile tests deliberately return another
+  // nonce so libpkgapply's restarted-transaction validator owns that refusal.
   return begin(request,
                lease,
                true,
@@ -556,11 +556,11 @@ scripted_backend::resume_without_incoming_image(
     target_mutation_lease& lease,
     const application_restart_view& restart)
 {
-  if (restart.attempt().request() != request.identity() ||
-      restart.attempt().nonce() != nonce_)
-  {
-    throw std::logic_error("scripted restart view names another attempt");
-  }
+  if (restart.attempt().request() != request.identity())
+    throw std::logic_error("scripted restart view names another request");
+  // nonce_ is the value the reopened transaction will report. Do not compare
+  // it with the owner view here: hostile tests deliberately return another
+  // nonce so libpkgapply's restarted-transaction validator owns that refusal.
   return begin(request,
                lease,
                false,
