@@ -2389,29 +2389,38 @@ main()
   pkgapply::test::scripted_journal_store unresolved_store;
   std::optional<pkgapply::application_journal_declaration_identity>
       unresolved_declaration;
+  auto unresolved_admission = pkgapply::detail::admit_application_engine(
+      install_request, install_state, lease, backend, install_archive);
+  auto unresolved_journaled = pkgapply::detail::journal_application_engine(
+      std::move(*unresolved_admission.admitted()), install_request,
+      install_state, lease, unresolved_store, install_archive.image());
+  auto unresolved_preparation = pkgapply::detail::prepare_application_engine(
+      std::move(unresolved_journaled), install_request, install_state, lease,
+      install_archive);
+  auto unresolved_publication =
+      pkgapply::detail::publish_rejected_application_engine(
+          std::move(*unresolved_preparation.prepared()), install_request,
+          install_state, lease);
+  unresolved_declaration =
+      unresolved_publication.published()->prepared().journaled().journal().
+          declaration().identity();
+
+  bool active_mechanism_threw = false;
   backend_state->throw_at(boundary::execute_active);
   try {
-    auto admission = pkgapply::detail::admit_application_engine(
-        install_request, install_state, lease, backend, install_archive);
-    auto journaled = pkgapply::detail::journal_application_engine(
-        std::move(*admission.admitted()), install_request, install_state,
-        lease, unresolved_store, install_archive.image());
-    auto preparation = pkgapply::detail::prepare_application_engine(
-        std::move(journaled), install_request, install_state, lease,
-        install_archive);
-    auto publication = pkgapply::detail::publish_rejected_application_engine(
-        std::move(*preparation.prepared()), install_request, install_state,
-        lease);
-    unresolved_declaration = publication.published()->prepared().journaled().
-        journal().declaration().identity();
     static_cast<void>(pkgapply::detail::execute_active_application_engine(
-        std::move(*publication.published()), install_request, install_state,
-        lease));
-    require(false, "active crash fixture did not throw at the mechanism");
+        std::move(*unresolved_publication.published()), install_request,
+        install_state, lease));
   }
-  catch (const std::logic_error&) {
+  catch (const std::runtime_error& error) {
+    require(std::string_view(error.what()) ==
+                "injected scripted backend failure",
+            "active crash fixture caught an unrelated runtime failure");
+    active_mechanism_threw = true;
   }
   backend_state->clear_throw(boundary::execute_active);
+  require(active_mechanism_threw,
+          "active crash fixture did not throw at the mechanism");
   require(unresolved_declaration.has_value() &&
               !backend_state->transaction_alive(),
           "unresolved restart fixture did not retain its declaration");
