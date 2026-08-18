@@ -232,11 +232,12 @@ Restart admission and replay tests separately prove:
 * unresolved, failed, or indeterminate active intents require recovery;
 * terminal and externally unresolved journals are not automatically reopened;
 * a new outer lease may reopen only the original durable attempt;
-* the reopened transaction reports the exact journal identity and attempt nonce;
+* the reopened transaction reports the exact owner attempt nonce;
 * restart admission performs no target observation or effect replay;
 * rejected restart transactions release their backend resources;
-* checkpoint facts must agree with journal intents, terminal outcomes, evidence,
-  and six-domain durability truth;
+* the owner-derived restart view must decode only committed terminal step facts,
+  reject contradictory type/path/outcome/evidence bindings, and carry complete
+  six-domain durability truth;
 * a durably completed forward prefix is reconstructed without repeated active
   or rejected publication;
 * an unresolved active or recovery intent is never issued a second time;
@@ -338,6 +339,12 @@ retained intent/terminal steps. The store fixture counts reads and requires
 exactly one read per committed sequence plus the single permitted next-step
 probe. Separate hostile cases remove a committed step, offer an invalid orphan,
 and violate incremental intent/terminal semantics.
+
+The owner restart projection reuses the history's effect-identity index, indexes
+accepted plan paths once, places path-scoped facts into ordinal slots, and
+deduplicates backend evidence incrementally. Source contracts reject effect/path
+rescans or history-wide sorting in that projection, preserving O(E + S) average
+rehydration rather than moving the old scaling defect behind a new view type.
 
 The POSIX cohort must later measure durable byte volume over a large application
 and require linear growth in produced history. A green small-package functional

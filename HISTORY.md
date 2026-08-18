@@ -16,10 +16,10 @@
 - Changed restart entry points to reopen semantic history from the exact journal
   store plus immutable declaration identity. `libpkgapply` rehydrates and
   validates committed steps itself before reopening the mutation backend.
-- Retained backend restart checkpoints only as a temporary subordinate
-  mechanism-evidence bridge while the provider generation is migrated. They no
-  longer provide original admission observations or semantic history authority,
-  and derived complete journal records are never persisted.
+- Removed the provider-authored restart-checkpoint aggregate and public checkpoint
+  codec. Restart now derives one ephemeral `application_restart_view` from the
+  immutable owner declaration and exact validated steps before backend reopen;
+  provider state cannot author missing semantic transitions.
 - Removed the dead `synchronize_journal` journal-effect vocabulary. Journal
   durability remains a receipt domain fact rather than a mutation-backend
   application effect.

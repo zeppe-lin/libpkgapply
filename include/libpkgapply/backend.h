@@ -29,7 +29,7 @@
  */
 namespace pkgapply {
 
-class application_restart_checkpoint;
+class application_restart_view;
 
 /*! \brief Mechanism-level completion reported by an application backend.
  *
@@ -517,20 +517,6 @@ public:
   [[nodiscard]] virtual const application_attempt_nonce&
   attempt_nonce() const noexcept = 0;
 
-  /*! \brief Return the durable journal reopened by this transaction.
-   *  \return Reopened journal identity, or empty for a fresh transaction.
-   */
-  [[nodiscard]] virtual std::optional<application_journal_record_identity>
-  resumed_journal() const noexcept;
-
-  /*! \brief Read exact durable replay material for a reopened journal.
-   *  \param journal Exact durable journal snapshot.
-   *  \return Closed semantic checkpoint for deterministic replay.
-   *  \throws std::logic_error By default when restart is unsupported.
-   */
-  [[nodiscard]] virtual application_restart_checkpoint restart_checkpoint(
-      const application_journal_record& journal);
-
   /*! \brief Observe one exact complete path set.
    *  \param paths Canonical logical paths requested by the semantic engine.
    *  \return One complete observation for every requested path.
@@ -676,7 +662,7 @@ public:
   /*! \brief Reopen one durable install or upgrade attempt under a new lease.
    *  \param request Immutable application authority.
    *  \param lease Mutable borrowed caller-held outer lease.
-   *  \param journal Durable journal snapshot to reopen.
+   *  \param restart Owner-derived in-memory replay view to revalidate.
    *  \param incoming_image Exact admitted normalized package image.
    *  \return Unique reopened transaction.
    *  \throws std::logic_error By default when restart is unsupported.
@@ -685,13 +671,13 @@ public:
   resume_with_incoming_image(
       const package_application_request& request,
       target_mutation_lease& lease,
-      const application_journal_record& journal,
+      const application_restart_view& restart,
       const pkgimage::package_image& incoming_image);
 
   /*! \brief Reopen one durable removal attempt under a new lease.
    *  \param request Immutable removal application authority.
    *  \param lease Mutable borrowed caller-held outer lease.
-   *  \param journal Durable journal snapshot to reopen.
+   *  \param restart Owner-derived in-memory replay view to revalidate.
    *  \return Unique reopened transaction.
    *  \throws std::logic_error By default when restart is unsupported.
    */
@@ -699,7 +685,7 @@ public:
   resume_without_incoming_image(
       const package_application_request& request,
       target_mutation_lease& lease,
-      const application_journal_record& journal);
+      const application_restart_view& restart);
 };
 
 } // namespace pkgapply

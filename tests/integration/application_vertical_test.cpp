@@ -2297,10 +2297,9 @@ main()
                 restart_snapshot->header().attempt().identity() &&
                 reopened.assessment().disposition() ==
                     pkgapply::application_restart_disposition::resume_forward &&
-                reopened.transaction().resumed_journal().has_value() &&
-                *reopened.transaction().resumed_journal() ==
-                    restart_snapshot->identity() &&
-                reopened.checkpoint().journal() == restart_snapshot->identity(),
+                reopened.restart_view().declaration() == restart_declaration &&
+                reopened.restart_view().attempt().identity() ==
+                    restart_snapshot->header().attempt().identity(),
             "restart admission reopened another durable attempt");
     require(count_boundary(backend_state->events(),
                            boundary::resume_with_incoming_image) == 1 &&

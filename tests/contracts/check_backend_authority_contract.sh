@@ -52,6 +52,21 @@ if grep -F 'synchronize(application_durability_domain::journal' "$engine" >/dev/
   fail 'mutation transaction still synchronizes journal durability'
 fi
 
+
+# Restart semantic replay authority is owner-derived from immutable journal steps.
+for forbidden in 'restart_checkpoint(' 'resumed_journal()' 'publish_journal'; do
+  if grep -F "$forbidden" "$backend_header" >/dev/null; then
+    fail "mutation backend retains retired restart authority: $forbidden"
+  fi
+done
+grep -F 'const application_restart_view& restart' "$backend_header" >/dev/null ||
+  fail 'backend reopen does not consume the owner-derived restart view'
+grep -F 'application_restart_view_builder::build(history, request)' "$engine" >/dev/null ||
+  fail 'restart view is not derived from owner journal history before backend reopen'
+if grep -F 'reconcile_restart_checkpoint' "$engine" >/dev/null; then
+  fail 'provider replay facts can still author missing journal transitions'
+fi
+
 # Attempts and journal headers must be derived from immutable request authority.
 count=$(grep -F 'request.target().mutation_backend()' "$engine" | wc -l | tr -d ' ')
 [ "$count" -ge 3 ] || fail 'engine does not derive attempt/journal backend from target authority'

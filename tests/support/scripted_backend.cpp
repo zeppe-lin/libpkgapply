@@ -94,16 +94,7 @@ public:
     const backend_operation_outcome outcome =
         state_->outcome(scripted_backend_boundary::payload_seal);
     sealed_ = outcome == backend_operation_outcome::completed;
-    backend_operation_result result(outcome, {evidence_});
-    state_->incoming_payload_ = result;
-    state_->retain_durability(
-        application_durability_domain::incoming_staging,
-        outcome == backend_operation_outcome::completed
-            ? application_durability_status::visible
-            : outcome == backend_operation_outcome::indeterminate
-                ? application_durability_status::indeterminate
-                : application_durability_status::unconfirmed);
-    return result;
+    return backend_operation_result(outcome, {evidence_});
   }
 
   void abandon() noexcept override
@@ -137,7 +128,6 @@ public:
       application_attempt_nonce nonce,
       application_backend_evidence_identity evidence,
       bool has_incoming_image,
-      std::optional<application_journal_record_identity> resumed_journal,
       std::shared_ptr<scripted_backend_state> state)
       : backend_(std::move(backend)),
         observation_(std::move(observation)),
@@ -147,7 +137,6 @@ public:
         nonce_(std::move(nonce)),
         evidence_(std::move(evidence)),
         has_incoming_image_(has_incoming_image),
-        resumed_journal_(std::move(resumed_journal)),
         state_(std::move(state))
   {
     if (state_->transaction_alive_)
@@ -196,28 +185,6 @@ public:
     return nonce_;
   }
 
-  std::optional<application_journal_record_identity>
-  resumed_journal() const noexcept override
-  {
-    return resumed_journal_;
-  }
-
-  application_restart_checkpoint restart_checkpoint(
-      const application_journal_record& journal) override
-  {
-    if (!resumed_journal_ || *resumed_journal_ != journal.identity())
-      throw std::logic_error("scripted checkpoint names another journal");
-    if (!state_->admitted_observations_)
-      throw std::logic_error("scripted checkpoint lacks admitted observations");
-    return application_restart_checkpoint::make(
-        journal.identity(), *state_->admitted_observations_,
-        state_->incoming_payload_, state_->restart_captures_,
-        state_->restart_rejected_effects_, state_->restart_active_effects_,
-        state_->restart_recovery_effects_,
-        state_->restart_synchronizations_, state_->checkpoint_durability(),
-        {evidence_},
-        state_->published_completed_evidence_);
-  }
 
   backend_observation_batch observe(
       const std::vector<pkgplan::package_path>& paths) override
@@ -233,11 +200,8 @@ public:
       if (observation != nullptr)
         observations.push_back(*observation);
     }
-    backend_observation_batch batch = backend_observation_batch::make(
+    return backend_observation_batch::make(
         paths, std::move(observations), {evidence_});
-    if (!resumed_journal_ && !state_->admitted_observations_)
-      state_->admitted_observations_ = batch;
-    return batch;
   }
 
   std::unique_ptr<incoming_payload_stage> begin_payload_stage(
@@ -270,14 +234,6 @@ public:
         outcome == backend_operation_outcome::completed &&
             state_->exact_recovery_possible_,
         {evidence_});
-    state_->retain_capture(application_restart_capture(result));
-    state_->retain_durability(
-        application_durability_domain::recovery_staging,
-        outcome == backend_operation_outcome::completed
-            ? application_durability_status::visible
-            : outcome == backend_operation_outcome::indeterminate
-                ? application_durability_status::indeterminate
-                : application_durability_status::unconfirmed);
     return result;
   }
 
@@ -289,18 +245,6 @@ public:
     backend_operation_result result(
         state_->outcome(scripted_backend_boundary::execute_active),
         {evidence_});
-    state_->retain_active(
-        application_restart_active_effect(request.path(), result));
-    if (result.outcome() == backend_operation_outcome::completed) {
-      state_->retain_durability(
-          application_durability_domain::active_namespace,
-          application_durability_status::visible);
-    }
-    else if (result.outcome() == backend_operation_outcome::indeterminate) {
-      state_->retain_durability(
-          application_durability_domain::active_namespace,
-          application_durability_status::indeterminate);
-    }
     return result;
   }
 
@@ -318,15 +262,6 @@ public:
                   rejected_record_identity(request.path()))
             : std::nullopt,
         {evidence_});
-    state_->retain_rejected(
-        application_restart_rejected_effect(request.path(), result));
-    state_->retain_durability(
-        application_durability_domain::rejected_object_store,
-        outcome == backend_operation_outcome::completed
-            ? application_durability_status::visible
-            : outcome == backend_operation_outcome::indeterminate
-                ? application_durability_status::indeterminate
-                : application_durability_status::unconfirmed);
     return result;
   }
 
@@ -340,13 +275,6 @@ public:
         scripted_backend_boundary::publish_completed_evidence);
     if (outcome == backend_operation_outcome::completed)
       state_->published_completed_evidence_ = evidence;
-    state_->retain_durability(
-        application_durability_domain::completed_evidence,
-        outcome == backend_operation_outcome::completed
-            ? application_durability_status::visible
-            : outcome == backend_operation_outcome::indeterminate
-                ? application_durability_status::indeterminate
-                : application_durability_status::unconfirmed);
     return completed_evidence_publication_result(
         outcome,
         outcome == backend_operation_outcome::completed
@@ -363,8 +291,6 @@ public:
     state_->maybe_throw(scripted_backend_boundary::recover);
     backend_operation_result result(
         state_->outcome(scripted_backend_boundary::recover), {evidence_});
-    state_->retain_recovery(
-        application_restart_recovery_effect(path, result));
     return result;
   }
 
@@ -377,8 +303,6 @@ public:
     state_->maybe_throw(scripted_backend_boundary::synchronize);
     const application_durability_status status = state_->durability(domain);
     application_durability_fact result(domain, status);
-    state_->retain_durability(domain, status);
-    state_->retain_synchronization(result);
     return result;
   }
 
@@ -392,114 +316,8 @@ private:
   application_attempt_nonce nonce_;
   application_backend_evidence_identity evidence_;
   bool has_incoming_image_;
-  std::optional<application_journal_record_identity> resumed_journal_;
   std::shared_ptr<scripted_backend_state> state_;
 };
-
-void
-scripted_backend_state::reset_attempt_checkpoint()
-{
-  published_completed_evidence_.reset();
-  admitted_observations_.reset();
-  incoming_payload_.reset();
-  restart_captures_.clear();
-  restart_rejected_effects_.clear();
-  restart_active_effects_.clear();
-  restart_recovery_effects_.clear();
-  restart_synchronizations_.clear();
-  established_durability_.clear();
-}
-
-template<class Value>
-void retain_restart_value(std::vector<Value>& values, Value value)
-{
-  const auto item = std::lower_bound(
-      values.begin(), values.end(), value.path(),
-      [](const auto& candidate, const auto& path) {
-        return candidate.path() < path;
-      });
-  if (item != values.end() && item->path() == value.path())
-    *item = std::move(value);
-  else
-    values.insert(item, std::move(value));
-}
-
-void
-scripted_backend_state::retain_capture(application_restart_capture capture)
-{
-  retain_restart_value(restart_captures_, std::move(capture));
-}
-
-void
-scripted_backend_state::retain_rejected(
-    application_restart_rejected_effect effect)
-{
-  retain_restart_value(restart_rejected_effects_, std::move(effect));
-}
-
-void
-scripted_backend_state::retain_active(
-    application_restart_active_effect effect)
-{
-  retain_restart_value(restart_active_effects_, std::move(effect));
-}
-
-void
-scripted_backend_state::retain_recovery(
-    application_restart_recovery_effect effect)
-{
-  retain_restart_value(restart_recovery_effects_, std::move(effect));
-}
-
-void
-scripted_backend_state::retain_durability(
-    application_durability_domain domain,
-    application_durability_status status)
-{
-  established_durability_[domain] = status;
-}
-
-void
-scripted_backend_state::retain_synchronization(
-    application_durability_fact result)
-{
-  const auto item = std::lower_bound(
-      restart_synchronizations_.begin(), restart_synchronizations_.end(),
-      result.domain(), [](const auto& candidate, const auto domain) {
-        return candidate.domain() < domain;
-      });
-  application_restart_synchronization value(std::move(result));
-  if (item != restart_synchronizations_.end() &&
-      item->domain() == value.domain())
-  {
-    *item = std::move(value);
-  }
-  else {
-    restart_synchronizations_.insert(item, std::move(value));
-  }
-}
-
-application_durability_profile
-scripted_backend_state::checkpoint_durability() const
-{
-  std::vector<application_durability_fact> facts;
-  facts.reserve(6);
-  for (const application_durability_domain domain : {
-           application_durability_domain::journal,
-           application_durability_domain::incoming_staging,
-           application_durability_domain::recovery_staging,
-           application_durability_domain::active_namespace,
-           application_durability_domain::rejected_object_store,
-           application_durability_domain::completed_evidence})
-  {
-    const auto item = established_durability_.find(domain);
-    facts.emplace_back(
-        domain, item == established_durability_.end()
-            ? application_durability_status::not_attempted
-            : item->second);
-  }
-  return application_durability_profile(std::move(facts));
-}
 
 void
 scripted_backend_state::set_observations(
@@ -718,27 +536,35 @@ std::unique_ptr<application_backend_transaction>
 scripted_backend::resume_with_incoming_image(
     const package_application_request& request,
     target_mutation_lease& lease,
-    const application_journal_record& journal,
+    const application_restart_view& restart,
     const pkgimage::package_image&)
 {
+  if (restart.attempt().request() != request.identity() ||
+      restart.attempt().nonce() != nonce_)
+  {
+    throw std::logic_error("scripted restart view names another attempt");
+  }
   return begin(request,
                lease,
                true,
-               scripted_backend_boundary::resume_with_incoming_image,
-               journal.identity());
+               scripted_backend_boundary::resume_with_incoming_image);
 }
 
 std::unique_ptr<application_backend_transaction>
 scripted_backend::resume_without_incoming_image(
     const package_application_request& request,
     target_mutation_lease& lease,
-    const application_journal_record& journal)
+    const application_restart_view& restart)
 {
+  if (restart.attempt().request() != request.identity() ||
+      restart.attempt().nonce() != nonce_)
+  {
+    throw std::logic_error("scripted restart view names another attempt");
+  }
   return begin(request,
                lease,
                false,
-               scripted_backend_boundary::resume_without_incoming_image,
-               journal.identity());
+               scripted_backend_boundary::resume_without_incoming_image);
 }
 
 std::unique_ptr<application_backend_transaction>
@@ -746,11 +572,13 @@ scripted_backend::begin(
     const package_application_request& request,
     target_mutation_lease& lease,
     bool has_incoming_image,
-    scripted_backend_boundary boundary,
-    std::optional<application_journal_record_identity> resumed_journal)
+    scripted_backend_boundary boundary)
 {
-  if (!resumed_journal)
-    state_->reset_attempt_checkpoint();
+  if (boundary == scripted_backend_boundary::begin_with_incoming_image ||
+      boundary == scripted_backend_boundary::begin_without_incoming_image)
+  {
+    state_->published_completed_evidence_.reset();
+  }
   state_->record(boundary);
   state_->maybe_throw(boundary);
   return std::make_unique<scripted_backend_transaction>(
@@ -764,7 +592,6 @@ scripted_backend::begin(
       nonce_,
       evidence_,
       has_incoming_image,
-      std::move(resumed_journal),
       state_);
 }
 

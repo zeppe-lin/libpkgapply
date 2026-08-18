@@ -366,25 +366,11 @@ backend_rejected_effect_request::observations() const noexcept
 { return observations_; }
 
 
-std::optional<application_journal_record_identity>
-application_backend_transaction::resumed_journal() const noexcept
-{
-  return std::nullopt;
-}
-
-application_restart_checkpoint
-application_backend_transaction::restart_checkpoint(
-    const application_journal_record&)
-{
-  throw std::logic_error(
-      "application backend transaction has no restart checkpoint");
-}
-
 std::unique_ptr<application_backend_transaction>
 application_backend::resume_with_incoming_image(
     const package_application_request&,
     target_mutation_lease&,
-    const application_journal_record&,
+    const application_restart_view&,
     const pkgimage::package_image&)
 {
   throw std::logic_error("application backend does not support restart");
@@ -394,7 +380,7 @@ std::unique_ptr<application_backend_transaction>
 application_backend::resume_without_incoming_image(
     const package_application_request&,
     target_mutation_lease&,
-    const application_journal_record&)
+    const application_restart_view&)
 {
   throw std::logic_error("application backend does not support restart");
 }

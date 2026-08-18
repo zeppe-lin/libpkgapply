@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Alexandr Savca
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include <libpkgapply/restart_checkpoint_codec.h>
-
-#include "sha256.h"
 #include "replay_fact.h"
 
 #include <algorithm>
@@ -21,13 +18,32 @@
 namespace pkgapply {
 namespace {
 
-constexpr std::array<std::uint8_t, 8> checkpoint_magic = {
-    'Z', 'L', 'A', 'P', 'C', 'H', 'K', 0,
+inline constexpr std::size_t maximum_replay_fact_encoding_size =
+    256U * 1024U * 1024U;
+
+enum class replay_codec_error_code : std::uint8_t {
+  invalid_magic = 1,
+  unsupported_version = 2,
+  truncated = 3,
+  invalid_value = 4,
+  limit_exceeded = 5,
+  trailing_data = 6,
+  identity_mismatch = 7,
+  request_mismatch = 8,
 };
+
+class replay_codec_error final : public std::invalid_argument {
+public:
+  replay_codec_error(replay_codec_error_code, std::string message)
+      : std::invalid_argument(std::move(message))
+  {
+  }
+};
+
 constexpr std::uint64_t maximum_item_count = 1'000'000;
 constexpr std::uint64_t maximum_digest_text_size = 128;
 constexpr std::uint64_t maximum_text_size =
-    maximum_application_restart_checkpoint_encoding_size;
+    maximum_replay_fact_encoding_size;
 
 class writer final {
 public:
@@ -60,12 +76,12 @@ public:
   }
   void append_bytes(const std::uint8_t* data, std::size_t size)
   {
-    if (size > maximum_application_restart_checkpoint_encoding_size -
+    if (size > maximum_replay_fact_encoding_size -
                    bytes_.size())
     {
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::limit_exceeded,
-          "application restart checkpoint encoding exceeds the size limit");
+      throw replay_codec_error(
+          replay_codec_error_code::limit_exceeded,
+          "application replay fact encoding exceeds the size limit");
     }
     bytes_.insert(bytes_.end(), data, data + size);
   }
@@ -75,28 +91,28 @@ public:
     append_bytes(
         reinterpret_cast<const std::uint8_t*>(value.data()), value.size());
   }
-  [[nodiscard]] application_restart_checkpoint_encoding finish()
+  [[nodiscard]] std::vector<std::uint8_t> finish()
   {
-    if (bytes_.size() > maximum_application_restart_checkpoint_encoding_size)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::limit_exceeded,
-          "application restart checkpoint encoding exceeds the size limit");
+    if (bytes_.size() > maximum_replay_fact_encoding_size)
+      throw replay_codec_error(
+          replay_codec_error_code::limit_exceeded,
+          "application replay fact encoding exceeds the size limit");
     return std::move(bytes_);
   }
 private:
-  application_restart_checkpoint_encoding bytes_;
+  std::vector<std::uint8_t> bytes_;
 };
 
 class reader final {
 public:
   reader(const std::uint8_t* data, std::size_t size) : data_(data), size_(size)
   {
-    if (size > maximum_application_restart_checkpoint_encoding_size)
-      fail(application_restart_checkpoint_codec_error_code::limit_exceeded,
-           "application restart checkpoint encoding exceeds the size limit");
+    if (size > maximum_replay_fact_encoding_size)
+      fail(replay_codec_error_code::limit_exceeded,
+           "application replay fact encoding exceeds the size limit");
     if (size != 0 && data == nullptr)
-      fail(application_restart_checkpoint_codec_error_code::truncated,
-           "application restart checkpoint encoding has no storage");
+      fail(replay_codec_error_code::truncated,
+           "application replay fact encoding has no storage");
   }
   [[nodiscard]] std::uint8_t read_u8()
   {
@@ -128,20 +144,20 @@ public:
   {
     const auto sign = read_u8();
     if (sign > 1)
-      fail(application_restart_checkpoint_codec_error_code::invalid_value,
-           "application restart checkpoint contains an invalid integer sign");
+      fail(replay_codec_error_code::invalid_value,
+           "application replay fact contains an invalid integer sign");
     const auto magnitude = read_u64();
     const auto maximum = static_cast<std::uint64_t>(
         std::numeric_limits<std::int64_t>::max());
     if (sign == 0) {
       if (magnitude > maximum)
-        fail(application_restart_checkpoint_codec_error_code::invalid_value,
-             "application restart checkpoint integer is out of range");
+        fail(replay_codec_error_code::invalid_value,
+             "application replay fact integer is out of range");
       return static_cast<std::int64_t>(magnitude);
     }
     if (magnitude > maximum + 1U)
-      fail(application_restart_checkpoint_codec_error_code::invalid_value,
-           "application restart checkpoint integer is out of range");
+      fail(replay_codec_error_code::invalid_value,
+           "application replay fact integer is out of range");
     if (magnitude == maximum + 1U)
       return std::numeric_limits<std::int64_t>::min();
     return -static_cast<std::int64_t>(magnitude);
@@ -150,8 +166,8 @@ public:
   {
     const auto value = read_u8();
     if (value > 1)
-      fail(application_restart_checkpoint_codec_error_code::invalid_value,
-           "application restart checkpoint contains an invalid boolean");
+      fail(replay_codec_error_code::invalid_value,
+           "application replay fact contains an invalid boolean");
     return value == 1;
   }
   [[nodiscard]] std::string read_string(std::uint64_t maximum)
@@ -160,8 +176,8 @@ public:
     if (length > maximum || length >
             static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
     {
-      fail(application_restart_checkpoint_codec_error_code::limit_exceeded,
-           "application restart checkpoint string exceeds its size limit");
+      fail(replay_codec_error_code::limit_exceeded,
+           "application replay fact string exceeds its size limit");
     }
     const auto size = static_cast<std::size_t>(length);
     require(size);
@@ -170,35 +186,24 @@ public:
     offset_ += size;
     return value;
   }
-  void expect_magic()
-  {
-    require(checkpoint_magic.size());
-    if (!std::equal(
-            checkpoint_magic.begin(), checkpoint_magic.end(), data_ + offset_))
-    {
-      fail(application_restart_checkpoint_codec_error_code::invalid_magic,
-           "application restart checkpoint encoding has invalid magic");
-    }
-    offset_ += checkpoint_magic.size();
-  }
   void require_end() const
   {
     if (offset_ != size_)
-      fail(application_restart_checkpoint_codec_error_code::trailing_data,
-           "application restart checkpoint encoding contains trailing data");
+      fail(replay_codec_error_code::trailing_data,
+           "application replay fact encoding contains trailing data");
   }
 private:
   [[noreturn]] static void fail(
-      application_restart_checkpoint_codec_error_code code,
+      replay_codec_error_code code,
       std::string message)
   {
-    throw application_restart_checkpoint_codec_error(code, std::move(message));
+    throw replay_codec_error(code, std::move(message));
   }
   void require(std::size_t count) const
   {
     if (count > size_ - offset_)
-      fail(application_restart_checkpoint_codec_error_code::truncated,
-           "application restart checkpoint encoding is truncated");
+      fail(replay_codec_error_code::truncated,
+           "application replay fact encoding is truncated");
   }
   const std::uint8_t* data_;
   std::size_t size_;
@@ -223,8 +228,8 @@ std::size_t read_count(reader& input, std::string_view description)
   if (count > maximum_item_count || count >
           static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
   {
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::limit_exceeded,
+    throw replay_codec_error(
+        replay_codec_error_code::limit_exceeded,
         std::string(description) + " exceeds its count limit");
   }
   return static_cast<std::size_t>(count);
@@ -257,9 +262,9 @@ std::uint8_t encode_outcome(backend_operation_outcome outcome)
     case backend_operation_outcome::failed: return 3;
     case backend_operation_outcome::indeterminate: return 4;
   }
-  throw application_restart_checkpoint_codec_error(
-      application_restart_checkpoint_codec_error_code::invalid_value,
-      "application restart checkpoint contains an invalid backend outcome");
+  throw replay_codec_error(
+      replay_codec_error_code::invalid_value,
+      "application replay fact contains an invalid backend outcome");
 }
 
 backend_operation_outcome read_outcome(reader& input)
@@ -270,9 +275,9 @@ backend_operation_outcome read_outcome(reader& input)
     case 3: return backend_operation_outcome::failed;
     case 4: return backend_operation_outcome::indeterminate;
   }
-  throw application_restart_checkpoint_codec_error(
-      application_restart_checkpoint_codec_error_code::invalid_value,
-      "application restart checkpoint contains an invalid backend outcome");
+  throw replay_codec_error(
+      replay_codec_error_code::invalid_value,
+      "application replay fact contains an invalid backend outcome");
 }
 
 void append_operation_result(writer& output, const backend_operation_result& value)
@@ -306,9 +311,9 @@ qualified_fact<Value> read_fact(reader& input, Read read)
     case static_cast<std::uint8_t>(fact_state::not_applicable):
       return qualified_fact<Value>::not_applicable();
   }
-  throw application_restart_checkpoint_codec_error(
-      application_restart_checkpoint_codec_error_code::invalid_value,
-      "application restart checkpoint contains an invalid fact state");
+  throw replay_codec_error(
+      replay_codec_error_code::invalid_value,
+      "application replay fact contains an invalid fact state");
 }
 
 void append_object(writer& output, const completed_object_fact& object)
@@ -355,9 +360,9 @@ completed_object_fact read_object(reader& input)
   auto path = pkgplan::package_path::parse(input.read_string(maximum_text_size));
   const auto kind_value = input.read_u8();
   if (kind_value < 1 || kind_value > 8)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
-        "application restart checkpoint contains an invalid object kind");
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
+        "application replay fact contains an invalid object kind");
   const auto mode = read_fact<std::uint32_t>(input, [&] { return input.read_u32(); });
   const auto uid = read_fact<std::uint64_t>(input, [&] { return input.read_u64(); });
   const auto gid = read_fact<std::uint64_t>(input, [&] { return input.read_u64(); });
@@ -380,14 +385,14 @@ completed_object_fact read_object(reader& input)
   });
   const auto provenance_value = input.read_u8();
   if (provenance_value < 1 || provenance_value > 5)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
-        "application restart checkpoint contains invalid object provenance");
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
+        "application replay fact contains invalid object provenance");
   const auto completeness_value = input.read_u8();
   if (completeness_value < 1 || completeness_value > 2)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
-        "application restart checkpoint contains invalid object completeness");
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
+        "application replay fact contains invalid object completeness");
   return completed_object_fact(
       std::move(path), static_cast<completed_object_kind>(kind_value), mode, uid,
       gid, size, mtime, regular, symlink, device, hardlink,
@@ -410,9 +415,9 @@ application_path_observation read_observation(reader& input)
     case static_cast<std::uint8_t>(fact_state::known): {
       auto object = read_object(input);
       if (object.path() != path)
-        throw application_restart_checkpoint_codec_error(
-            application_restart_checkpoint_codec_error_code::invalid_value,
-            "application restart checkpoint observation path disagrees with object");
+        throw replay_codec_error(
+            replay_codec_error_code::invalid_value,
+            "application replay fact observation path disagrees with object");
       return application_path_observation::present(std::move(object));
     }
     case static_cast<std::uint8_t>(fact_state::unknown):
@@ -420,9 +425,9 @@ application_path_observation read_observation(reader& input)
     case static_cast<std::uint8_t>(fact_state::not_applicable):
       return application_path_observation::absent(std::move(path));
   }
-  throw application_restart_checkpoint_codec_error(
-      application_restart_checkpoint_codec_error_code::invalid_value,
-      "application restart checkpoint contains an invalid observation state");
+  throw replay_codec_error(
+      replay_codec_error_code::invalid_value,
+      "application replay fact contains an invalid observation state");
 }
 
 void append_observation_batch(writer& output, const backend_observation_batch& batch)
@@ -464,9 +469,9 @@ application_durability_fact read_durability_fact(reader& input)
   const auto domain = input.read_u8();
   const auto status = input.read_u8();
   if (domain < 1 || domain > 6 || status < 1 || status > 5)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
-        "application restart checkpoint contains invalid durability truth");
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
+        "application replay fact contains invalid durability truth");
   return application_durability_fact(
       static_cast<application_durability_domain>(domain),
       static_cast<application_durability_status>(status));
@@ -556,8 +561,8 @@ application_path_consequence read_path_dynamic(
 {
   auto path = pkgplan::package_path::parse(input.read_string(maximum_text_size));
   if (path != decision.path())
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::request_mismatch,
+    throw replay_codec_error(
+        replay_codec_error_code::request_mismatch,
         "completed evidence path order differs from the immutable plan");
   const auto active = input.read_u8();
   const auto rejected = input.read_u8();
@@ -571,8 +576,8 @@ application_path_consequence read_path_dynamic(
     if (active < 1 || active > 5 || rejected < 1 || rejected > 5 ||
         publication_value < 1 || publication_value > 2)
     {
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::invalid_value,
+      throw replay_codec_error(
+          replay_codec_error_code::invalid_value,
           "completed evidence path contains invalid status values");
     }
     return application_path_consequence(
@@ -614,8 +619,8 @@ completed_application_evidence read_completed_evidence(
   const auto path_count = read_count(input, "completed evidence paths");
   const auto& decisions = request.plan().paths();
   if (path_count != decisions.size())
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::request_mismatch,
+    throw replay_codec_error(
+        replay_codec_error_code::request_mismatch,
         "completed evidence path universe differs from the immutable plan");
   std::vector<application_path_consequence> paths;
   paths.reserve(path_count);
@@ -642,203 +647,11 @@ completed_application_evidence read_completed_evidence(
     }
   }();
   if (result.identity() != expected)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::identity_mismatch,
-        "completed evidence identity does not match checkpoint content");
+    throw replay_codec_error(
+        replay_codec_error_code::identity_mismatch,
+        "completed evidence identity does not match replay fact content");
   return result;
 }
-
-void append_checkpoint_body(writer& output, const application_restart_checkpoint& value)
-{
-  append_identity(output, value.journal());
-  append_observation_batch(output, value.admitted_observations());
-
-  output.append_u8(value.incoming_payload().has_value() ? 1 : 0);
-  if (value.incoming_payload())
-    append_operation_result(output, *value.incoming_payload());
-
-  output.append_u64(static_cast<std::uint64_t>(value.captures().size()));
-  for (const auto& item : value.captures()) {
-    output.append_u8(encode_outcome(item.result().outcome()));
-    append_observation(output, item.result().captured());
-    output.append_u8(item.result().exact_recovery_possible() ? 1 : 0);
-    append_evidence(output, item.result().evidence());
-  }
-
-  output.append_u64(static_cast<std::uint64_t>(value.rejected_effects().size()));
-  for (const auto& item : value.rejected_effects()) {
-    output.append_string(item.path().string());
-    output.append_u8(encode_outcome(item.result().outcome()));
-    output.append_u8(item.result().record().has_value() ? 1 : 0);
-    if (item.result().record())
-      append_identity(output, *item.result().record());
-    append_evidence(output, item.result().evidence());
-  }
-
-  auto append_effects = [&](const auto& effects) {
-    output.append_u64(static_cast<std::uint64_t>(effects.size()));
-    for (const auto& item : effects) {
-      output.append_string(item.path().string());
-      append_operation_result(output, item.result());
-    }
-  };
-  append_effects(value.active_effects());
-  append_effects(value.recovery_effects());
-
-  output.append_u64(static_cast<std::uint64_t>(value.synchronizations().size()));
-  for (const auto& item : value.synchronizations())
-    append_durability_fact(output, item.result());
-  append_durability(output, value.durability());
-  append_evidence(output, value.backend_evidence());
-
-  output.append_u8(value.completed_evidence().has_value() ? 1 : 0);
-  if (value.completed_evidence())
-    append_completed_evidence(output, *value.completed_evidence());
-}
-
-template<class Request>
-application_restart_checkpoint decode_checkpoint(
-    const std::uint8_t* data,
-    std::size_t size,
-    const application_journal_record& expected_journal,
-    const Request& request)
-{
-  try {
-    reader input(data, size);
-    input.expect_magic();
-    if (input.read_u16() != application_restart_checkpoint_encoding_version)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::unsupported_version,
-          "application restart checkpoint encoding version is unsupported");
-    const auto declared_body_size = input.read_u64();
-    if (declared_body_size > maximum_application_restart_checkpoint_encoding_size)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::limit_exceeded,
-          "application restart checkpoint body exceeds the size limit");
-    std::array<std::uint8_t, 32> expected_checksum{};
-    for (auto& byte : expected_checksum)
-      byte = input.read_u8();
-    constexpr std::size_t envelope_size =
-        checkpoint_magic.size() + 2U + 8U + 32U;
-    const auto available_body_size = size - envelope_size;
-    if (declared_body_size > available_body_size)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::truncated,
-          "application restart checkpoint body is truncated");
-    if (declared_body_size < available_body_size)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::trailing_data,
-          "application restart checkpoint encoding contains trailing data");
-    const auto actual_checksum = detail::sha256(
-        reinterpret_cast<const std::byte*>(data + envelope_size),
-        available_body_size);
-    if (actual_checksum != expected_checksum)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::identity_mismatch,
-          "application restart checkpoint checksum does not match its content");
-
-    auto journal = read_identity<application_journal_record_identity>(input);
-    if (journal != expected_journal.identity())
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::identity_mismatch,
-          "restart checkpoint does not belong to the supplied journal snapshot");
-    const auto& header = expected_journal.header();
-    if (header.kind() != request.plan().kind() ||
-        header.request() != request.identity() ||
-        header.plan() != request.plan().identity() ||
-        header.target() != request.target().identity() ||
-        header.control() != request.control().identity())
-    {
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::request_mismatch,
-          "restart checkpoint journal differs from the immutable request");
-    }
-    auto admitted = read_observation_batch(input);
-    std::optional<backend_operation_result> incoming;
-    if (input.read_bool())
-      incoming = read_operation_result(input);
-
-    const auto capture_count = read_count(input, "restart captures");
-    std::vector<application_restart_capture> captures;
-    captures.reserve(capture_count);
-    for (std::size_t index = 0; index < capture_count; ++index) {
-      const auto outcome = read_outcome(input);
-      auto observation = read_observation(input);
-      const bool exact = input.read_bool();
-      captures.emplace_back(old_object_capture_result(
-          outcome, std::move(observation), exact, read_evidence(input)));
-    }
-
-    const auto rejected_count = read_count(input, "restart rejected effects");
-    std::vector<application_restart_rejected_effect> rejected;
-    rejected.reserve(rejected_count);
-    for (std::size_t index = 0; index < rejected_count; ++index) {
-      auto path = pkgplan::package_path::parse(
-          input.read_string(maximum_text_size));
-      const auto outcome = read_outcome(input);
-      std::optional<rejected_object_record_identity> record;
-      if (input.read_bool())
-        record = read_identity<rejected_object_record_identity>(input);
-      rejected.emplace_back(
-          std::move(path), rejected_object_publication_result(
-              outcome, std::move(record), read_evidence(input)));
-    }
-
-    const auto read_effects = [&](auto maker, std::string_view description) {
-      using Value = decltype(maker(
-          pkgplan::package_path::parse("x"),
-          backend_operation_result(backend_operation_outcome::failed)));
-      const auto count = read_count(input, description);
-      std::vector<Value> values;
-      values.reserve(count);
-      for (std::size_t index = 0; index < count; ++index) {
-        auto path = pkgplan::package_path::parse(
-            input.read_string(maximum_text_size));
-        values.push_back(maker(std::move(path), read_operation_result(input)));
-      }
-      return values;
-    };
-    auto active = read_effects(
-        [](pkgplan::package_path path, backend_operation_result result) {
-          return application_restart_active_effect(
-              std::move(path), std::move(result));
-        }, "restart active effects");
-    auto recovery = read_effects(
-        [](pkgplan::package_path path, backend_operation_result result) {
-          return application_restart_recovery_effect(
-              std::move(path), std::move(result));
-        }, "restart recovery effects");
-
-    const auto sync_count = read_count(input, "restart synchronizations");
-    std::vector<application_restart_synchronization> synchronizations;
-    synchronizations.reserve(sync_count);
-    for (std::size_t index = 0; index < sync_count; ++index)
-      synchronizations.emplace_back(read_durability_fact(input));
-    auto durability = read_durability(input);
-    auto backend_evidence = read_evidence(input);
-    std::optional<completed_application_evidence> completed;
-    if (input.read_bool())
-      completed = read_completed_evidence(input, request);
-    input.require_end();
-
-    return application_restart_checkpoint::make(
-        std::move(journal), std::move(admitted), std::move(incoming),
-        std::move(captures), std::move(rejected), std::move(active),
-        std::move(recovery), std::move(synchronizations),
-        std::move(durability), std::move(backend_evidence),
-        std::move(completed));
-  }
-  catch (const application_restart_checkpoint_codec_error&) {
-    throw;
-  }
-  catch (const std::invalid_argument& error) {
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
-        std::string("application restart checkpoint encoding is invalid: ") +
-            error.what());
-  }
-}
-
 
 constexpr std::array<std::uint8_t, 8> replay_fact_magic = {
     'Z', 'L', 'A', 'P', 'F', 'A', 'C', 0,
@@ -870,20 +683,20 @@ replay_fact_tag replay_reader_header(reader& input)
 {
   for (const auto byte : replay_fact_magic) {
     if (input.read_u8() != byte)
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::invalid_magic,
+      throw replay_codec_error(
+          replay_codec_error_code::invalid_magic,
           "application replay fact encoding has invalid magic");
   }
   if (input.read_u16() != replay_fact_version)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::unsupported_version,
+    throw replay_codec_error(
+        replay_codec_error_code::unsupported_version,
         "application replay fact encoding version is unsupported");
   const auto tag = input.read_u8();
   if (tag < static_cast<std::uint8_t>(replay_fact_tag::seed) ||
       tag > static_cast<std::uint8_t>(replay_fact_tag::completed_evidence))
   {
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
         "application replay fact encoding contains an invalid tag");
   }
   return static_cast<replay_fact_tag>(tag);
@@ -948,111 +761,15 @@ detail::application_replay_fact decode_fact(
       return detail::application_replay_fact(std::move(value));
     }
     case replay_fact_tag::seed:
-      throw application_restart_checkpoint_codec_error(
-          application_restart_checkpoint_codec_error_code::invalid_value,
+      throw replay_codec_error(
+          replay_codec_error_code::invalid_value,
           "application replay seed was used as a transition fact");
   }
-  throw application_restart_checkpoint_codec_error(
-      application_restart_checkpoint_codec_error_code::invalid_value,
+  throw replay_codec_error(
+      replay_codec_error_code::invalid_value,
       "application replay fact tag is invalid");
 }
 } // namespace
-
-application_restart_checkpoint_codec_error::
-application_restart_checkpoint_codec_error(
-    application_restart_checkpoint_codec_error_code code,
-    std::string message)
-    : std::invalid_argument(std::move(message)), code_(code)
-{
-}
-
-application_restart_checkpoint_codec_error::
-~application_restart_checkpoint_codec_error() = default;
-
-application_restart_checkpoint_codec_error_code
-application_restart_checkpoint_codec_error::code() const noexcept
-{
-  return code_;
-}
-
-application_restart_checkpoint_encoding
-encode_application_restart_checkpoint(
-    const application_restart_checkpoint& checkpoint)
-{
-  writer body;
-  append_checkpoint_body(body, checkpoint);
-  auto body_bytes = body.finish();
-  const auto checksum = detail::sha256(
-      reinterpret_cast<const std::byte*>(body_bytes.data()),
-      body_bytes.size());
-
-  writer output;
-  for (const auto byte : checkpoint_magic)
-    output.append_u8(byte);
-  output.append_u16(application_restart_checkpoint_encoding_version);
-  output.append_u64(static_cast<std::uint64_t>(body_bytes.size()));
-  output.append_bytes(checksum.data(), checksum.size());
-  output.append_bytes(body_bytes.data(), body_bytes.size());
-  return output.finish();
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const std::uint8_t* data,
-    std::size_t size,
-    const application_journal_record& journal,
-    const installation_application_request& request)
-{
-  return decode_checkpoint(data, size, journal, request);
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const std::uint8_t* data,
-    std::size_t size,
-    const application_journal_record& journal,
-    const upgrade_application_request& request)
-{
-  return decode_checkpoint(data, size, journal, request);
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const std::uint8_t* data,
-    std::size_t size,
-    const application_journal_record& journal,
-    const removal_application_request& request)
-{
-  return decode_checkpoint(data, size, journal, request);
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const application_restart_checkpoint_encoding& encoding,
-    const application_journal_record& journal,
-    const installation_application_request& request)
-{
-  return decode_checkpoint(encoding.data(), encoding.size(), journal, request);
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const application_restart_checkpoint_encoding& encoding,
-    const application_journal_record& journal,
-    const upgrade_application_request& request)
-{
-  return decode_checkpoint(encoding.data(), encoding.size(), journal, request);
-}
-
-application_restart_checkpoint
-decode_application_restart_checkpoint(
-    const application_restart_checkpoint_encoding& encoding,
-    const application_journal_record& journal,
-    const removal_application_request& request)
-{
-  return decode_checkpoint(encoding.data(), encoding.size(), journal, request);
-}
-
 
 namespace detail {
 
@@ -1073,8 +790,8 @@ backend_observation_batch decode_replay_seed(
   reader input(
       reinterpret_cast<const std::uint8_t*>(encoding.data()), encoding.size());
   if (replay_reader_header(input) != replay_fact_tag::seed)
-    throw application_restart_checkpoint_codec_error(
-        application_restart_checkpoint_codec_error_code::invalid_value,
+    throw replay_codec_error(
+        replay_codec_error_code::invalid_value,
         "application replay seed has a transition-fact tag");
   auto value = read_observation_batch(input);
   input.require_end();

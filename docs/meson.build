@@ -112,7 +112,6 @@ if html_docs_enabled
     '../include/libpkgapply/precondition.h',
     '../include/libpkgapply/request.h',
     '../include/libpkgapply/restart.h',
-    '../include/libpkgapply/restart_checkpoint_codec.h',
     '../include/libpkgapply/result.h',
     '../include/libpkgapply/schedule.h',
     '../include/libpkgapply/state_projection.h',

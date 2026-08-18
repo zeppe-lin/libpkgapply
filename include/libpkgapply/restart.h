@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 /*! \file restart.h
- *  \brief Validation, checkpoint authority, and replay of durable attempts.
+ *  \brief Validation, owner-derived replay views, and replay of durable attempts.
  */
 #pragma once
 
@@ -22,6 +22,10 @@
 #include <libpkgimage/package_archive.h>
 
 namespace pkgapply {
+
+namespace detail {
+class application_restart_view_builder;
+}
 
 /*! \brief Required controller action for one validated durable journal. */
 enum class application_restart_disposition : std::uint8_t {
@@ -44,7 +48,6 @@ enum class application_restart_error_code : std::uint8_t {
   journal_backend_mismatch = 7, /*!< Journal belongs to another mutation backend. */
   transaction_attempt_nonce_mismatch = 8, /*!< Reopened transaction names
                                                another attempt. */
-  transaction_journal_mismatch = 9, /*!< Transaction did not reopen this journal. */
 };
 
 /*! \brief Invalid restart authority or backend reopen binding. */
@@ -234,145 +237,112 @@ private:
   application_durability_fact result_;
 };
 
-/*! \brief Exact backend-owned material required to replay one durable attempt.
+/*! \brief Owner-derived in-memory replay view for one durable attempt.
  *
- *  The checkpoint is a closed semantic snapshot supplied by the provider when
- *  reopening a journal. It retains no live file descriptors or hidden process
- *  state; those remain provider-owned behind application_backend_transaction.
+ *  The view is reconstructed by libpkgapply from one validated journal
+ *  declaration and its exact committed step chain. It is never persisted and
+ *  is not provider-authored authority. Mutation backends receive this view
+ *  only to revalidate subordinate physical evidence before replay continues.
  */
-class PKGAPPLY_API application_restart_checkpoint final {
+class application_restart_view final {
 public:
-  /*! \brief Normalize and construct one restart checkpoint.
-   *  \param journal Journal-record identity reopened by the backend.
-   *  \param admitted_observations Original fresh admission observations.
-   *  \param incoming_payload Durable incoming-payload staging result, if any.
-   *  \param captures Completed old-object capture results.
-   *  \param rejected_effects Completed rejected-object publication results.
-   *  \param active_effects Completed active namespace results.
-   *  \param recovery_effects Completed recovery results.
-   *  \param synchronizations Completed durability synchronizations.
-   *  \param durability Complete current durability profile.
-   *  \param backend_evidence Supporting backend evidence identities.
-   *  \param completed_evidence Completed application evidence, when produced.
-   *  \return Canonical restart checkpoint.
-   *  \throws std::invalid_argument If path/domain/evidence keys are duplicated
-   *          or synchronization results contradict `durability`.
+  /*! \brief Return the exact journal declaration that produced this view.
+   *  \return Exact owner-authored declaration identity.
    */
-  [[nodiscard]] static application_restart_checkpoint make(
-      application_journal_record_identity journal,
-      backend_observation_batch admitted_observations,
-      std::optional<backend_operation_result> incoming_payload,
-      std::vector<application_restart_capture> captures,
-      std::vector<application_restart_rejected_effect> rejected_effects,
-      std::vector<application_restart_active_effect> active_effects,
-      std::vector<application_restart_recovery_effect> recovery_effects,
-      std::vector<application_restart_synchronization> synchronizations,
-      application_durability_profile durability,
-      std::vector<application_backend_evidence_identity> backend_evidence = {},
-      std::optional<completed_application_evidence> completed_evidence =
-          std::nullopt);
-
-  /*!
-   * \brief Return the reopened journal-record identity.
-  *  \return The reopened journal-record identity.
+  [[nodiscard]] PKGAPPLY_API const application_journal_declaration_identity&
+  declaration() const noexcept;
+  /*! \brief Return the exact physical attempt retained by the declaration.
+   *  \return Immutable physical application attempt.
    */
-  [[nodiscard]] const application_journal_record_identity&
-  journal() const noexcept;
-  /*!
-   * \brief Return original admitted observations.
-  *  \return Original admitted observations.
+  [[nodiscard]] PKGAPPLY_API const application_attempt& attempt() const noexcept;
+  /*! \brief Return original admitted observations.
+   *  \return Original admitted observations decoded from the declaration seed.
    */
-  [[nodiscard]] const backend_observation_batch&
+  [[nodiscard]] PKGAPPLY_API const backend_observation_batch&
   admitted_observations() const noexcept;
-  /*!
-   * \brief Return incoming-payload staging result, when any.
-  *  \return Incoming-payload staging result, when any.
+  /*! \brief Return incoming-payload staging result, when any.
+   *  \return Incoming-payload staging result, when any.
    */
-  [[nodiscard]] const std::optional<backend_operation_result>&
+  [[nodiscard]] PKGAPPLY_API const std::optional<backend_operation_result>&
   incoming_payload() const noexcept;
-  /*!
-   * \brief Return old-object captures in canonical path order.
-  *  \return Old-object captures in canonical path order.
+  /*! \brief Return old-object captures in canonical path order.
+   *  \return Old-object captures in canonical path order.
    */
-  [[nodiscard]] const std::vector<application_restart_capture>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_restart_capture>&
   captures() const noexcept;
-  /*!
-   * \brief Return rejected results in canonical path order.
-  *  \return Rejected results in canonical path order.
+  /*! \brief Return rejected results in canonical path order.
+   *  \return Rejected results in canonical path order.
    */
-  [[nodiscard]] const std::vector<application_restart_rejected_effect>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_restart_rejected_effect>&
   rejected_effects() const noexcept;
-  /*!
-   * \brief Return active results in canonical path order.
-  *  \return Active results in canonical path order.
+  /*! \brief Return active results in canonical path order.
+   *  \return Active results in canonical path order.
    */
-  [[nodiscard]] const std::vector<application_restart_active_effect>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_restart_active_effect>&
   active_effects() const noexcept;
-  /*!
-   * \brief Return recovery results in canonical path order.
-  *  \return Recovery results in canonical path order.
+  /*! \brief Return recovery results in canonical path order.
+   *  \return Recovery results in canonical path order.
    */
-  [[nodiscard]] const std::vector<application_restart_recovery_effect>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_restart_recovery_effect>&
   recovery_effects() const noexcept;
-  /*!
-   * \brief Return synchronization results in canonical domain order.
-  *  \return Synchronization results in canonical domain order.
+  /*! \brief Return synchronization results in canonical domain order.
+   *  \return Synchronization results in canonical domain order.
    */
-  [[nodiscard]] const std::vector<application_restart_synchronization>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_restart_synchronization>&
   synchronizations() const noexcept;
-  /*!
-   * \brief Return the complete current durability profile.
-  *  \return The complete current durability profile.
+  /*! \brief Return durability derived from retained terminal facts.
+   *  \return Complete current durability profile.
    */
-  [[nodiscard]] const application_durability_profile&
+  [[nodiscard]] PKGAPPLY_API const application_durability_profile&
   durability() const noexcept;
-  /*!
-   * \brief Return supporting backend evidence in canonical order.
-  *  \return Supporting backend evidence in canonical order.
+  /*! \brief Return owner-derived supporting backend evidence.
+   *  \return Deduplicated evidence in first-retained owner order.
    */
-  [[nodiscard]] const std::vector<application_backend_evidence_identity>&
+  [[nodiscard]] PKGAPPLY_API const std::vector<application_backend_evidence_identity>&
   backend_evidence() const noexcept;
-  /*!
-   * \brief Return completed application evidence, when already produced.
-  *  \return Completed application evidence, when already produced.
+  /*! \brief Return completed application evidence, when already produced.
+   *  \return Completed application evidence, when already produced.
    */
-  [[nodiscard]] const std::optional<completed_application_evidence>&
+  [[nodiscard]] PKGAPPLY_API const std::optional<completed_application_evidence>&
   completed_evidence() const noexcept;
 
   /*! \brief Find a capture result by exact path.
    *  \param path Logical path to query.
-   *  \return Pointer valid for this checkpoint's lifetime, or `nullptr`.
+   *  \return Pointer valid for this view's lifetime, or `nullptr`.
    */
-  [[nodiscard]] const application_restart_capture*
+  [[nodiscard]] PKGAPPLY_API const application_restart_capture*
   find_capture(const pkgplan::package_path& path) const noexcept;
   /*! \brief Find a rejected publication result by exact path.
    *  \param path Logical path to query.
-   *  \return Pointer valid for this checkpoint's lifetime, or `nullptr`.
+   *  \return Pointer valid for this view's lifetime, or `nullptr`.
    */
-  [[nodiscard]] const application_restart_rejected_effect*
+  [[nodiscard]] PKGAPPLY_API const application_restart_rejected_effect*
   find_rejected_effect(const pkgplan::package_path& path) const noexcept;
   /*! \brief Find an active effect result by exact path.
    *  \param path Logical path to query.
-   *  \return Pointer valid for this checkpoint's lifetime, or `nullptr`.
+   *  \return Pointer valid for this view's lifetime, or `nullptr`.
    */
-  [[nodiscard]] const application_restart_active_effect*
+  [[nodiscard]] PKGAPPLY_API const application_restart_active_effect*
   find_active_effect(const pkgplan::package_path& path) const noexcept;
   /*! \brief Find a recovery effect result by exact path.
    *  \param path Logical path to query.
-   *  \return Pointer valid for this checkpoint's lifetime, or `nullptr`.
+   *  \return Pointer valid for this view's lifetime, or `nullptr`.
    */
-  [[nodiscard]] const application_restart_recovery_effect*
+  [[nodiscard]] PKGAPPLY_API const application_restart_recovery_effect*
   find_recovery_effect(const pkgplan::package_path& path) const noexcept;
   /*! \brief Find a synchronization result by durability domain.
    *  \param domain Durability domain to query.
-   *  \return Pointer valid for this checkpoint's lifetime, or `nullptr`.
+   *  \return Pointer valid for this view's lifetime, or `nullptr`.
    */
-  [[nodiscard]] const application_restart_synchronization*
+  [[nodiscard]] PKGAPPLY_API const application_restart_synchronization*
   find_synchronization(application_durability_domain domain) const noexcept;
 
 private:
-  application_restart_checkpoint(
-      application_journal_record_identity journal,
+  friend class detail::application_restart_view_builder;
+
+  application_restart_view(
+      application_journal_declaration_identity declaration,
+      application_attempt attempt,
       backend_observation_batch admitted_observations,
       std::optional<backend_operation_result> incoming_payload,
       std::vector<application_restart_capture> captures,
@@ -384,7 +354,8 @@ private:
       std::vector<application_backend_evidence_identity> backend_evidence,
       std::optional<completed_application_evidence> completed_evidence);
 
-  application_journal_record_identity journal_;
+  application_journal_declaration_identity declaration_;
+  application_attempt attempt_;
   backend_observation_batch admitted_observations_;
   std::optional<backend_operation_result> incoming_payload_;
   std::vector<application_restart_capture> captures_;
@@ -573,21 +544,20 @@ resume_application(
     application_journal_store& journal_store,
     const application_journal_declaration_identity& declaration);
 
-/*! \brief Validate a transaction reopened for one exact durable journal.
+/*! \brief Validate a transaction reopened for one exact durable attempt.
  *  \param target Exact target context.
  *  \param lease Borrowed caller-held mutation lease.
  *  \param backend Backend that reopened the transaction.
- *  \param journal Durable journal requested for restart.
+ *  \param attempt Owner-authored durable attempt authority.
  *  \param transaction Reopened backend transaction.
  *  \throws application_admission_error For provider, target, or lease mismatch.
- *  \throws application_restart_error If attempt nonce or reopened journal
- *          identity differs.
+ *  \throws application_restart_error If the attempt nonce differs.
  */
 PKGAPPLY_API void validate_restarted_backend_transaction(
     const application_target_context& target,
     const target_mutation_lease& lease,
     const application_backend& backend,
-    const application_journal_record& journal,
+    const application_attempt& attempt,
     const application_backend_transaction& transaction);
 
 } // namespace pkgapply

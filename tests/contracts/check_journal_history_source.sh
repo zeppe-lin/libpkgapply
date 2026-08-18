@@ -23,6 +23,13 @@ grep -F 'store.load_step(declaration_identity, committed.step_count())' \
 grep -F 'committed.identity(), candidate' "$source" >/dev/null ||
   fail 'orphan adoption is not cursor-CAS bound'
 
+grep -F 'std::vector<application_journal_step> steps_;' "$header" >/dev/null ||
+  fail 'owner rehydration does not retain exact committed steps for replay projection'
+grep -F 'steps_.push_back(step);' "$source" >/dev/null ||
+  fail 'validated owner steps are not retained for replay projection'
+grep -F 'effect_ordinals_.find(identity)' "$source" >/dev/null ||
+  fail 'owner history does not expose indexed effect lookup to replay projection'
+
 grep -F 'validate(const application_journal_step&' "$header" >/dev/null ||
   fail 'history cannot validate a successor without advancing memory'
 

@@ -84,16 +84,6 @@ private:
   void select_observations_for_next_batch();
   [[nodiscard]] const application_path_observation*
   find_observation(const pkgplan::package_path& path) const noexcept;
-  void reset_attempt_checkpoint();
-  void retain_capture(application_restart_capture capture);
-  void retain_rejected(application_restart_rejected_effect effect);
-  void retain_active(application_restart_active_effect effect);
-  void retain_recovery(application_restart_recovery_effect effect);
-  void retain_durability(application_durability_domain domain,
-                         application_durability_status status);
-  void retain_synchronization(application_durability_fact result);
-  [[nodiscard]] application_durability_profile
-  checkpoint_durability() const;
 
   std::vector<application_path_observation> observations_;
   std::vector<std::vector<application_path_observation>>
@@ -105,16 +95,6 @@ private:
   std::set<scripted_backend_boundary> throws_;
   std::vector<scripted_backend_event> events_;
   std::optional<completed_application_evidence> published_completed_evidence_;
-  std::optional<backend_observation_batch> admitted_observations_;
-  std::optional<backend_operation_result> incoming_payload_;
-  std::vector<application_restart_capture> restart_captures_;
-  std::vector<application_restart_rejected_effect> restart_rejected_effects_;
-  std::vector<application_restart_active_effect> restart_active_effects_;
-  std::vector<application_restart_recovery_effect> restart_recovery_effects_;
-  std::vector<application_restart_synchronization>
-      restart_synchronizations_;
-  std::map<application_durability_domain, application_durability_status>
-      established_durability_;
   bool exact_recovery_possible_ = true;
   std::optional<application_target_context_identity>
       transaction_target_;
@@ -154,23 +134,21 @@ public:
   resume_with_incoming_image(
       const package_application_request& request,
       target_mutation_lease& lease,
-      const application_journal_record& journal,
+      const application_restart_view& restart,
       const pkgimage::package_image& incoming_image) override;
 
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   resume_without_incoming_image(
       const package_application_request& request,
       target_mutation_lease& lease,
-      const application_journal_record& journal) override;
+      const application_restart_view& restart) override;
 
 private:
   [[nodiscard]] std::unique_ptr<application_backend_transaction>
   begin(const package_application_request& request,
         target_mutation_lease& lease,
         bool has_incoming_image,
-        scripted_backend_boundary boundary,
-        std::optional<application_journal_record_identity>
-            resumed_journal = std::nullopt);
+        scripted_backend_boundary boundary);
 
   mutation_backend_identity backend_;
   observation_backend_identity observation_;

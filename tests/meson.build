@@ -70,7 +70,8 @@ if get_option('tests').allowed()
       'support/scripted_journal_store.cpp',
       '../src/application_engine.cpp',
       '../src/journal_history.cpp',
-      '../src/restart_checkpoint_codec.cpp',
+      '../src/replay_fact.cpp',
+      '../src/restart_view.cpp',
       '../src/sha256.cpp',
     ],
     include_directories: [test_inc, core_inc],
@@ -96,7 +97,6 @@ if get_option('tests').allowed()
     ['journal-codec', 'protocol/journal_codec_test.cpp'],
     ['application-receipt-codec', 'protocol/application_receipt_codec_test.cpp'],
     ['completed-evidence-codec', 'protocol/completed_evidence_codec_test.cpp'],
-    ['restart-checkpoint-codec', 'protocol/restart_checkpoint_codec_test.cpp'],
   ]
     target = executable(
       case[0] + '-test',
@@ -130,7 +130,6 @@ if get_option('tests').allowed()
     'precondition.h',
     'request.h',
     'restart.h',
-    'restart_checkpoint_codec.h',
     'result.h',
     'schedule.h',
     'state_projection.h',
@@ -181,6 +180,7 @@ if get_option('tests').allowed()
     'journal_scaling_source',
     'journal_transport_source',
     'journal_history_source',
+    'restart_view_source',
     'mutation_lease_scope_source',
     'ci_qualification_source',
     'release_metadata',

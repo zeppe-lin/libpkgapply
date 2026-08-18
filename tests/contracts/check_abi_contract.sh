@@ -24,8 +24,7 @@ for type in \
   digest_error \
   incoming_package_error \
   completed_application_evidence_codec_error \
-  application_restart_error \
-  application_restart_checkpoint_codec_error
+  application_restart_error
 do
   grep -R -F "~$type() override;" "$root/include/libpkgapply" >/dev/null ||
     fail "public exception destructor is not declared: $type"
@@ -46,7 +45,7 @@ done
 
 [ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
 [ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
-[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 790 ] ||
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 770 ] ||
   fail 'reviewed ELF ABI manifest count changed without review'
 for signature in \
   '16canonical_domainEv' \
@@ -77,7 +76,7 @@ grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || f
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
 grep -F 'Advanced the core to SONAME 4 and public API generation 4' "$root/HISTORY.md" >/dev/null ||
   fail '4.0 ABI generation transition is undocumented'
-grep -F '790 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+grep -F '770 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 
 
 grep -F "'../src/canonical_record.cpp'" "$root/tests/meson.build" >/dev/null ||
@@ -88,8 +87,16 @@ grep -F "'../src/application_engine.cpp'" "$root/tests/meson.build" >/dev/null |
   fail 'application vertical does not link its private engine implementation'
 grep -F "'../src/journal_history.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'journal-history witness does not link its private implementation'
-grep -F "'../src/restart_checkpoint_codec.cpp'" "$root/tests/meson.build" >/dev/null ||
+grep -F "'../src/replay_fact.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'application vertical does not link private replay-fact codec implementation'
+grep -F "'../src/restart_view.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'application vertical does not link private restart-view projection'
+if grep -F 'application_restart_checkpoint' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'retired restart-checkpoint protocol leaked into generation-4 ABI'
+fi
+if grep -F 'application_restart_view_builder' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'private restart-view builder leaked into public ABI'
+fi
 grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'application vertical replay-fact codec lacks its private digest provider'
 grep -F 'application_vertical_target = executable(' "$root/tests/meson.build" >/dev/null ||

@@ -540,21 +540,21 @@ replay facts for mechanism results. Restart therefore recovers historical
 semantic authority from owner-authored bytes, not from present filesystem state
 or a provider reconstruction.
 
-The current generation still asks a reopened backend transaction for an
-`application_restart_checkpoint` as a temporary subordinate bridge to existing
-provider evidence: private staging/capture outcomes, rejected and active results,
-recovery results, physical synchronization facts, backend evidence, and completed
-evidence. The checkpoint no longer supplies original admission observations, no
-longer owns semantic progress, and its journal-synchronization residue is ignored.
-The core first rehydrates the owner journal and then reconciles subordinate
-mechanism facts against it. Contradiction is a backend contract violation.
+After journal rehydration, `libpkgapply` derives one in-memory
+`application_restart_view` directly from the immutable declaration and validated
+steps. The view contains the admitted observation seed plus typed terminal facts
+for private staging/capture outcomes, rejected and active results, recovery
+results, physical synchronization facts, backend evidence, and completed
+evidence. It has no codec and is never persisted. The backend receives this view
+only to revalidate its subordinate physical stores before replay continues.
 
-A complete `application_journal_record` is still materialized transiently at
-that pre-release backend-reopen/checkpoint seam because the old checkpoint API
-uses the record identity. The projection is derived in memory, never persisted,
-and never used as a second historical spine. The checkpoint API itself is the
-next provider-generation migration seam; no final generation-4 release should
-retain a durable checkpoint store as semantic co-authority.
+Provider state cannot fill gaps in semantic history. A missing terminal owner
+step remains unresolved according to journal semantics; restart never appends a
+terminal event merely because a backend can rediscover physical residue. The
+retired restart-checkpoint aggregate and codec therefore have no compatibility
+surface in generation 4. A complete `application_journal_record` may still be
+materialized transiently for pure restart classification, but it is derived from
+the owner history and is never durable transport.
 
 Completed forward effects are skipped. An active or recovery intent without a
 terminal event is never issued again: replay treats its physical result as
@@ -616,13 +616,15 @@ access, storage, synchronization, and system-call failures.
 * non-virtual application sequencing; and
 * constrained backend interfaces.
 
-The reference `libpkgapply-posix` library contains FD-anchored journal,
-restart-checkpoint, and completed-evidence stores; target observation; private
-incoming-payload staging; attempt-bound old-object capture; immutable rejected-
-object publication; active namespace mutation and recovery; and the installed
-`application_posix_backend` factory. Its private transaction binds those
-mechanisms to one exact request, target, borrowed lease, attempt, durability
-router, and restart view without becoming another semantic engine.
+The next `libpkgapply-posix` generation implements FD-anchored journal and
+completed-evidence stores; target observation; private incoming-payload staging;
+attempt-bound old-object capture; immutable rejected-object publication; active
+namespace mutation and recovery; and the installed `application_posix_backend`
+factory. The previously deployed-in-development POSIX checkpoint store is a
+retired downstream interface and must be removed when that provider advances to
+core generation 4. Its transaction may bind physical stores to one exact
+request, target, borrowed lease and attempt, but it receives owner-derived
+restart facts and never becomes another semantic engine.
 
 The core public model depends on `libpkgbuild-plan` and `libpkgplan`. Its
 cryptographic provider is private. Build/image admission, source projection,
@@ -740,7 +742,8 @@ never enumerates storage and never observes the managed target. The complete
 pre-release engine is being migrated, but that projection is in-memory derived
 state and is not durable authority.
 
-The legacy complete-snapshot journal and restart-checkpoint persistence path is
-not a compatibility target. During the pre-release migration it must be removed,
-not wrapped behind an adapter. No release may ship both durable histories as
-co-equal authority.
+The legacy complete-snapshot journal and restart-checkpoint persistence paths are
+not compatibility targets. Generation 4 removes both from core authority rather
+than wrapping them behind adapters. A mechanism provider may retain subordinate
+physical objects, but it must revalidate them against the owner-derived restart
+view and must not persist another semantic history.

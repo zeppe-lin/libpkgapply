@@ -49,10 +49,14 @@ public:
   [[nodiscard]] const application_journal_header& header() const noexcept;
   [[nodiscard]] const std::vector<application_journal_effect>&
   effects() const noexcept;
+  [[nodiscard]] const application_journal_effect&
+  effect(const application_journal_effect_identity& identity) const;
   [[nodiscard]] const application_journal_cursor& cursor() const noexcept;
   [[nodiscard]] application_journal_state state() const noexcept;
   [[nodiscard]] const std::vector<application_journal_event>&
   events() const noexcept;
+  [[nodiscard]] const std::vector<application_journal_step>&
+  steps() const noexcept;
   [[nodiscard]] const std::optional<application_receipt_identity>&
   receipt() const noexcept;
   [[nodiscard]] const std::optional<completed_application_evidence_identity>&
@@ -97,6 +101,7 @@ private:
   application_journal_declaration declaration_;
   application_journal_cursor cursor_;
   std::vector<application_journal_event> events_;
+  std::vector<application_journal_step> steps_;
   std::unordered_map<application_journal_effect_identity,
                      std::size_t,
                      digest_hash>

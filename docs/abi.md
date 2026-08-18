@@ -11,11 +11,13 @@ layout and all six application/restart entry-point manglings change, so SONAME 3
 cannot truthfully describe the new binary contract. No compatibility shim is
 retained.
 
-The reviewed generation-4 ELF manifest remains 790 symbols: exactly three old
-`apply()` and three old `resume_application()` symbols are replaced by their
-store-bearing generation-4 signatures. The private
-`detail::application_journal_history` implementation remains hidden. A shared
-build must export exactly the reviewed manifest under SONAME 4.
+The reviewed generation-4 ELF manifest contains 770 symbols. Relative to the
+intermediate append-only generation-4 tree, the provider-authored checkpoint
+aggregate/codec and transaction checkpoint callbacks are removed, while the
+owner-derived `application_restart_view`, view-bearing backend reopen callbacks,
+and attempt-bound reopen validator become the reviewed public seam. The private
+`detail::application_journal_history` and restart-view builder remain hidden. A
+shared build must export exactly the reviewed manifest under SONAME 4.
 
 ## Generation 3 lineage
 
@@ -35,11 +37,11 @@ toolchain.
 
 The pre-tag ABI gate is closed by `abi/libpkgapply.exports`. It contains the
 exact compiler-stable ELF surface reviewed from GCC and Clang shared builds:
-790 symbols. The library builds with hidden default visibility, explicit public
+770 symbols. The library builds with hidden default visibility, explicit public
 annotations, and an ELF linker export script generated from that manifest.
 `tests/contracts/check_abi_surface.sh` compares the linked shared object against
 the manifest exactly. The manifest includes all five out-of-line public member functions for each of
-the 27 `typed_digest<Domain>` specializations: `canonical_domain()`, `parse()`,
+the 30 `typed_digest<Domain>` specializations: `canonical_domain()`, `parse()`,
 `algorithm()`, `string()`, and `bytes()`. Their `extern template` declarations
 suppress consumer-side instantiation, so omitting any of those 150 symbols would
 make ordinary installed identity consumers unlinkable. Internal canonical-record and application
@@ -68,9 +70,10 @@ called; they are not public compile dependencies. Changes to public value
 layouts, exception hierarchies, virtual interfaces, dependency placement, or
 SONAME require explicit ABI review.
 
-Generation-4 development note: the immutable journal declaration retains the
-complete admitted `lease_bound_state_projection` body and owner-authored replay
-seed. Complete `application_journal_record` values remain public semantic values
-for validation/derived views during migration, but live persistence no longer
-transports them. Backend restart-checkpoint removal is a subsequent provider
-generation seam and must not restore snapshot publication to the core ABI.
+Generation-4 note: the immutable journal declaration retains the complete
+admitted `lease_bound_state_projection` body and owner-authored replay seed.
+Complete `application_journal_record` values remain public semantic values for
+validation and pure classification, but persistence never transports complete
+records. Restart derives `application_restart_view` from owner history; the view
+has no codec, and provider-authored checkpoint state is absent from the core ABI.
+The reviewed generation-4 ELF surface contains 770 symbols.

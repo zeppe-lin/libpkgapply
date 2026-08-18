@@ -19,8 +19,8 @@ The core owns:
   application journals;
 - precondition validation and deterministic effect schedules;
 - rejected, active, recovery, and final-observation evidence models;
-- append-only journal declaration/step/cursor semantics, restart-checkpoint,
-  completed-evidence, and application-receipt codecs;
+- append-only journal declaration/step/cursor semantics, owner-derived restart
+  views, completed-evidence codecs, and application-receipt codecs;
 - restart admission and replay policy; and
 - abstract backend, transaction, observation, staging, capture, publication,
   and mutation contracts.
@@ -34,10 +34,11 @@ Those mechanisms are supplied by an independent backend product.
 `libpkgapply-posix` owns the extracted descriptor-anchored POSIX
 implementation formerly shipped in this repository. It implements target
 observation, target mutation leases, private payload and capture stores,
-rejected-object publication, journal and checkpoint storage, completed-evidence
-storage, active namespace mutation and recovery, and concrete backend
-composition. Journal storage and mutation transactions remain separate objects
-even when one mechanism product implements both.
+rejected-object publication, journal storage, completed-evidence storage,
+active namespace mutation and recovery, and concrete backend composition. The
+provider may retain subordinate physical attempt stores, but it does not own a
+second semantic restart checkpoint. Journal storage and mutation transactions remain
+separate objects even when one mechanism product implements both.
 
 ```text
 libpkgbuild-image + libpkgsource-plan + libpkgplan
@@ -77,10 +78,11 @@ This is SONAME 4 / public API generation 4. The generation change is deliberate:
 the transaction virtual interface and all package-manager-facing apply/restart
 entry points changed. No generation-3 compatibility shim is retained.
 
-Backend restart checkpoints remain only as a temporary subordinate mechanism-
-evidence bridge while `libpkgapply-posix` is migrated; they are not semantic
-history authority and the complete journal snapshot is no longer durable
-transport.
+Restart now derives an ephemeral `application_restart_view` from the retained
+owner declaration and exact step chain before reopening the backend. The view has
+no durable codec. Backend reopen consumes it only to revalidate subordinate
+physical evidence; provider-authored restart checkpoints are not part of the
+core generation-4 contract.
 
 ## Version 3.0
 

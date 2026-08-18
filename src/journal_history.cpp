@@ -256,6 +256,7 @@ application_journal_history::append(const application_journal_step& step)
     events_.push_back(*step.event());
   }
   completed_success_effects_ = validated.completed_success_effects;
+  steps_.push_back(step);
   cursor_ = std::move(validated.candidate);
 }
 
@@ -277,6 +278,16 @@ application_journal_history::effects() const noexcept
   return declaration_.effects();
 }
 
+const application_journal_effect&
+application_journal_history::effect(
+    const application_journal_effect_identity& identity) const
+{
+  const auto found = effect_ordinals_.find(identity);
+  if (found == effect_ordinals_.end())
+    throw std::logic_error("application history lost an effect identity");
+  return declaration_.effects()[found->second];
+}
+
 const application_journal_cursor&
 application_journal_history::cursor() const noexcept
 {
@@ -293,6 +304,12 @@ const std::vector<application_journal_event>&
 application_journal_history::events() const noexcept
 {
   return events_;
+}
+
+const std::vector<application_journal_step>&
+application_journal_history::steps() const noexcept
+{
+  return steps_;
 }
 
 const std::optional<application_receipt_identity>&

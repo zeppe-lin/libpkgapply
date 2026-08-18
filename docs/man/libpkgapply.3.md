@@ -93,13 +93,15 @@ before application or state-publication actuation.
 
 **application_backend** opens one **application_backend_transaction**. A fresh
 transaction supplies one unpredictable attempt nonce and performs no effect
-merely by being constructed. A resumed transaction retains the original
-attempt nonce and exact durable journal identity.
+merely by being constructed. A resumed transaction retains the original attempt nonce and is reopened only
+after libpkgapply has rehydrated the exact owner journal history.
 
 The transaction exposes constrained operations for observation, payload
 staging, old-object capture, rejected publication, active effects, recovery,
-physical-domain durability synchronization, restart-checkpoint retrieval, and
-completed-evidence publication. It does not publish semantic journal history.
+physical-domain durability synchronization and completed-evidence publication.
+It does not publish or reconstruct semantic journal history. Backend reopen
+receives an owner-derived **application_restart_view** only to revalidate
+subordinate physical evidence.
 The core invokes those operations in semantic order; a backend does not choose
 policy.
 

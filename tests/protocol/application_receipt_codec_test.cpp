@@ -118,9 +118,9 @@ int main()
 {
   const auto request = fixture::request();
   const auto journal = fixture::journal(request);
-  const auto checkpoint = fixture::checkpoint(request, journal);
+  const auto evidence = fixture::completed_evidence(request, journal);
   const auto completed = application_receipt::completed(
-      *checkpoint.completed_evidence(),
+      evidence,
       application_recovery_state::recovery_assets_retained,
       {fixture::application_identity<application_backend_evidence_identity>(90)});
   check_round_trip(completed, request);

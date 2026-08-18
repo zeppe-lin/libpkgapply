@@ -39,7 +39,9 @@ resolve the step-durable/head-stale crash case. Directory enumeration, current
 target observation, or per-step rescanning of the effect graph are release
 blockers.
 
-While a durable provider restart-checkpoint store still survives as a second
-historical authority, the tree is a migration candidate and must not be tagged
-as the next libpkgapply release. Transient owner-derived record projections at
-the reopen bridge do not qualify as durable snapshot authority.
+Generation 4 must retain exactly one semantic restart authority: the append-only
+owner journal. `application_restart_view` is a transient projection of that
+history and must never acquire a durable codec or store. Backend providers may
+retain physical staging/capture/rejected/completed objects only as subordinate
+evidence revalidated against that view. Reintroducing a provider-authored
+restart checkpoint is a release blocker.

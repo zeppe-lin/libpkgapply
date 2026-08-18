@@ -176,14 +176,14 @@ template<class Identity>
       ownership_publication_status::eligible);
 }
 
-[[nodiscard]] inline application_restart_checkpoint checkpoint(
+
+[[nodiscard]] inline completed_application_evidence completed_evidence(
     const installation_application_request& application_request,
     const application_journal_record& application_journal,
     std::uint8_t seed = 20)
 {
   const auto& decision = application_request.plan().paths().front();
-  const auto path = decision.path();
-  const auto completed = completed_application_evidence::installation(
+  return completed_application_evidence::installation(
       application_request,
       application_journal.header().attempt().identity(),
       application_journal.header().state_projection(),
@@ -191,48 +191,8 @@ template<class Identity>
       {completed_path(decision)},
       durability(),
       {application_identity<application_backend_evidence_identity>(seed + 3)});
-
-  return application_restart_checkpoint::make(
-      application_journal.identity(),
-      backend_observation_batch::make(
-          {path},
-          {application_path_observation::absent(path)},
-          {application_identity<application_backend_evidence_identity>(seed + 5)}),
-      backend_operation_result(
-          backend_operation_outcome::completed,
-          {application_identity<application_backend_evidence_identity>(seed + 6)}),
-      {},
-      {},
-      {application_restart_active_effect(
-          path,
-          backend_operation_result(
-              backend_operation_outcome::completed,
-              {application_identity<application_backend_evidence_identity>(
-                  seed + 7)}))},
-      {},
-      {
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::journal,
-              application_durability_status::confirmed)),
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::incoming_staging,
-              application_durability_status::confirmed)),
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::recovery_staging,
-              application_durability_status::confirmed)),
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::active_namespace,
-              application_durability_status::confirmed)),
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::rejected_object_store,
-              application_durability_status::confirmed)),
-          application_restart_synchronization(application_durability_fact(
-              application_durability_domain::completed_evidence,
-              application_durability_status::confirmed)),
-      },
-      durability(),
-      {application_identity<application_backend_evidence_identity>(seed + 8)},
-      completed);
 }
+
+
 
 } // namespace pkgapply::test::checkpoint_fixture
