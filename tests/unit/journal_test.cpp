@@ -294,5 +294,42 @@ main()
   }
   require(rejected, "journal effect accepted multiple terminal events");
 
+  // Full journal snapshots are intentionally validated from their complete
+  // retained graph, but one snapshot must not rescan the effect vector once per
+  // event. Exercise a package-sized graph through every growing event prefix so
+  // accidental O(events * effects) validation becomes an obvious test failure
+  // under sanitizer builds rather than a real-package bootstrap surprise.
+  {
+    constexpr std::size_t effect_count = 512;
+    std::vector<pkgapply::application_journal_effect> large_effects;
+    large_effects.reserve(effect_count);
+    for (std::size_t index = 0; index < effect_count; ++index) {
+      large_effects.push_back(pkgapply::application_journal_effect::make(
+          index,
+          pkgapply::application_journal_effect_kind::publish_active_object,
+          pkgplan::package_path::parse(
+              "usr/lib/journal-scaling/entry-" + std::to_string(index))));
+    }
+
+    std::vector<pkgapply::application_journal_event> large_events;
+    large_events.reserve(effect_count * 2U);
+    for (std::size_t index = 0; index < effect_count; ++index) {
+      large_events.emplace_back(
+          large_events.size(),
+          pkgapply::application_journal_event_kind::intent,
+          large_effects[index].identity());
+      static_cast<void>(pkgapply::application_journal_record::make(
+          journal_header, pkgapply::application_journal_state::mutating,
+          large_effects, large_events));
+      large_events.emplace_back(
+          large_events.size(),
+          pkgapply::application_journal_event_kind::completed,
+          large_effects[index].identity());
+      static_cast<void>(pkgapply::application_journal_record::make(
+          journal_header, pkgapply::application_journal_state::effects_visible,
+          large_effects, large_events));
+    }
+  }
+
   return 0;
 }

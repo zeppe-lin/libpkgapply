@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -142,27 +143,45 @@ struct effect_progress final {
   std::optional<application_journal_event_kind> terminal;
 };
 
+struct effect_identity_hash final {
+  std::size_t operator()(
+      const application_journal_effect_identity& identity) const noexcept
+  {
+    std::size_t value = 1469598103934665603ULL;
+    for (const auto byte : identity.bytes()) {
+      value ^= static_cast<std::size_t>(byte);
+      value *= 1099511628211ULL;
+    }
+    return value;
+  }
+};
+
 std::vector<effect_progress>
 validate_events(
     const std::vector<application_journal_effect>& effects,
     const std::vector<application_journal_event>& events)
 {
   std::vector<effect_progress> progress(effects.size());
+  std::unordered_map<application_journal_effect_identity, std::size_t,
+                     effect_identity_hash> effect_ordinals;
+  effect_ordinals.reserve(effects.size());
+  for (const auto& effect : effects) {
+    const auto inserted = effect_ordinals.emplace(
+        effect.identity(), static_cast<std::size_t>(effect.ordinal()));
+    if (!inserted.second)
+      throw std::invalid_argument("journal effect identity is duplicated");
+  }
 
   for (std::size_t index = 0; index < events.size(); ++index) {
     const auto& event = events[index];
     if (event.sequence() != index)
       throw std::invalid_argument("journal event sequence is not consecutive");
 
-    const auto effect = std::find_if(
-        effects.begin(), effects.end(),
-        [&event](const auto& item) {
-          return item.identity() == event.effect();
-        });
-    if (effect == effects.end())
+    const auto effect = effect_ordinals.find(event.effect());
+    if (effect == effect_ordinals.end())
       throw std::invalid_argument("journal event cites an unknown effect");
 
-    auto& state = progress[effect->ordinal()];
+    auto& state = progress[effect->second];
     if (event.kind() == application_journal_event_kind::intent) {
       if (state.intended || state.terminal)
         throw std::invalid_argument("duplicate or late journal effect intent");
