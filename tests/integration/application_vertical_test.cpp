@@ -1884,15 +1884,15 @@ main()
   const auto recovery_state =
       state(lease, recovery_request.plan().preconditions());
 
-  const auto interrupt_recovery_request = [&]() {
+  const auto interrupt_recovery_request =
+      [&](pkgapply::test::scripted_journal_store& journal_store) {
     backend_state->set_observations(
         matching_observations(recovery_request.plan().preconditions()));
     auto admission = pkgapply::detail::admit_application_engine(
         recovery_request, recovery_state, lease, backend, recovery_archive);
-    pkgapply::test::scripted_journal_store journal_store_25;
     auto journaled = pkgapply::detail::journal_application_engine(
         std::move(*admission.admitted()), recovery_request, recovery_state,
-        lease, journal_store_25, recovery_archive.image());
+        lease, journal_store, recovery_archive.image());
     auto preparation = pkgapply::detail::prepare_application_engine(
         std::move(journaled), recovery_request, recovery_state, lease,
         recovery_archive);
@@ -1908,7 +1908,8 @@ main()
       pkgapply::application_durability_domain::active_namespace,
       pkgapply::application_durability_status::unconfirmed);
   {
-    auto active = interrupt_recovery_request();
+    pkgapply::test::scripted_journal_store journal_store_25a;
+    auto active = interrupt_recovery_request(journal_store_25a);
     require(!active.is_complete() && active.interruption() != nullptr &&
                 active.interruption()->active_effects().size() == 2,
             "multi-path recovery fixture did not reach interruption");
@@ -1950,7 +1951,8 @@ main()
   backend_state->set_outcome(
       boundary::recover, pkgapply::backend_operation_outcome::failed);
   {
-    auto active = interrupt_recovery_request();
+    pkgapply::test::scripted_journal_store journal_store_25b;
+    auto active = interrupt_recovery_request(journal_store_25b);
     auto receipt = pkgapply::detail::recover_application_engine(
         std::move(*active.interruption()), recovery_request, recovery_state,
         lease);

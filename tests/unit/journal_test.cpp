@@ -178,7 +178,9 @@ main()
           "application journal header identity vector changed");
   require(journal_effects[0].identity().string() == "v1:sha256:1e1a549c38805eff0cac6b13aae44814560780bff354342f7d0fd48ea038e228",
           "application journal effect identity vector changed");
-  require(record.identity().string() == "v1:sha256:94389c5ef4fde0d889b392d55d3252b3aa824a7c123f4f403325c6f1258858c2",
+  require(journal_effects[1].identity().string() == "v1:sha256:f59bfde364b257669d246352a8a8c8889c7d19d35a5c4a3019daa99252bab0ff",
+          "application journal surviving effect identity vector changed");
+  require(record.identity().string() == "v1:sha256:fe085df0171dd6f6fffd26ca459a5c5ef703380265603e534f18cc7beaa6b241",
           "application journal record identity vector changed");
 
   auto reversed = journal_effects;

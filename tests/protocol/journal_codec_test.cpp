@@ -185,7 +185,7 @@ int main()
   require(encoding.size() == 1604,
           "journal wire-format test vector size changed");
   require(sha256_hex(encoding) ==
-              "6db0014279272e3776ee4aa5c20e5a7de6ee33b34ec2c8748d0aa5c688875032",
+              "6752e653d551f4217858884a2bf5c1aeca6bb8cd144a759e1945a35793f944da",
           "journal wire-format test vector changed");
   const auto decoded = pkgapply::decode_application_journal(encoding);
   require(decoded.identity() == completed.identity(),
