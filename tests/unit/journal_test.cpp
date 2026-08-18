@@ -294,13 +294,12 @@ main()
   }
   require(rejected, "journal effect accepted multiple terminal events");
 
-  // Full journal snapshots are intentionally validated from their complete
-  // retained graph, but one snapshot must not rescan the effect vector once per
-  // event. Exercise a package-sized graph through every growing event prefix so
-  // accidental O(events * effects) validation becomes an obvious test failure
-  // under sanitizer builds rather than a real-package bootstrap surprise.
+  // Validate one package-sized retained snapshot so the runtime witness
+  // isolates effect lookup complexity. Reconstructing every growing prefix here
+  // would instead benchmark the separate full-snapshot transport cost and make
+  // this unit test quadratic even when event-to-effect lookup is linear.
   {
-    constexpr std::size_t effect_count = 512;
+    constexpr std::size_t effect_count = 4096;
     std::vector<pkgapply::application_journal_effect> large_effects;
     large_effects.reserve(effect_count);
     for (std::size_t index = 0; index < effect_count; ++index) {
@@ -318,17 +317,14 @@ main()
           large_events.size(),
           pkgapply::application_journal_event_kind::intent,
           large_effects[index].identity());
-      static_cast<void>(pkgapply::application_journal_record::make(
-          journal_header, pkgapply::application_journal_state::mutating,
-          large_effects, large_events));
       large_events.emplace_back(
           large_events.size(),
           pkgapply::application_journal_event_kind::completed,
           large_effects[index].identity());
-      static_cast<void>(pkgapply::application_journal_record::make(
-          journal_header, pkgapply::application_journal_state::effects_visible,
-          large_effects, large_events));
     }
+    static_cast<void>(pkgapply::application_journal_record::make(
+        journal_header, pkgapply::application_journal_state::effects_visible,
+        std::move(large_effects), std::move(large_events)));
   }
 
   return 0;

@@ -9,9 +9,9 @@
 - Bound application-journal event validation by one effect-identity index per
   snapshot. Package-sized effect graphs no longer rescan every effect for every
   retained event while preserving the exact journal model and identity bytes.
-- Added a progressive 512-effect/1,024-event journal witness so sanitizer
-  qualification exercises the scaling shape that real libc package application
-  exposed.
+- Added a 4,096-effect/8,192-event single-snapshot journal witness so sanitizer
+  qualification isolates event-to-effect lookup scaling without conflating it
+  with the separately audited cost of repeatedly replacing full snapshots.
 
 ## 3.0.1 - 2026-08-14
 

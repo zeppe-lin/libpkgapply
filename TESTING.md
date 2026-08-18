@@ -208,9 +208,9 @@ substitute for this direct subordinate-record qualification.
 
 Journal tests cover:
 
-* package-sized progressive journal snapshots with indexed effect lookup, so
-  validating one retained snapshot remains linear in effect plus event count
-  rather than rescanning the complete effect graph once per event;
+* a package-sized 4,096-effect/8,192-event retained snapshot with indexed
+  effect lookup, so validating one snapshot remains linear in effect plus event
+  count rather than rescanning the complete effect graph once per event;
 * stable schema and identity vectors;
 * write-ahead ordering;
 * recovery material durable before destructive intent;
