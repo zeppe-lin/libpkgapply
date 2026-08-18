@@ -52,6 +52,9 @@ if get_option('tests').allowed()
       'support/scripted_backend.cpp',
       '../src/application_engine.cpp',
     ]],
+    ['journal-history', [
+      'integration/journal_history_test.cpp',
+    ]],
   ]
     target = executable(
       case[0] + '-test',
@@ -164,6 +167,7 @@ if get_option('tests').allowed()
     'journal_projection_evidence_source',
     'journal_scaling_source',
     'journal_transport_source',
+    'journal_history_source',
     'mutation_lease_scope_source',
     'ci_qualification_source',
     'release_metadata',

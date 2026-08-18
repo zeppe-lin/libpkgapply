@@ -333,6 +333,12 @@ and the controller-facing cursor stays bounded as history grows. Hostile tests
 must reject predecessor branches, sequence gaps, cursor state regression, and
 terminal evidence that is not monotonically retained.
 
+Core rehydration is assaulted with a 10,000-effect declaration and 20,000
+retained intent/terminal steps. The store fixture counts reads and requires
+exactly one read per committed sequence plus the single permitted next-step
+probe. Separate hostile cases remove a committed step, offer an invalid orphan,
+and violate incremental intent/terminal semantics.
+
 The POSIX cohort must later measure durable byte volume over a large application
 and require linear growth in produced history. A green small-package functional
 test is not evidence for this boundary.

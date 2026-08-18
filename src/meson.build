@@ -43,6 +43,7 @@ libpkgapply = library(
     'mutation_lease.cpp',
     'journal.cpp',
     'journal_transport.cpp',
+    'journal_history.cpp',
     'journal_codec.cpp',
     'object_fact.cpp',
     'path_consequence.cpp',

@@ -33,5 +33,11 @@ must not retain a second complete restart snapshot, rewrite the event prefix on
 every effect, or discover missing history by directory scan or current target
 inspection.
 
+Retained append-only history must be rehydrated by exact sequence. The loader
+may probe only the one sequence immediately after the committed cursor to
+resolve the step-durable/head-stale crash case. Directory enumeration, current
+target observation, or per-step rescanning of the effect graph are release
+blockers.
+
 While the old complete-snapshot path still exists, the tree is a migration
 candidate and must not be tagged as the next libpkgapply release.

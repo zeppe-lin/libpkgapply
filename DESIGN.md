@@ -734,6 +734,16 @@ recovery mechanisms. If a step is durable while the cursor update is missing,
 restart may probe only the exact next sequence named by the cursor and validate
 its declaration and predecessor before advancing the head.
 
+`libpkgapply` rehydrates retained history itself. It loads the declaration,
+reads every committed step by exact sequence, validates event progress through
+an effect-identity index, and then probes exactly `cursor.step_count()` once for
+a crash-orphaned successor. A missing committed step, a cursor that disagrees
+with the predecessor chain, or a malformed orphan fails closed. Rehydration
+never enumerates storage and never observes the managed target. The complete
+`application_journal_record` may still be materialized transiently while the
+pre-release engine is being migrated, but that projection is in-memory derived
+state and is not durable authority.
+
 The legacy complete-snapshot journal and restart-checkpoint persistence path is
 not a compatibility target. During the pre-release migration it must be removed,
 not wrapped behind an adapter. No release may ship both durable histories as
