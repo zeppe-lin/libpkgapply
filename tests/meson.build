@@ -54,6 +54,7 @@ if get_option('tests').allowed()
     ]],
     ['journal-history', [
       'integration/journal_history_test.cpp',
+      '../src/journal_history.cpp',
     ]],
   ]
     target = executable(

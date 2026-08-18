@@ -66,6 +66,9 @@ fi
 if grep -F '_ZN8pkgapply6detail24admit_application_engine' "$root/abi/libpkgapply.exports" >/dev/null; then
   fail 'private application engine leaked into public ABI'
 fi
+if grep -F '_ZN8pkgapply6detail27application_journal_history' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'private journal-history implementation leaked into public ABI'
+fi
 [ -x "$root/tools/generate-elf-export-script.sh" ] || fail 'ELF export-script generator is absent'
 grep -F "soversion: '3'" "$root/src/meson.build" >/dev/null || fail 'core SONAME is not generation 3'
 grep -F 'api_version = 3' "$root/include/libpkgapply/version.h" >/dev/null || fail 'public API is not generation 3'
@@ -83,3 +86,5 @@ grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'canonical-record protocol test does not link its private digest provider'
 grep -F "'../src/application_engine.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'application vertical does not link its private engine implementation'
+grep -F "'../src/journal_history.cpp'" "$root/tests/meson.build" >/dev/null ||
+  fail 'journal-history witness does not link its private implementation'
