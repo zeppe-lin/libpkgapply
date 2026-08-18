@@ -4,6 +4,7 @@
 #include <libpkgapply/restart_checkpoint_codec.h>
 
 #include "sha256.h"
+#include "replay_fact.h"
 
 #include <algorithm>
 #include <array>
@@ -838,6 +839,123 @@ application_restart_checkpoint decode_checkpoint(
   }
 }
 
+
+constexpr std::array<std::uint8_t, 8> replay_fact_magic = {
+    'Z', 'L', 'A', 'P', 'F', 'A', 'C', 0,
+};
+constexpr std::uint16_t replay_fact_version = 1;
+
+enum class replay_fact_tag : std::uint8_t {
+  seed = 1,
+  incoming_payload = 2,
+  capture = 3,
+  rejected = 4,
+  active = 5,
+  recovery = 6,
+  synchronization = 7,
+  completed_evidence = 8,
+};
+
+writer replay_writer(replay_fact_tag tag)
+{
+  writer output;
+  for (const auto byte : replay_fact_magic)
+    output.append_u8(byte);
+  output.append_u16(replay_fact_version);
+  output.append_u8(static_cast<std::uint8_t>(tag));
+  return output;
+}
+
+replay_fact_tag replay_reader_header(reader& input)
+{
+  for (const auto byte : replay_fact_magic) {
+    if (input.read_u8() != byte)
+      throw application_restart_checkpoint_codec_error(
+          application_restart_checkpoint_codec_error_code::invalid_magic,
+          "application replay fact encoding has invalid magic");
+  }
+  if (input.read_u16() != replay_fact_version)
+    throw application_restart_checkpoint_codec_error(
+        application_restart_checkpoint_codec_error_code::unsupported_version,
+        "application replay fact encoding version is unsupported");
+  const auto tag = input.read_u8();
+  if (tag < static_cast<std::uint8_t>(replay_fact_tag::seed) ||
+      tag > static_cast<std::uint8_t>(replay_fact_tag::completed_evidence))
+  {
+    throw application_restart_checkpoint_codec_error(
+        application_restart_checkpoint_codec_error_code::invalid_value,
+        "application replay fact encoding contains an invalid tag");
+  }
+  return static_cast<replay_fact_tag>(tag);
+}
+
+template<class Request>
+detail::application_replay_fact decode_fact(
+    const application_journal_replay_encoding& encoding,
+    const Request& request)
+{
+  reader input(
+      reinterpret_cast<const std::uint8_t*>(encoding.data()), encoding.size());
+  const auto tag = replay_reader_header(input);
+  switch (tag) {
+    case replay_fact_tag::incoming_payload: {
+      auto value = read_operation_result(input);
+      input.require_end();
+      return detail::application_replay_fact(std::move(value));
+    }
+    case replay_fact_tag::capture: {
+      const auto outcome = read_outcome(input);
+      auto observation = read_observation(input);
+      const bool exact = input.read_bool();
+      auto value = application_restart_capture(old_object_capture_result(
+          outcome, std::move(observation), exact, read_evidence(input)));
+      input.require_end();
+      return detail::application_replay_fact(std::move(value));
+    }
+    case replay_fact_tag::rejected: {
+      auto path = pkgplan::package_path::parse(
+          input.read_string(maximum_text_size));
+      const auto outcome = read_outcome(input);
+      std::optional<rejected_object_record_identity> record;
+      if (input.read_bool())
+        record = read_identity<rejected_object_record_identity>(input);
+      auto value = application_restart_rejected_effect(
+          std::move(path), rejected_object_publication_result(
+              outcome, std::move(record), read_evidence(input)));
+      input.require_end();
+      return detail::application_replay_fact(std::move(value));
+    }
+    case replay_fact_tag::active:
+    case replay_fact_tag::recovery: {
+      auto path = pkgplan::package_path::parse(
+          input.read_string(maximum_text_size));
+      auto result = read_operation_result(input);
+      input.require_end();
+      if (tag == replay_fact_tag::active)
+        return detail::application_replay_fact(
+            application_restart_active_effect(std::move(path), std::move(result)));
+      return detail::application_replay_fact(
+          application_restart_recovery_effect(std::move(path), std::move(result)));
+    }
+    case replay_fact_tag::synchronization: {
+      auto value = application_restart_synchronization(read_durability_fact(input));
+      input.require_end();
+      return detail::application_replay_fact(std::move(value));
+    }
+    case replay_fact_tag::completed_evidence: {
+      auto value = read_completed_evidence(input, request);
+      input.require_end();
+      return detail::application_replay_fact(std::move(value));
+    }
+    case replay_fact_tag::seed:
+      throw application_restart_checkpoint_codec_error(
+          application_restart_checkpoint_codec_error_code::invalid_value,
+          "application replay seed was used as a transition fact");
+  }
+  throw application_restart_checkpoint_codec_error(
+      application_restart_checkpoint_codec_error_code::invalid_value,
+      "application replay fact tag is invalid");
+}
 } // namespace
 
 application_restart_checkpoint_codec_error::
@@ -934,5 +1052,99 @@ decode_application_restart_checkpoint(
 {
   return decode_checkpoint(encoding.data(), encoding.size(), journal, request);
 }
+
+
+namespace detail {
+
+application_journal_replay_encoding encode_replay_seed(
+    const backend_observation_batch& observations)
+{
+  writer output = replay_writer(replay_fact_tag::seed);
+  append_observation_batch(output, observations);
+  auto bytes = output.finish();
+  return application_journal_replay_encoding(
+      reinterpret_cast<const std::byte*>(bytes.data()),
+      reinterpret_cast<const std::byte*>(bytes.data() + bytes.size()));
+}
+
+backend_observation_batch decode_replay_seed(
+    const application_journal_replay_encoding& encoding)
+{
+  reader input(
+      reinterpret_cast<const std::uint8_t*>(encoding.data()), encoding.size());
+  if (replay_reader_header(input) != replay_fact_tag::seed)
+    throw application_restart_checkpoint_codec_error(
+        application_restart_checkpoint_codec_error_code::invalid_value,
+        "application replay seed has a transition-fact tag");
+  auto value = read_observation_batch(input);
+  input.require_end();
+  return value;
+}
+
+application_journal_replay_encoding encode_replay_fact(
+    const application_replay_fact& fact)
+{
+  writer output;
+  std::visit([&](const auto& value) {
+    using T = std::decay_t<decltype(value)>;
+    if constexpr (std::is_same_v<T, backend_operation_result>) {
+      output = replay_writer(replay_fact_tag::incoming_payload);
+      append_operation_result(output, value);
+    } else if constexpr (std::is_same_v<T, application_restart_capture>) {
+      output = replay_writer(replay_fact_tag::capture);
+      output.append_u8(encode_outcome(value.result().outcome()));
+      append_observation(output, value.result().captured());
+      output.append_u8(value.result().exact_recovery_possible() ? 1 : 0);
+      append_evidence(output, value.result().evidence());
+    } else if constexpr (std::is_same_v<T, application_restart_rejected_effect>) {
+      output = replay_writer(replay_fact_tag::rejected);
+      output.append_string(value.path().string());
+      output.append_u8(encode_outcome(value.result().outcome()));
+      output.append_u8(value.result().record().has_value() ? 1 : 0);
+      if (value.result().record())
+        append_identity(output, *value.result().record());
+      append_evidence(output, value.result().evidence());
+    } else if constexpr (std::is_same_v<T, application_restart_active_effect>) {
+      output = replay_writer(replay_fact_tag::active);
+      output.append_string(value.path().string());
+      append_operation_result(output, value.result());
+    } else if constexpr (std::is_same_v<T, application_restart_recovery_effect>) {
+      output = replay_writer(replay_fact_tag::recovery);
+      output.append_string(value.path().string());
+      append_operation_result(output, value.result());
+    } else if constexpr (std::is_same_v<T, application_restart_synchronization>) {
+      output = replay_writer(replay_fact_tag::synchronization);
+      append_durability_fact(output, value.result());
+    } else if constexpr (std::is_same_v<T, completed_application_evidence>) {
+      output = replay_writer(replay_fact_tag::completed_evidence);
+      append_completed_evidence(output, value);
+    }
+  }, fact);
+  auto bytes = output.finish();
+  return application_journal_replay_encoding(
+      reinterpret_cast<const std::byte*>(bytes.data()),
+      reinterpret_cast<const std::byte*>(bytes.data() + bytes.size()));
+}
+
+application_replay_fact decode_replay_fact(
+    const application_journal_replay_encoding& encoding,
+    const installation_application_request& request)
+{
+  return decode_fact(encoding, request);
+}
+application_replay_fact decode_replay_fact(
+    const application_journal_replay_encoding& encoding,
+    const upgrade_application_request& request)
+{
+  return decode_fact(encoding, request);
+}
+application_replay_fact decode_replay_fact(
+    const application_journal_replay_encoding& encoding,
+    const removal_application_request& request)
+{
+  return decode_fact(encoding, request);
+}
+
+} // namespace detail
 
 } // namespace pkgapply
