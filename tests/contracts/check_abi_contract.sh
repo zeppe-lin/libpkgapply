@@ -92,3 +92,12 @@ grep -F "'../src/restart_checkpoint_codec.cpp'" "$root/tests/meson.build" >/dev/
   fail 'application vertical does not link private replay-fact codec implementation'
 grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'application vertical replay-fact codec lacks its private digest provider'
+grep -F 'application_vertical_target = executable(' "$root/tests/meson.build" >/dev/null ||
+  fail 'application vertical private implementation witness is not an explicit target'
+awk '
+  /application_vertical_target = executable\(/ { in_target = 1 }
+  in_target && /dependencies: \[libpkgapply_dep, libcrypto_dep\],/ { found = 1 }
+  in_target && /^  \)/ { exit(found ? 0 : 1) }
+  END { if (!found) exit 1 }
+' "$root/tests/meson.build" ||
+  fail 'application vertical private digest provider lacks direct libcrypto dependency'

@@ -47,15 +47,6 @@ if get_option('tests').allowed()
       'integration/scripted_backend_test.cpp',
       'support/scripted_backend.cpp',
     ]],
-    ['application-vertical', [
-      'integration/application_vertical_test.cpp',
-      'support/scripted_backend.cpp',
-      'support/scripted_journal_store.cpp',
-      '../src/application_engine.cpp',
-      '../src/journal_history.cpp',
-      '../src/restart_checkpoint_codec.cpp',
-      '../src/sha256.cpp',
-    ]],
     ['journal-history', [
       'integration/journal_history_test.cpp',
       '../src/journal_history.cpp',
@@ -70,6 +61,23 @@ if get_option('tests').allowed()
     )
     test(case[0], target, suite: 'integration')
   endforeach
+
+  application_vertical_target = executable(
+    'application-vertical-test',
+    [
+      'integration/application_vertical_test.cpp',
+      'support/scripted_backend.cpp',
+      'support/scripted_journal_store.cpp',
+      '../src/application_engine.cpp',
+      '../src/journal_history.cpp',
+      '../src/restart_checkpoint_codec.cpp',
+      '../src/sha256.cpp',
+    ],
+    include_directories: [test_inc, core_inc],
+    dependencies: [libpkgapply_dep, libcrypto_dep],
+    install: false,
+  )
+  test('application-vertical', application_vertical_target, suite: 'integration')
 
   canonical_record_target = executable(
     'canonical-record-test',
