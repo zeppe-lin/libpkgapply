@@ -18,6 +18,10 @@
 
 namespace pkgapply {
 
+namespace detail {
+class application_journal_cursor_codec_access;
+}
+
 /*! \brief Schema version of application_journal_declaration. */
 inline constexpr std::uint16_t application_journal_declaration_schema_version = 1;
 /*! \brief Schema version of application_journal_step. */
@@ -254,6 +258,8 @@ public:
   completed_evidence() const noexcept;
 
 private:
+  friend class detail::application_journal_cursor_codec_access;
+
   application_journal_cursor(
       application_journal_cursor_identity identity,
       application_journal_declaration_identity declaration,

@@ -45,3 +45,9 @@ history and must never acquire a durable codec or store. Backend providers may
 retain physical staging/capture/rejected/completed objects only as subordinate
 evidence revalidated against that view. Reintroducing a provider-authored
 restart checkpoint is a release blocker.
+
+
+Journal transport bytes are an owner protocol. `libpkgapply` alone defines the
+declaration/step/cursor codec. A POSIX or other mechanism store may choose
+filenames, fsync ordering, and atomic publication mechanisms, but it must not
+serialize or interpret semantic fields itself.

@@ -732,6 +732,12 @@ recovery mechanisms. If a step is durable while the cursor update is missing,
 restart may probe only the exact next sequence named by the cursor and validate
 its declaration and predecessor before advancing the head.
 
+Canonical declaration, step, and cursor bytes are encoded and decoded by
+`libpkgapply`. A mechanism store receives opaque owner-produced bytes through
+those value codecs and must not invent a second wire vocabulary for semantic
+history. Decoding re-runs the semantic constructors and reproduces the retained
+identity before bytes are admitted.
+
 `libpkgapply` rehydrates retained history itself. It loads the declaration,
 reads every committed step by exact sequence, validates event progress through
 an effect-identity index, and then probes exactly `cursor.step_count()` once for

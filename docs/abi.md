@@ -11,13 +11,21 @@ layout and all six application/restart entry-point manglings change, so SONAME 3
 cannot truthfully describe the new binary contract. No compatibility shim is
 retained.
 
-The reviewed generation-4 ELF manifest contains 770 symbols. Relative to the
+The reviewed generation-4 ELF manifest contains 788 symbols. Relative to the
 intermediate append-only generation-4 tree, the provider-authored checkpoint
 aggregate/codec and transaction checkpoint callbacks are removed, while the
 owner-derived `application_restart_view`, view-bearing backend reopen callbacks,
 and attempt-bound reopen validator become the reviewed public seam. The private
 `detail::application_journal_history` and restart-view builder remain hidden. A
 shared build must export exactly the reviewed manifest under SONAME 4.
+
+The same untagged generation-4 line now also exposes the owner-authored canonical
+transport codec for immutable declarations, immutable steps, and bounded cursors.
+Those 18 codec/error symbols are the semantic owner boundary used by mechanism
+stores; providers retain opaque bytes and do not define a foreign journal format.
+The private cursor restoration access remains hidden. This grows the reviewed
+surface from 770 to 788 symbols without another SONAME change because no
+generation-4 release has yet been published.
 
 ## Generation 3 lineage
 
@@ -37,7 +45,7 @@ toolchain.
 
 The pre-tag ABI gate is closed by `abi/libpkgapply.exports`. It contains the
 exact compiler-stable ELF surface reviewed from GCC and Clang shared builds:
-770 symbols. The library builds with hidden default visibility, explicit public
+788 symbols. The library builds with hidden default visibility, explicit public
 annotations, and an ELF linker export script generated from that manifest.
 `tests/contracts/check_abi_surface.sh` compares the linked shared object against
 the manifest exactly. The manifest includes all five out-of-line public member functions for each of
@@ -76,4 +84,6 @@ Complete `application_journal_record` values remain public semantic values for
 validation and pure classification, but persistence never transports complete
 records. Restart derives `application_restart_view` from owner history; the view
 has no codec, and provider-authored checkpoint state is absent from the core ABI.
-The reviewed generation-4 ELF surface contains 770 symbols.
+Canonical declaration/step/cursor transport bytes are encoded and decoded only
+by libpkgapply; mechanism stores are byte persistence providers, not semantic
+codec owners. The reviewed generation-4 ELF surface contains 788 symbols.

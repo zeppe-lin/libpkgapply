@@ -20,6 +20,7 @@ for type in \
   application_receipt_codec_error \
   application_journal_codec_error \
   application_journal_transition_error \
+  application_journal_transport_codec_error \
   application_admission_error \
   digest_error \
   incoming_package_error \
@@ -45,7 +46,7 @@ done
 
 [ -s "$root/include/libpkgapply/export.h" ] || fail 'public export annotation header is absent'
 [ -s "$root/abi/libpkgapply.exports" ] || fail 'reviewed ELF ABI manifest is absent'
-[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 770 ] ||
+[ "$(sed -n '/^_Z[A-Za-z0-9_]*$/p' "$root/abi/libpkgapply.exports" | wc -l)" -eq 788 ] ||
   fail 'reviewed ELF ABI manifest count changed without review'
 for signature in \
   '16canonical_domainEv' \
@@ -76,7 +77,7 @@ grep -F -- '-DPKGAPPLY_BUILDING_LIBRARY' "$root/src/meson.build" >/dev/null || f
 grep -F -- '--version-script=' "$root/src/meson.build" >/dev/null || fail 'ELF export manifest is not linked'
 grep -F 'Advanced the core to SONAME 4 and public API generation 4' "$root/HISTORY.md" >/dev/null ||
   fail '4.0 ABI generation transition is undocumented'
-grep -F '770 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
+grep -F '788 symbols' "$root/docs/abi.md" >/dev/null || fail 'reviewed ABI inventory is undocumented'
 
 
 grep -F "'../src/canonical_record.cpp'" "$root/tests/meson.build" >/dev/null ||
@@ -96,6 +97,9 @@ if grep -F 'application_restart_checkpoint' "$root/abi/libpkgapply.exports" >/de
 fi
 if grep -F 'application_restart_view_builder' "$root/abi/libpkgapply.exports" >/dev/null; then
   fail 'private restart-view builder leaked into public ABI'
+fi
+if grep -F 'application_journal_cursor_codec_access' "$root/abi/libpkgapply.exports" >/dev/null; then
+  fail 'private journal-cursor codec access leaked into public ABI'
 fi
 grep -F "'../src/sha256.cpp'" "$root/tests/meson.build" >/dev/null ||
   fail 'application vertical replay-fact codec lacks its private digest provider'

@@ -334,6 +334,13 @@ and the controller-facing cursor stays bounded as history grows. Hostile tests
 must reject predecessor branches, sequence gaps, cursor state regression, and
 terminal evidence that is not monotonically retained.
 
+
+Protocol tests freeze independent declaration, step, and cursor byte vectors.
+Each decoder must reject foreign magic, truncation, trailing data, malformed
+values, and content that does not reproduce the encoded semantic identity.
+Opaque replay seed/fact bytes, including embedded zero bytes, must round-trip
+without provider interpretation.
+
 Core rehydration is assaulted with a 10,000-effect declaration and 20,000
 retained intent/terminal steps. The store fixture counts reads and requires
 exactly one read per committed sequence plus the single permitted next-step

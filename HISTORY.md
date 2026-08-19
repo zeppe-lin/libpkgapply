@@ -23,6 +23,10 @@
 - Removed the dead `synchronize_journal` journal-effect vocabulary. Journal
   durability remains a receipt domain fact rather than a mutation-backend
   application effect.
+- Added the owner-side canonical declaration/step/cursor transport codec so
+  mechanism stores can retain semantic history without defining or decoding a
+  foreign durable format. Decoders revalidate semantic construction and exact
+  identities before retained bytes are admitted.
 - Advanced the core to SONAME 4 and public API generation 4. The generation
   break is required by the removed transaction virtual and the new public
   application/restart signatures; no generation-3 compatibility shim is

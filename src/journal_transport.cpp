@@ -3,6 +3,8 @@
 
 #include <libpkgapply/journal_transport.h>
 
+#include "journal_transport_access.h"
+
 #include "canonical_record.h"
 #include "identity_factory.h"
 
@@ -332,6 +334,38 @@ const std::optional<application_journal_step_identity>& application_journal_curs
 application_journal_state application_journal_cursor::state() const noexcept { return state_; }
 const std::optional<application_receipt_identity>& application_journal_cursor::receipt() const noexcept { return receipt_; }
 const std::optional<completed_application_evidence_identity>& application_journal_cursor::completed_evidence() const noexcept { return completed_evidence_; }
+
+
+application_journal_cursor
+detail::application_journal_cursor_codec_access::restore(
+    application_journal_declaration_identity declaration,
+    std::uint64_t step_count,
+    std::optional<application_journal_step_identity> latest_step,
+    application_journal_state state,
+    std::optional<application_receipt_identity> receipt,
+    std::optional<completed_application_evidence_identity> completed_evidence)
+{
+  if ((step_count == 0) != !latest_step.has_value())
+    throw std::invalid_argument(
+        "application journal cursor head contradicts its step count");
+  if (step_count == 0 &&
+      (state != application_journal_state::preparing || receipt ||
+       completed_evidence))
+  {
+    throw std::invalid_argument(
+        "empty application journal cursor is not initial");
+  }
+  if (completed_evidence && !receipt)
+    throw std::invalid_argument(
+        "application journal cursor completed evidence lacks receipt authority");
+
+  auto identity = identify_cursor(
+      declaration, step_count, latest_step, state, receipt, completed_evidence);
+  return application_journal_cursor(
+      std::move(identity), std::move(declaration), step_count,
+      std::move(latest_step), state, std::move(receipt),
+      std::move(completed_evidence));
+}
 
 application_journal_store::~application_journal_store() = default;
 

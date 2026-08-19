@@ -95,6 +95,7 @@ if get_option('tests').allowed()
 
   foreach case : [
     ['journal-codec', 'protocol/journal_codec_test.cpp'],
+    ['journal-transport-codec', 'protocol/journal_transport_codec_test.cpp'],
     ['application-receipt-codec', 'protocol/application_receipt_codec_test.cpp'],
     ['completed-evidence-codec', 'protocol/completed_evidence_codec_test.cpp'],
   ]
@@ -121,6 +122,7 @@ if get_option('tests').allowed()
     'incoming_package.h',
     'journal.h',
     'journal_transport.h',
+    'journal_transport_codec.h',
     'journal_codec.h',
     'libpkgapply.h',
     'mutation_lease.h',
@@ -177,6 +179,7 @@ if get_option('tests').allowed()
   foreach contract : [
     'application_receipt_codec_source',
     'journal_projection_evidence_source',
+    'journal_transport_codec_source',
     'journal_scaling_source',
     'journal_transport_source',
     'journal_history_source',
