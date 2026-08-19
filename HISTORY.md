@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 4.0.0 - 2026-08-19
+
 ### Generation-4 append-only application history
 
 - Replaced live complete-journal snapshot republication with one immutable
