@@ -38,6 +38,8 @@ public:
   [[nodiscard]] const std::optional<application_journal_declaration_identity>&
   latest_declaration() const noexcept;
   [[nodiscard]] std::optional<application_journal_record> latest_snapshot() const;
+  void erase_step(const application_journal_declaration_identity& declaration,
+                  std::uint64_t sequence);
   void clear_counts() noexcept;
 
 private:

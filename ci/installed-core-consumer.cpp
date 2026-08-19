@@ -23,6 +23,12 @@ Identity identity(std::uint8_t byte)
 
 int main()
 {
+  using rehydrate_signature = pkgapply::application_journal_record (*)(
+      pkgapply::application_journal_store&,
+      const pkgapply::application_journal_declaration_identity&);
+  const rehydrate_signature rehydrate =
+      &pkgapply::rehydrate_application_journal;
+
   const auto target = identity<pkgplan::target_system_context_identity>(1);
   const auto managed = identity<pkgapply::managed_target_identity>(2);
   const bool identity_api =
@@ -48,10 +54,11 @@ int main()
       pkgbuild::plan_adapter::projection_error_code::planner_fact,
       "installed consumer dependency probe");
 
+  static_cast<void>(rehydrate);
   return identity_api && context.target() == target &&
                  dependency_probe.code() ==
                      pkgbuild::plan_adapter::projection_error_code::planner_fact &&
-                 pkgapply::version() == "4.0.0" &&
+                 pkgapply::version() == "4.0.1" &&
                  pkgapply::api_version == 4
              ? 0
              : 1;

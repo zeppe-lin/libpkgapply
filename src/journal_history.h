@@ -62,10 +62,11 @@ public:
   [[nodiscard]] const std::optional<completed_application_evidence_identity>&
   completed_evidence() const noexcept;
 
-  /*! \brief Materialize the legacy snapshot only as a derived in-memory view.
+  /*! \brief Materialize a complete record only as a derived in-memory view.
    *
-   * This helper exists only while the pre-release engine is migrated away from
-   * complete snapshots. It performs no persistence and is not journal truth.
+   * This helper performs no persistence and owns no historical authority. It is
+   * used only where owner-validated history needs complete-record classification
+   * or inspection semantics.
    */
   [[nodiscard]] application_journal_record snapshot() const;
 

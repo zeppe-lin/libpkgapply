@@ -147,6 +147,17 @@ scripted_journal_store::latest_snapshot() const
       journal->second.cursor->completed_evidence());
 }
 
+void
+scripted_journal_store::erase_step(
+    const application_journal_declaration_identity& declaration,
+    std::uint64_t sequence)
+{
+  const auto journal = journals_.find(key(declaration));
+  if (journal == journals_.end())
+    throw std::logic_error("scripted journal erase lacks declaration");
+  journal->second.steps.erase(sequence);
+}
+
 void scripted_journal_store::clear_counts() noexcept
 {
   declaration_publications_ = 0;

@@ -1,4 +1,4 @@
-% PKGAPPLY(7) libpkgapply | Version 4.0.0
+% PKGAPPLY(7) libpkgapply | Version 4.0.1
 
 # NAME
 
@@ -97,6 +97,11 @@ active or recovery intents are not blindly reissued, and unstarted work
 continues in the frozen schedule. Current target observation is never used to
 invent historical journal state.
 
+A controller that must classify retained progress without immediately replaying
+it uses **rehydrate_application_journal()**. The core, not the controller or
+mechanism provider, validates the exact append-only chain and returns only a
+derived in-memory record suitable for pure restart assessment.
+
 # RESULT AND STATE SEAM
 
 Application receipts have an owner-defined canonical byte encoding. Decode
@@ -115,7 +120,7 @@ It may not accept a second caller-supplied build-provenance value.
 
 # NON-GOALS
 
-Version 4.0.0 does not solve dependencies, select packages, parse policy,
+Version 4.0.1 does not solve dependencies, select packages, parse policy,
 execute lifecycle declarations, discover archives, publish installed state, or
 claim global filesystem/state atomicity.
 

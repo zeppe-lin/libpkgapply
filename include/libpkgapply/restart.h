@@ -417,6 +417,25 @@ private:
 [[nodiscard]] PKGAPPLY_API application_restart_assessment
 assess_application_restart(const application_journal_record& journal);
 
+/*! \brief Rehydrate one exact append-only journal as an in-memory record.
+ *
+ *  The owner loads the immutable declaration, validates every committed step
+ *  by exact sequence, and probes only the exact next sequence for a durable
+ *  crash orphan. The returned complete record is a derived in-memory semantic
+ *  projection; it is never persistence authority. No storage enumeration or
+ *  managed-target observation is performed.
+ *
+ *  \param journal_store Store retaining owner-authored declaration, steps, and cursor.
+ *  \param declaration Exact immutable declaration identity to rehydrate.
+ *  \return Validated derived journal record for classification and inspection.
+ *  \throws std::invalid_argument If retained declaration, cursor, committed
+ *          history, or crash-orphaned successor is missing or contradictory.
+ */
+[[nodiscard]] PKGAPPLY_API application_journal_record
+rehydrate_application_journal(
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration);
+
 /*! \brief Validate installation restart authority before reopening a backend.
  *  \param request Exact immutable installation request.
  *  \param state Current lease-bound state projection.

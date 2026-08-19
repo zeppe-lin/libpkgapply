@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 4.0.1 - 2026-08-19
+
+### Owner-side restart inspection
+
+- Added `rehydrate_application_journal()` as the controller-facing projection
+  over the generation-4 append-only history validator. Controllers can inspect
+  and classify one exact durable attempt without reconstructing declaration,
+  step, cursor, or orphan-adoption semantics outside `libpkgapply`.
+- The returned `application_journal_record` is derived in-memory state only. No
+  complete-record persistence, provider checkpoint, directory enumeration, or
+  current-target observation is reintroduced.
+- Preserved SONAME 4 and API generation 4; the reviewed ELF surface grows by one
+  owner rehydration entry point.
+
 ## 4.0.0 - 2026-08-19
 
 ### Generation-4 append-only application history

@@ -1,6 +1,6 @@
 .\" Generated from docs/man/pkgapply.7.md; do not edit.
 .\"
-.TH "PKGAPPLY" "7" "" "libpkgapply" "Version 4.0.0"
+.TH "PKGAPPLY" "7" "" "libpkgapply" "Version 4.0.1"
 .SH NAME
 pkgapply \- package application authority and sequencing semantics
 .SH DESCRIPTION
@@ -68,6 +68,9 @@ Restart never allocates another attempt nonce.
 The core loads the immutable declaration and exact committed step sequence from the journal store, validates the predecessor chain, and probes only the exact next sequence for a crash\- orphaned successor.
 Completed prefixes are revalidated and retained, unresolved active or recovery intents are not blindly reissued, and unstarted work continues in the frozen schedule.
 Current target observation is never used to invent historical journal state.
+.PP
+A controller that must classify retained progress without immediately replaying it uses \f[B]rehydrate_application_journal()\f[R].
+The core, not the controller or mechanism provider, validates the exact append\-only chain and returns only a derived in\-memory record suitable for pure restart assessment.
 .SH RESULT AND STATE SEAM
 Application receipts have an owner\-defined canonical byte encoding.
 Decode requires the original immutable application request and does not infer request, plan, target, or control authority from digest text.
@@ -79,6 +82,6 @@ That evidence is application truth, not installed\-state truth.
 A destination\-owned state adapter must consume the request\-bound source and build authority, accepted plan, completed application evidence, and prior state.
 It may not accept a second caller\-supplied build\-provenance value.
 .SH NON\-GOALS
-Version 4.0.0 does not solve dependencies, select packages, parse policy, execute lifecycle declarations, discover archives, publish installed state, or claim global filesystem/state atomicity.
+Version 4.0.1 does not solve dependencies, select packages, parse policy, execute lifecycle declarations, discover archives, publish installed state, or claim global filesystem/state atomicity.
 .SH SEE ALSO
 \f[B]libpkgapply\f[R](3), \f[B]libpkgapply\-posix\f[R](3), \f[B]libpkgbuild\-plan\f[R](3), \f[B]libpkgbuild\-image\f[R](3), \f[B]libpkgplan\f[R](3)

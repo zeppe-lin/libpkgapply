@@ -1,4 +1,4 @@
-% LIBPKGAPPLY(3) libpkgapply | Version 4.0.0
+% LIBPKGAPPLY(3) libpkgapply | Version 4.0.1
 
 # NAME
 
@@ -112,6 +112,12 @@ does not synchronize the journal domain. Restart addresses retained history by
 the exact store plus immutable declaration identity and libpkgapply rehydrates
 the committed step chain before reopening the mutation backend.
 
+Controllers may call **rehydrate_application_journal()** with that same store and
+declaration identity when they need a validated in-memory record for pure
+restart classification before choosing whether to resume. The owner performs the
+same exact-sequence validation and one-successor orphan adoption used by replay;
+the returned complete record is never persisted by this API.
+
 Completed-evidence publication is immutable and idempotent. If restart reopens
 a crash after the historical completed-evidence record became durable but
 before receipt sealing, the core validates that record, publishes equivalent
@@ -151,9 +157,9 @@ concurrent replay.
 
 # VERSION
 
-Version 4.0.0 exposes API version 4. The public ABI advances because journal
-persistence is now a separate owner store and application/restart entry points
-carry that authority explicitly. Canonical durable protocol generations remain
+Version 4.0.1 exposes API version 4. Generation 4 separates journal
+persistence from mutation backends; release 4.0.1 additionally exposes owner-side
+rehydration for controller inspection without changing durable protocol or SONAME. Canonical durable protocol generations remain
 independent of the project version and shared-library SONAME.
 
 # SEE ALSO

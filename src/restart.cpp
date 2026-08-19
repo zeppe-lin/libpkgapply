@@ -6,6 +6,7 @@
 #include <libpkgapply/admission.h>
 
 #include "application_engine.h"
+#include "journal_history.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -447,6 +448,15 @@ assess_application_restart(const application_journal_record& journal)
 {
   return application_restart_assessment(
       journal.identity(), journal.state(), disposition(journal));
+}
+
+application_journal_record
+rehydrate_application_journal(
+    application_journal_store& journal_store,
+    const application_journal_declaration_identity& declaration)
+{
+  return detail::application_journal_history::load(
+      journal_store, declaration).snapshot();
 }
 
 application_restart_error::application_restart_error(

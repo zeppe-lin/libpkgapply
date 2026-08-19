@@ -743,10 +743,16 @@ reads every committed step by exact sequence, validates event progress through
 an effect-identity index, and then probes exactly `cursor.step_count()` once for
 a crash-orphaned successor. A missing committed step, a cursor that disagrees
 with the predecessor chain, or a malformed orphan fails closed. Rehydration
-never enumerates storage and never observes the managed target. The complete
-`application_journal_record` may still be materialized transiently while the
-pre-release engine is being migrated, but that projection is in-memory derived
-state and is not durable authority.
+never enumerates storage and never observes the managed target. The complete `application_journal_record` may be materialized transiently for
+owner-side classification and controller inspection, but that projection is
+in-memory derived state and is not durable authority.
+
+Controllers that must classify an interrupted attempt call
+`rehydrate_application_journal(store, declaration)`. That entry point is only a
+public projection over the same owner-side exact-sequence validator used by
+restart. It may adopt one validated crash-orphaned successor before returning a
+derived record. Controllers do not decode steps, trust a naked cursor, enumerate
+provider storage, or observe the managed target to reconstruct historical truth.
 
 The legacy complete-snapshot journal and restart-checkpoint persistence paths are
 not compatibility targets. Generation 4 removes both from core authority rather

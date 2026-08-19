@@ -51,6 +51,10 @@ if get_option('tests').allowed()
       'integration/journal_history_test.cpp',
       '../src/journal_history.cpp',
     ]],
+    ['journal-rehydration', [
+      'integration/journal_rehydration_test.cpp',
+      'support/scripted_journal_store.cpp',
+    ]],
   ]
     target = executable(
       case[0] + '-test',
@@ -184,6 +188,7 @@ if get_option('tests').allowed()
     'journal_transport_source',
     'journal_history_source',
     'restart_view_source',
+    'restart_rehydration_source',
     'mutation_lease_scope_source',
     'ci_qualification_source',
     'release_metadata',
